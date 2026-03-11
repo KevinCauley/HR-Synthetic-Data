@@ -1,19 +1,33 @@
 ---
-title: "HR Predictive Analytics Project - Exploratory Data Analysis"
-subtitle: "Synthetic Workforce Dataset – Exploratory Data Analysis"
+title: "Workforce Analytics Using Synthetic HR Data"
 author: "Kevin Allen Cauley"
-date: "`r format(Sys.Date(), '%B %d, %Y')`"
+date: "`r Sys.Date()`"
+
 output:
   html_document:
-    code_folding: hide
+    theme: flatly
+    highlight: tango
     toc: true
     toc_float: true
     toc_depth: 3
-    number_sections: true
-    theme: flatly
-    highlight: tango
+    code_folding: hide
     df_print: paged
+
+editor_options:
+  chunk_output_type: console
 ---
+
+```{r 00-setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.width = 9,
+  fig.height = 5,
+  out.width = "90%"
+)
+```
 
 ```{r 00-install-packages, include=FALSE}
 # Required packages for reproducibility
@@ -31,7 +45,7 @@ if (length(missing_packages) > 0) {
   install.packages(missing_packages, dependencies = TRUE)}
 ```
 
-```{r 00-setup, include=FALSE}
+```{r 00-load-packages, include=FALSE}
 # Load packages
 library(here)
 library(tidyverse)
@@ -240,18 +254,22 @@ The objective of this project is to demonstrate how organizations can use intern
 
 Because real organizational HR datasets are rarely publicly available, this project utilizes a **synthetic workforce dataset** generated from patterns observed in:
 
-• U.S. Bureau of Labor Statistics workforce data  
-• Peer-reviewed employee well-being research  
-• Workplace monitoring and privacy studies  
-• Organizational behavior and turnover literature  
+-  U.S. Bureau of Labor Statistics workforce data  
+-  Peer-reviewed employee well-being research  
+-  Workplace monitoring and privacy studies  
+-  Organizational behavior and turnover literature  
 
 The dataset incorporates factors associated with:
 
-• Employee turnover intention  
-• Quiet quitting behavior  
-• Workplace monitoring–related turnover risk  
+-  Employee turnover intention  
+-  Quiet quitting behavior  
+-  Workplace monitoring–related turnover risk  
 
 By combining these research-informed variables, the project demonstrates how organizations can apply **predictive modeling to workforce analytics**, enabling data-driven HR strategies that improve retention, employee well-being, and organizational effectiveness.
+
+This project demonstrates a full analytics pipeline exploring workforce behavior, employee wellbeing, workplace monitoring, and turnover prediction using a synthetic HR dataset.
+
+The analysis includes exploratory data analysis, multicollinearity diagnostics, and predictive modeling to understand patterns in employee engagement, monitoring practices, and turnover risk.
 
 ## Exploratory Analysis Objectives
 
@@ -259,13 +277,13 @@ The goal of the exploratory data analysis (EDA) phase is to better understand th
 
 The analysis focuses on four key objectives:
 
-• **Understand variable distributions** across continuous, ordinal, and categorical employee attributes.  
+-  **Understand variable distributions** across continuous, ordinal, and categorical employee attributes.  
 
-• **Identify potential data quality issues**, including missing values and extreme outliers.  
+-  **Identify potential data quality issues**, including missing values and extreme outliers.  
 
-• **Evaluate relationships among predictors**, particularly correlations and multicollinearity that could affect model performance.  
+-  **Evaluate relationships among predictors**, particularly correlations and multicollinearity that could affect model performance.  
 
-• **Assess class imbalance and skewness**, which may require resampling or robust modeling approaches during predictive analysis.
+-  **Assess class imbalance and skewness**, which may require resampling or robust modeling approaches during predictive analysis.
 
 These steps ensure that the dataset is properly validated before model development begins and help guide feature selection and modeling strategies.
 
@@ -281,10 +299,10 @@ The following metadata tables document the structure of the synthetic HR dataset
 
 Each variable is described according to:
 
-• Variable name  
-• Data type  
-• Measurement level  
-• Modeling role (predictor, target, or excluded variable)
+-  Variable name  
+-  Data type  
+-  Measurement level  
+-  Modeling role (predictor, target, or excluded variable)
 
 Documenting these attributes improves transparency and ensures reproducibility in later modeling stages.
 
@@ -702,9 +720,9 @@ slickR(obj = cat_plot_files, slideType = "img", width = "700px", height = "500px
 
 Correlation analysis helps identify relationships between numeric variables in the dataset. Understanding these relationships is important for several reasons:
 
-• Detecting **multicollinearity**, which can distort statistical models
-• Identifying **clusters of related workplace metrics** such as engagement, wellbeing, or monitoring variables  
-• Revealing **behavioral patterns** that may influence employee outcomes
+-  Detecting **multicollinearity**, which can distort statistical models
+-  Identifying **clusters of related workplace metrics** such as engagement, wellbeing, or monitoring variables  
+-  Revealing **behavioral patterns** that may influence employee outcomes
 
 Because hierarchical clustering is used to organize the correlation matrix, we first remove numeric variables with **zero variance**. Variables with no variation cannot produce valid correlations and may introduce missing values that interfere with clustering algorithms.
 
@@ -848,9 +866,9 @@ Relationships also begin to appear between monitoring-related variables and priv
 
 Taken together, the correlation analysis suggests three broad clusters of related variables within the dataset:
 
-• Compensation and tenure dynamics (Average Salary, Tenure Years)
-• Employee mental health and wellbeing indicators (Stress, Anxiety, Depression, Absenteeism)
-• Workplace monitoring and privacy perception measures (Monitoring Intrusiveness, Privacy Complaints)
+-  Compensation and tenure dynamics (Average Salary, Tenure Years)
+-  Employee mental health and wellbeing indicators (Stress, Anxiety, Depression, Absenteeism)
+-  Workplace monitoring and privacy perception measures (Monitoring Intrusiveness, Privacy Complaints)
 
 These patterns indicate that the synthetic dataset captures several structural relationships commonly observed in organizational behavior research, particularly the connections between workplace stressors, employee well-being, and perceptions of organizational monitoring practices.
 
@@ -1108,9 +1126,9 @@ For categorical predictors, however, multiple Age_Group dummy variables produced
 
 To improve model stability and reduce redundancy, the original age-group categories are collapsed into three broader career-stage groupings:
 
-• Early-Career
-• Mid-Career
-• Senior-Career
+-  Early-Career
+-  Mid-Career
+-  Senior-Career
 
 This transformation preserves the conceptual meaning of the variable while reducing unnecessary multicollinearity among age-related predictors.
 
@@ -1168,56 +1186,51 @@ vif_df_cat_updated <- data.frame(
 )
 ```
 
-```{r 03-cat-updated-variable}
-vif_df_cat_updated <- vif_df_cat_updated %>%
-  mutate(
-    VIF_Level = case_when(
-      VIF >= 10 ~ "High",
-      VIF >= 5 ~ "Moderate",
-      TRUE ~ "Low"
-    )
-  )
+```{r categorical_vif_plot, fig.width=10, fig.height=7, fig.align="center"}
 
-ggplot(vif_df_cat_updated,
-       aes(x = reorder(Variable, VIF), y = VIF, fill = VIF_Level)) +
+library(dplyr)
+library(ggplot2)
+library(forcats)
 
-  geom_col(width = 0.65) +
+vif_df %>%
+  mutate(Variable = fct_reorder(Variable, VIF)) %>%
+
+  ggplot(aes(x = VIF, y = Variable)) +
+
+  geom_col(
+    fill = "#4C72B0",
+    width = 0.7
+  ) +
 
   geom_text(
     aes(label = round(VIF,2)),
     hjust = -0.2,
-    size = 3.4
+    size = 3.5
   ) +
 
-  coord_flip() +
-
-  geom_hline(
-    yintercept = 5,
+  geom_vline(
+    xintercept = 5,
     linetype = "dashed",
-    color = "#C0392B"
+    color = "red",
+    size = 0.7
   ) +
-
-  scale_fill_manual(values = c(
-    "Low" = "#4B8BBE",
-    "Moderate" = "#F39C12",
-    "High" = "#E74C3C"
-  )) +
 
   labs(
     title = "Updated Variance Inflation Factors (Categorical Predictors)",
     subtitle = "After collapsing Age_Group into three career stages",
-    x = NULL,
-    y = "VIF"
+    x = "Variance Inflation Factor",
+    y = NULL
   ) +
 
-  scale_y_continuous(expand = expansion(mult = c(0,0.15))) +
+  scale_x_continuous(
+    expand = expansion(mult = c(0, .1))
+  ) +
 
   theme_minimal(base_size = 13) +
+
   theme(
-    plot.title = element_text(face="bold", size=16, hjust=0.5),
-    plot.subtitle = element_text(size=11, hjust=0.5),
-    axis.text.y = element_text(size=10),
-    legend.position = "none"
+    plot.title = element_text(face = "bold"),
+    axis.text.y = element_text(size = 9)
   )
 ```
 
@@ -1225,21 +1238,36 @@ ggplot(vif_df_cat_updated,
 
 Given that the data is informed by real-world statistics, surveys, and scholarly literature, some degree of imbalance is expected.
 
-```{r 03-skewness-of-num-vars}
+```{r 03-skewness-of-num-vars, fig.width=10, fig.height=7, fig.align="center"}
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(forcats)
+library(e1071)
+
+# Identify numeric variables
 num_vars_current <- hr_df %>%
   select(where(is.numeric)) %>%
   names()
 
+# Safe skewness function
 check_skewness <- function(x) {
   x <- na.omit(x)
   if (length(unique(x)) <= 1) return(NA)
   e1071::skewness(x)
 }
 
+# Compute skewness
 skew_df <- hr_df %>%
   select(all_of(num_vars_current)) %>%
   summarize(across(everything(), check_skewness)) %>%
-  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Skewness") %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "Variable",
+    values_to = "Skewness"
+  ) %>%
   arrange(desc(abs(Skewness))) %>%
   mutate(
     Skew_Type = case_when(
@@ -1251,33 +1279,51 @@ skew_df <- hr_df %>%
     )
   )
 
+# Wrap long variable names for readability
 skew_df$Variable <- str_wrap(skew_df$Variable, width = 25)
 
-ggplot(skew_df, aes(x = reorder(Variable, Skewness), y = Skewness, fill = Skew_Type)) +
-  geom_col(width = 0.65) +
-  geom_hline(yintercept = 0, color = "gray40", linetype = "dashed") +
-  coord_flip() +
-  scale_fill_manual(values = c(
-    "Highly Left-Skewed" = "#f4a582",
-    "Moderately Left-Skewed" = "#92c5de",
-    "Approximately Symmetric" = "#d9d9d9",
-    "Moderately Right-Skewed" = "#abd9e9",
-    "Highly Right-Skewed" = "#fee090"
-  )) +
+# Reorder variables for plotting
+skew_df <- skew_df %>%
+  mutate(Variable = fct_reorder(Variable, Skewness))
+
+# Plot
+ggplot(skew_df, aes(x = Skewness, y = Variable, fill = Skew_Type)) +
+
+  geom_col(width = 0.7) +
+
+  geom_vline(
+    xintercept = 0,
+    color = "gray40",
+    linetype = "dashed"
+  ) +
+
+  scale_fill_manual(
+    values = c(
+      "Highly Left-Skewed" = "#E8A07A",
+      "Moderately Left-Skewed" = "#9CC2D6",
+      "Approximately Symmetric" = "#D9D9D9",
+      "Moderately Right-Skewed" = "#F0D999",
+      "Highly Right-Skewed" = "#F2C94C"
+    )
+  ) +
+
   labs(
     title = "Skewness of Numeric Variables",
     subtitle = "Distribution symmetry across numeric features",
-    x = NULL,
-    y = "Skewness",
+    x = "Skewness",
+    y = NULL,
     fill = NULL
   ) +
+
   theme_minimal(base_size = 13) +
+
   theme(
-    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
-    plot.subtitle = element_text(size = 11, hjust = 0.5),
-    axis.text.y = element_text(size = 10),
+    plot.title = element_text(face = "bold", size = 16, hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5),
+    axis.text.y = element_text(size = 9),
     axis.text.x = element_text(size = 10),
-    legend.position = "bottom"
+    legend.position = "bottom",
+    legend.text = element_text(size = 10)
   )
 ```
 
@@ -1332,7 +1378,14 @@ Categorical variables can sometimes exhibit class imbalance, where one category 
 
 To assess the distribution of categorical variables, bar charts are generated for each categorical feature. The plots are presented in an interactive carousel for easier exploration.
 
-```{r 03-categorical-distributions}
+```{r 03-categorical-distributions, results='asis'}
+
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(slickR)
+
 # Function to clean variable names for titles
 clean_title <- function(x){
   x %>%
@@ -1345,7 +1398,10 @@ cat_vars_current <- hr_df %>%
   select(where(~ is.character(.x) | is.factor(.x))) %>%
   names()
 
-# Save bar plots for each categorical variable
+# Create directory if needed
+dir.create("cat_plots", showWarnings = FALSE)
+
+# Save bar plots
 cat_plot_files <- purrr::map(cat_vars_current, function(var) {
 
   filepath <- file.path("cat_plots", paste0("cat_", var, ".png"))
@@ -1353,10 +1409,11 @@ cat_plot_files <- purrr::map(cat_vars_current, function(var) {
   p <- hr_df %>%
     count(!!sym(var)) %>%
     arrange(desc(n)) %>%
+
     ggplot(aes(x = reorder(!!sym(var), n), y = n)) +
 
     geom_col(
-      fill = "#5A8F7B",     # green color to match your example
+      fill = "#5A8F7B",
       color = "black",
       width = 0.7
     ) +
@@ -1380,18 +1437,23 @@ cat_plot_files <- purrr::map(cat_vars_current, function(var) {
       axis.text.y = element_text(size = 10)
     )
 
-  ggsave(filepath, p, width = 6.5, height = 4.5, dpi = 150)
+  ggsave(filepath, p, width = 7, height = 4.5, dpi = 150)
 
   normalizePath(filepath)
 
 })
 
-# Display image carousel
-slickR(obj = cat_plot_files, slideType = "img", width = "700px", height = "500px") +
+# Display carousel
+slickR(obj = cat_plot_files, slideType = "img", width = "750px", height = "450px") +
   settings(dots = TRUE, arrows = TRUE, infinite = FALSE)
+
+cat("<br><br><br>")   # critical spacing so next plot does not overlap
 ```
 
-```{r 03-skew-cat-graph}
+```{r 03-skew-cat-graph, fig.width=9, fig.height=5}
+
+library(forcats)
+
 # Calculate imbalance statistics
 cat_imbalance_df <- lapply(cat_vars_current, function(var) {
 
@@ -1411,27 +1473,23 @@ cat_imbalance_df <- lapply(cat_vars_current, function(var) {
   )
 
 # Plot imbalance ranking
-ggplot(cat_imbalance_df,
-       aes(x = reorder(Variable, Most_Common_Proportion),
-           y = Most_Common_Proportion,
-           fill = Most_Common_Proportion)) +
+cat_imbalance_df %>%
+  mutate(Variable = fct_reorder(Variable, Most_Common_Proportion)) %>%
 
-  geom_col(width = 0.7) +
+  ggplot(aes(x = Most_Common_Proportion, y = Variable)) +
+
+  geom_col(
+    fill = "#3F7F6F",
+    width = 0.7
+  ) +
 
   geom_text(
     aes(label = round(Most_Common_Proportion, 2)),
-    hjust = -0.15,
+    hjust = -0.1,
     size = 3.5
   ) +
 
-  coord_flip() +
-
-  scale_fill_gradient(
-    low = "#8FD3B6",
-    high = "#2E7D66"
-  ) +
-
-  scale_y_continuous(
+  scale_x_continuous(
     limits = c(0,1),
     expand = expansion(mult = c(0,0.1))
   ) +
@@ -1439,8 +1497,8 @@ ggplot(cat_imbalance_df,
   labs(
     title = "Categorical Variable Imbalance",
     subtitle = "Proportion represented by the most common category in each variable",
-    x = NULL,
-    y = "Most Common Category Proportion"
+    x = "Largest Category Share",
+    y = NULL
   ) +
 
   theme_minimal(base_size = 13) +
