@@ -1,0 +1,3295 @@
+---
+title: "HR Predictive Analytics Project – Monitoring Turnover Risk"
+author: "Kevin Allen Cauley"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    number_sections: true
+    theme: flatly
+    highlight: tango
+    df_print: paged
+---
+
+```{r 00-setup, include=FALSE}
+# Set working directory to the project root
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+# Create output folders if they don't exist
+if (!dir.exists("outputs")) dir.create("outputs", recursive = TRUE)
+if (!dir.exists("outputs/figures")) dir.create("outputs/figures", recursive = TRUE)
+if (!dir.exists("data/processed")) dir.create("data/processed", recursive = TRUE)
+
+# Global chunk options
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.path = "outputs/figures/",
+  fig.align = "center",
+  cache = TRUE
+)
+
+# Load previous session
+if (file.exists("outputs/my_environment.RData")) {
+  load("outputs/my_environment.RData")
+}
+```
+
+```{r 00-setup-packages, include=FALSE}
+# Load packages
+library(car)
+library(cowplot)
+library(caret)
+library(corrplot)
+library(discrim)
+library(dplyr)
+library(e1071)
+library(fastDummies)
+library(forcats)
+library(gbm)
+library(GGally)
+library(ggcorrplot)
+library(ggplot2)
+library(ggthemes)
+library(glmnet)
+library(grid)
+library(gridExtra)
+library(gt)
+library(iml)
+library(kableExtra)
+library(keras3)
+library(keras)
+library(knitr)
+library(mgcv)
+library(naivebayes)
+library(naniar)
+library(patchwork)
+library(pheatmap)
+library(plotly)
+library(psych)
+library(randomForest)
+library(ranger)
+library(RColorBrewer)
+library(readxl)
+library(reshape2)
+library(skimr)
+library(tensorflow)
+library(themis)
+library(tidymodels)
+library(tidyverse)
+library(vip)
+library(viridis)
+library(xgboost)
+library(xfun)
+```
+
+## Predictive Modeling on Monitoring Turnover Risk
+
+The goal of this modeling section is to predict **Monitoring Turnover Risk** using a set of behavioral, demographic, and engagement-related predictors.
+
+We will evaluate a range of classification models using multiple **resampling strategies** (No Sampling, Up-Sampling, Down-Sampling, and SMOTE). Models will be evaluated using six classification metrics:
+
+-   Accuracy
+-   Precision
+-   Recall
+-   F1 Score
+-   Specificity
+-   ROC AUC
+
+This approach ensures fairness, robustness, and clarity in identifying the most effective model and configuration.
+
+### Shared Model Setup - Monitoring Turnover Risk
+
+```{r 04-logit-shared-model-setup}
+# Ensure Monitoring Turnover Risk is a Factor
+hr_df <- hr_df %>%
+  mutate(Monitoring_Turnover_Risk = as.factor(Monitoring_Turnover_Risk))
+
+# Set Seed
+set.seed(42)
+
+# 80/20 train/test split with stratification
+mtr_split <- initial_split(hr_df, prop = 0.8, strata = Monitoring_Turnover_Risk)
+mtr_train_data <- training(mtr_split)
+mtr_test_data  <- testing(mtr_split)
+
+# 10-Fold Cross Validation
+mtr_folds <- vfold_cv(mtr_train_data, v = 10, strata = Monitoring_Turnover_Risk)
+
+# Shared Pre-processing (no resampling)
+base_recipe <- recipe(Monitoring_Turnover_Risk ~ ., data = mtr_train_data) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_zv(all_predictors()) %>%
+  step_normalize(all_numeric_predictors())
+
+# Basic Logistic Model
+logit_model <- logistic_reg() %>%
+  set_engine("glm") %>%
+  set_mode("classification")
+```
+
+```{r 04-logit-mtr-shared-metrics-setup}
+# Shared metric set for all models
+all_metrics <- metric_set(accuracy, precision, recall, f_meas, yardstick::spec, roc_auc)
+```
+
+## Monitoring Turnover Risk with Logistic Regression
+
+### Logistic Regression - No Resampling
+
+```{r 04-logit-none-workflow, message=FALSE}
+# Workflow with Base Recipe
+workflow_logit_none <- workflow() %>%
+  add_model(logit_model) %>%
+  add_recipe(base_recipe)
+
+# Fit to training data
+fit_logit_none <- fit(workflow_logit_none, data = mtr_train_data)
+
+# Predict on test data
+logit_preds_none <- predict(fit_logit_none, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(fit_logit_none, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Logistic Regression - No Resampling - Performance Metrics
+
+```{r 04-logit-none-metrics, echo=TRUE}
+# Metrics
+logit_none_metrics <- all_metrics(logit_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+logit_none_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#4B9CD3", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – LR (No Resampling)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+```{r 04-logit-none-confmat, echo=TRUE}
+library(ggplot2)
+library(yardstick)
+library(forcats)
+
+# Confusion matrix to dataframe
+cm_logit_none <- conf_mat(logit_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df <- as.data.frame(cm_logit_none$table)
+
+# Ensure proper order for plotting
+cm_df$Truth <- factor(cm_df$Truth, levels = c("Yes", "No"))         
+cm_df$Prediction <- factor(cm_df$Prediction, levels = c("No", "Yes")) 
+
+# Plot
+ggplot(cm_df, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#e6f2ff", high = "#1A5276", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – LR (No Resampling)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+```
+
+```{r 04-logit-none-roc-curve, echo=TRUE}
+# Generate ROC curve
+roc_curve(logit_preds_none, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(
+    title = "ROC Curve – LR (No Resampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+```
+
+```{r 04-logit-none-vip, echo=TRUE}
+# Extract full importance and then limit to top 15
+vip_logit_none <- fit_logit_none %>%
+  extract_fit_parsnip() %>%
+  vi() %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 15) %>%
+  mutate(Variable = fct_reorder(Variable, Importance))
+
+# Plot
+ggplot(vip_logit_none, aes(x = Importance, y = Variable)) +
+  geom_col(fill = "#1A5276", width = 0.7) +
+  geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Features – LR (No Resampling)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+### Logistic Regression – SMOTE
+
+```{r 04-logit-smote-workflow, message=FALSE}
+# SMOTE recipe
+recipe_logit_smote <- base_recipe %>%
+  step_smote(Monitoring_Turnover_Risk)
+
+workflow_logit_smote <- workflow() %>%
+  add_model(logit_model) %>%
+  add_recipe(recipe_logit_smote)
+
+# 10-Fold CV
+set.seed(42)
+logit_cv_smote <- fit_resamples(
+  workflow_logit_smote,
+  resamples = mtr_folds,
+  metrics = metric_set(accuracy, precision, recall, f_meas, yardstick::spec, roc_auc)
+)
+
+# Final model fit and prediction on test data for SMOTE
+fit_logit_smote <- fit(workflow_logit_smote, data = mtr_train_data)
+
+logit_preds_smote <- predict(fit_logit_smote, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(fit_logit_smote, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Logistic Regression – SMOTE - Performance Metrics
+
+```{r 04-logit-smote-finalfit, message=FALSE}
+# Metrics
+logit_smote_metrics <- all_metrics(logit_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+logit_smote_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#4B9CD3", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – LR (SMOTE)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+```{r 04-logit-smote-confmat, echo=TRUE}
+# Create confusion matrix
+cm_logit_smote <- conf_mat(logit_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_smote <- as.data.frame(cm_logit_smote$table)
+
+# Order axes
+cm_df_smote$Truth <- factor(cm_df_smote$Truth, levels = c("Yes", "No"))
+cm_df_smote$Prediction <- factor(cm_df_smote$Prediction, levels = c("No", "Yes"))
+
+# Plot heatmap
+ggplot(cm_df_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#e6f2ff", high = "#1A5276", name = "Frequency") +
+  scale_y_discrete(limits = rev) +  # YES on top
+  labs(
+    title = "Confusion Matrix – LR (SMOTE)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+```
+
+```{r 04-logit-smote-roc, echo=TRUE}
+# ROC Curve
+roc_curve(logit_preds_smote, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(
+    title = "ROC Curve – LR (SMOTE)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+```
+
+```{r 04-logit-smote-vip, echo=TRUE}
+# Top 15 features only
+fit_logit_smote %>%
+  extract_fit_parsnip() %>%
+  vi() %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 15) %>%
+  mutate(Variable = fct_reorder(Variable, Importance)) %>%
+  ggplot(aes(x = Importance, y = Variable)) +
+  geom_col(fill = "#1A5276", width = 0.7) +
+  geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Features – LR (SMOTE)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+### Logistic Regression - Upsampling
+
+```{r 04-logit-upsample-workflow, message=FALSE}
+# Upsampling Recipe
+recipe_logit_upsample <- base_recipe %>%
+  step_upsample(Monitoring_Turnover_Risk)
+
+# Workflow 
+workflow_logit_upsample <- workflow() %>%
+  add_model(logit_model) %>%
+  add_recipe(recipe_logit_upsample)
+
+# Fit
+fit_logit_upsample <- fit(workflow_logit_upsample, data = mtr_train_data)
+
+# Predict
+logit_preds_upsample <- predict(fit_logit_upsample, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(fit_logit_upsample, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Logistic Regression - Upsampling - Performance Metrics
+
+```{r 04-logit-upsample-metrics, echo=TRUE}
+# Metrics
+logit_upsample_metrics <- all_metrics(logit_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+logit_upsample_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#4B9CD3", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – LR (Upsampling)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+```{r 04-logit-upsample-confmat, echo=TRUE}
+# Confusion matrix data prep
+cm_logit_upsample <- conf_mat(logit_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_upsample <- as.data.frame(cm_logit_upsample$table)
+
+# Set factor levels to match layout: Yes on top, No bottom; No left, Yes right
+cm_df_upsample$Truth <- factor(cm_df_upsample$Truth, levels = c("Yes", "No"))
+cm_df_upsample$Prediction <- factor(cm_df_upsample$Prediction, levels = c("No", "Yes"))
+
+# Plot
+ggplot(cm_df_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#e6f2ff", high = "#1A5276", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – LR (Upsampling)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+```
+
+```{r 04-logit-upsample-roc-curve, echo=TRUE}
+# Roc
+roc_curve(logit_preds_upsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(
+    title = "ROC Curve – LR (Upsampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+```
+
+```{r 04-logit-upsample-vip, echo=TRUE}
+# Styled VIP for top 15 features
+fit_logit_upsample %>%
+  extract_fit_parsnip() %>%
+  vi() %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 15) %>%
+  mutate(Variable = fct_reorder(Variable, Importance)) %>%
+  ggplot(aes(x = Importance, y = Variable)) +
+  geom_col(fill = "#1A5276", width = 0.7) +
+  geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Features – LR (Upsampling)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+### Logistic Regression - Downsampling
+
+```{r 04-logit-downsample-workflow, message=FALSE}
+# Downsampling Recipe
+recipe_logit_downsample <- base_recipe %>%
+  step_downsample(Monitoring_Turnover_Risk)
+
+# Workflow 
+workflow_logit_downsample <- workflow() %>%
+  add_model(logit_model) %>%
+  add_recipe(recipe_logit_downsample)
+
+# Fit on training data
+fit_logit_downsample <- fit(workflow_logit_downsample, data = mtr_train_data)
+
+# Predict on test data
+logit_preds_downsample <- predict(fit_logit_downsample, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(fit_logit_downsample, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Logistic Regression - Downsampling - Performance Metrics
+
+```{r 04-logit-downsample-metrics, echo=TRUE}
+# Metrics
+logit_downsample_metrics <- all_metrics(logit_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+logit_downsample_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#4B9CD3", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – LR (Downsampling)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+```{r 04-logit-downsample-confmat, echo=TRUE}
+cm_logit_down <- conf_mat(logit_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_down <- as.data.frame(cm_logit_down$table)
+
+cm_df_down$Truth <- factor(cm_df_down$Truth, levels = c("Yes", "No"))
+cm_df_down$Prediction <- factor(cm_df_down$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_down, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#e6f2ff", high = "#1A5276", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – LR (Downsampling)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+```
+
+```{r 04-logit-downsample-roc-curve, echo=TRUE}
+roc_curve(logit_preds_downsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(
+    title = "ROC Curve – LR (Downsampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+```
+
+```{r 04-logit-downsample-vip, echo=TRUE}
+fit_logit_downsample %>%
+  extract_fit_parsnip() %>%
+  vi() %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 15) %>%
+  mutate(Variable = fct_reorder(Variable, Importance)) %>%
+  ggplot(aes(x = Importance, y = Variable)) +
+  geom_col(fill = "#1A5276", width = 0.7) +
+  geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Features – LR (Downsampling)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+### Results Table for Logistic Regression (Monitoring Turnover Risk)
+
+```{r 04-logit-results-table, results='asis', echo=FALSE}
+logit_results_long <- bind_rows(
+  logit_none_metrics %>% mutate(Resample = "No Sampling"),
+  logit_smote_metrics %>% mutate(Resample = "SMOTE"),
+  logit_upsample_metrics %>% mutate(Resample = "Up Sampling"),
+  logit_downsample_metrics %>% mutate(Resample = "Down Sampling")
+) %>%
+  mutate(
+    Metric = factor(.metric,
+                    levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                    labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC")),
+    Score = .estimate,
+    Resample = factor(Resample, levels = c("No Sampling", "SMOTE", "Up Sampling", "Down Sampling"))
+  ) %>%
+  filter(!is.na(Score))
+
+highlight_logit <- logit_results_long %>%
+  group_by(Metric) %>%
+  filter(Score == max(Score, na.rm = TRUE)) %>%
+  mutate(is_best = TRUE)
+
+logit_results_highlight <- left_join(logit_results_long, highlight_logit %>% select(Resample, Metric, is_best),
+                                     by = c("Resample", "Metric")) %>%
+  mutate(is_best = ifelse(is.na(is_best), FALSE, is_best))
+
+ggplot(logit_results_highlight, aes(x = Resample, y = Score, fill = Metric)) +
+  geom_col(width = 0.7) +
+  geom_col(data = subset(logit_results_highlight, is_best),
+           fill = NA, color = "black", linewidth = 1.2, width = 0.7) +
+  facet_wrap(~ Metric, nrow = 2, scales = "free_y") +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_fill_manual(values = rep("#4B9CD3", 6)) +
+  labs(
+    title = "LR Performance by Metric and Resampling Method",
+    subtitle = "Black outline shows the best result for each metric",
+    x = "Resampling Strategy", y = "Score"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+### Executive Summary for Logistic Regression (Monitoring Turnover Risk)
+
+Logistic Regression offered a strong and interpretable baseline for turnover risk monitoring, especially under the no resampling strategy which led in multiple metrics.
+
+- **No Resampling** delivered the top performance in **recall (0.828)**, **F1 score (0.819)**, and **accuracy (0.736)** — making it ideal for identifying at-risk employees, though its **ROC AUC (0.283)** and **specificity (0.500)** suggest limited class separation.
+
+- **SMOTE** yielded the **highest precision (0.847)** while still maintaining good **F1 (0.734)** and **recall (0.648)**, offering a solid trade-off between minimizing false positives and detecting true positives.
+
+- **Upsampling** produced very similar results to SMOTE — strong **precision (0.841)** and **F1 score (0.714)**, but with slightly lower **recall (0.621)**. Like SMOTE, ROC AUC remained modest (0.295).
+
+- **Downsampling** emphasized **specificity (0.714)** and **precision (0.838)**, reducing false positives but at the expense of **recall (0.572)** and **F1 score (0.680)**. It’s useful when it's more important to avoid false alarms.
+
+Overall, while Logistic Regression had limited ROC AUC (~0.28–0.30), it performed competitively across most other metrics and remains a reliable, interpretable choice.
+
+## Monitoring Turnover Risk with Random Forest
+
+### Random Forest - No Resampling
+
+```{r 04-rf-no-resampling-workflow, message=FALSE}
+# Define Random Forest model
+rf_model <- rand_forest(mtry = tune(), trees = 500, min_n = tune()) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("classification")
+
+# Workflow using base recipe
+recipe_rf_none <- base_recipe
+
+# Combine into Workflow
+workflow_rf_none <- workflow() %>%
+  add_model(rf_model) %>%
+  add_recipe(recipe_rf_none)
+
+# Tune the RF model with cross-validation
+set.seed(42)
+rf_tuned <- tune_grid(
+  workflow_rf_none,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc)
+  )
+
+# Select Best model by AUC
+best_rf <- select_best(rf_tuned, metric = "roc_auc")
+
+# Final workflow with best RF model
+final_rf_workflow <- finalize_workflow(workflow_rf_none, best_rf)
+
+# Fit to training data
+rf_fit_none <- fit(final_rf_workflow, data = mtr_train_data)
+
+# Predict on test data
+rf_preds_none <- predict(rf_fit_none, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(rf_fit_none, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Random Forest - No Resampling - Performance Metrics
+
+```{r 04-rf-no-resampling-metrics, echo=TRUE}
+# Metrics
+rf_none_metrics <- all_metrics(rf_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+rf_none_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#3FA34D", width = 0.7) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – RF (No Resampling)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+```{r 04-rf-no-resampling-confmat, echo=TRUE}
+rf_cm_none <- conf_mat(rf_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+rf_cm_df_none <- as.data.frame(rf_cm_none$table)
+
+rf_cm_df_none$Truth <- factor(rf_cm_df_none$Truth, levels = c("Yes", "No"))
+rf_cm_df_none$Prediction <- factor(rf_cm_df_none$Prediction, levels = c("No", "Yes"))
+
+ggplot(rf_cm_df_none, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#D5F5E3", high = "#145A32", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – RF (No Resampling)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+```
+
+```{r 04-rf-no-resampling-roc-curve, echo=TRUE}
+# ROC Curve
+roc_curve(rf_preds_none, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray70") +
+  labs(
+    title = "ROC Curve – RF (No Resampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+
+```
+
+```{r 04-rf-no-resampling-vip, echo=TRUE}
+# Variable Importance
+rf_fit_none %>%
+  extract_fit_parsnip() %>%
+  vi() %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 15) %>%
+  mutate(Variable = fct_reorder(Variable, Importance)) %>%
+  ggplot(aes(x = Importance, y = Variable)) +
+  geom_col(fill = "#3FA34D", width = 0.7) +
+  geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Features – RF (No Resampling)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+### Random Forest - SMOTE
+
+```{r 04-rf-smote-workflow, message=FALSE}
+# Create Recipe from Base
+recipe_rf_smote <- base_recipe %>%
+  step_smote(Monitoring_Turnover_Risk)
+
+# Workflow with Random Forest
+workflow_rf_smote <- workflow() %>%
+  add_model(rf_model) %>%
+  add_recipe(recipe_rf_smote)
+
+# Tune the RF model with cross-validation
+set.seed(42)
+rf_tuned_smote <- tune_grid(
+  workflow_rf_smote,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc)
+  )
+
+# Select Best model by AUC
+best_rf_smote <- select_best(rf_tuned_smote, metric = "roc_auc")
+
+# Final workflow with best RF model
+final_rf_workflow_smote <- finalize_workflow(workflow_rf_smote, best_rf_smote)
+
+# Fit to training data
+rf_fit_smote <- fit(final_rf_workflow_smote, data = mtr_train_data)
+
+# Predict on test data
+rf_preds_smote <- predict(rf_fit_smote, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(rf_fit_smote, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Random Forest - SMOTE - Performance Metrics
+
+```{r 04-rf-smote-metrics, echo=TRUE}
+# Metrics
+rf_smote_metrics <- all_metrics(rf_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+rf_smote_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#3FA34D", width = 0.7) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – RF (SMOTE)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+```{r 04-rf-smote-confmat, echo=TRUE}
+# Confusion Matrix
+rf_cm_smote <- conf_mat(rf_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+rf_cm_df_smote <- as.data.frame(rf_cm_smote$table)
+
+rf_cm_df_smote$Truth <- factor(rf_cm_df_smote$Truth, levels = c("Yes", "No"))
+rf_cm_df_smote$Prediction <- factor(rf_cm_df_smote$Prediction, levels = c("No", "Yes"))
+
+ggplot(rf_cm_df_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#D5F5E3", high = "#145A32", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – RF (SMOTE)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+
+```
+
+```{r 04-rf-smote-roc-curve, echo=TRUE}
+# ROC Curve
+roc_curve(rf_preds_smote, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray70") +
+  labs(
+    title = "ROC Curve: RF on Monitoring Turnover Risk (SMOTE)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+
+```
+
+```{r 04-rf-smote-vip, echo=TRUE}
+# Variable Importance
+rf_fit_smote %>%
+  extract_fit_parsnip() %>%
+  vi() %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 15) %>%
+  mutate(Variable = fct_reorder(Variable, Importance)) %>%
+  ggplot(aes(x = Importance, y = Variable)) +
+  geom_col(fill = "#3FA34D", width = 0.7) +
+  geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Features – RF (SMOTE)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+### Random Forest - Upsampling
+
+```{r 04-rf-upsample-workflow, message=FALSE}
+# Create Recipe from Base
+recipe_rf_upsample <- base_recipe %>%
+  step_upsample(Monitoring_Turnover_Risk)
+
+# Workflow with Random Forest
+workflow_rf_upsample <- workflow() %>%
+  add_model(rf_model) %>%
+  add_recipe(recipe_rf_upsample)
+
+# Tune the RF model with cross-validation
+set.seed(42)
+rf_tuned_upsample <- tune_grid(
+  workflow_rf_upsample,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc)
+  )
+
+# Select Best model by AUC
+best_rf_upsample <- select_best(rf_tuned_upsample, metric = "roc_auc")
+
+# Final workflow with best RF model
+final_rf_workflow_upsample <- finalize_workflow(workflow_rf_upsample, best_rf_upsample)
+
+# Fit to training data
+rf_fit_upsample <- fit(final_rf_workflow_upsample, data = mtr_train_data)
+
+# Predict on test data
+rf_preds_upsample <- predict(rf_fit_upsample, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(rf_fit_upsample, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Random Forest - Upsampling - Performance Metrics
+
+```{r 04-rf-upsample-metrics, echo=TRUE}
+# Metrics
+rf_upsample_metrics <- all_metrics(rf_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+rf_upsample_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#3FA34D", width = 0.7) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – RF (Upsampling)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+```{r 04-rf-upsample-confmat, echo=TRUE}
+# Confusion Matrix
+rf_cm_up <- conf_mat(rf_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+rf_cm_df_up <- as.data.frame(rf_cm_up$table)
+
+rf_cm_df_up$Truth <- factor(rf_cm_df_up$Truth, levels = c("Yes", "No"))
+rf_cm_df_up$Prediction <- factor(rf_cm_df_up$Prediction, levels = c("No", "Yes"))
+
+ggplot(rf_cm_df_up, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#D5F5E3", high = "#145A32", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – RF (Upsampling)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+
+```
+
+```{r 04-rf-upsample-roc-curve, echo=TRUE}
+# ROC Curve
+roc_curve(rf_preds_upsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray70") +
+  labs(
+    title = "ROC Curve – RF (Upsampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+
+```
+
+```{r 04-rf-upsample-var-imp, echo=TRUE}
+# Variable Importance
+rf_fit_upsample %>%
+  extract_fit_parsnip() %>%
+  vi() %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 15) %>%
+  mutate(Variable = fct_reorder(Variable, Importance)) %>%
+  ggplot(aes(x = Importance, y = Variable)) +
+  geom_col(fill = "#3FA34D", width = 0.7) +
+  geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Features – RF (Upsampling)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+### Random Forest - Downsampling
+
+```{r 04-rf-downsample-workflow, message=FALSE}
+# Create Recipe from Base
+recipe_rf_downsample <- base_recipe %>%
+  step_downsample(Monitoring_Turnover_Risk)
+
+# Workflow with Random Forest
+workflow_rf_downsample <- workflow() %>%
+  add_model(rf_model) %>%
+  add_recipe(recipe_rf_downsample)
+
+# Tune the RF model with cross-validation
+set.seed(42)
+rf_tuned_downsample <- tune_grid(
+  workflow_rf_downsample,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc)
+  )
+
+# Select Best model by AUC
+best_rf_downsample <- select_best(rf_tuned_downsample, metric = "roc_auc")
+
+# Final workflow with best RF model
+final_rf_workflow_downsample <- finalize_workflow(workflow_rf_downsample, best_rf_downsample)
+
+# Fit to training data
+rf_fit_downsample <- fit(final_rf_workflow_downsample, data = mtr_train_data)
+
+# Predict on test data
+rf_preds_downsample <- predict(rf_fit_downsample, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(rf_fit_downsample, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Random Forest - Downsampling - Performance Metrics
+
+```{r 04-rf-downsample-metrics, echo=TRUE}
+# Metrics
+rf_downsample_metrics <- all_metrics(rf_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+rf_downsample_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#3FA34D", width = 0.7) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – RF (Downsampling)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+```{r 04-rf-downsample-confmat, echo=TRUE}
+# Confusion Matrix
+rf_cm_down <- conf_mat(rf_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+rf_cm_df_down <- as.data.frame(rf_cm_down$table)
+
+rf_cm_df_down$Truth <- factor(rf_cm_df_down$Truth, levels = c("Yes", "No"))
+rf_cm_df_down$Prediction <- factor(rf_cm_df_down$Prediction, levels = c("No", "Yes"))
+
+ggplot(rf_cm_df_down, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#D5F5E3", high = "#145A32", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – RF (Downsampling)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+
+```
+
+```{r 04-rf-downsample-roc-curve, echo=TRUE}
+# ROC Curve
+roc_curve(rf_preds_downsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray70") +
+  labs(
+    title = "ROC Curve – RF (Downsampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+
+```
+
+```{r 04-rf-downsample-vip, echo=TRUE}
+# Variable Importance
+rf_fit_downsample %>%
+  extract_fit_parsnip() %>%
+  vi() %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 15) %>%
+  mutate(Variable = fct_reorder(Variable, Importance)) %>%
+  ggplot(aes(x = Importance, y = Variable)) +
+  geom_col(fill = "#3FA34D", width = 0.7) +
+  geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Features – RF (Downsampling)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+### Results Table for Random Forest (Monitoring Turnover Risk)
+
+```{r 04-rf-results-table, results='asis', echo=TRUE}
+rf_results_long <- rf_results_wide %>%
+  pivot_longer(cols = -c(Model, Resample), names_to = "Metric", values_to = "Score") %>%
+  mutate(
+    Metric = factor(Metric,
+                    levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                    labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC")),
+    Resample = factor(Resample, levels = c("No Sampling", "SMOTE", "Up Sampling", "Down Sampling"))
+  ) %>%
+  filter(!is.na(Score))
+
+highlight_rf <- rf_results_long %>%
+  group_by(Metric) %>%
+  filter(Score == max(Score, na.rm = TRUE)) %>%
+  mutate(is_best = TRUE)
+
+rf_results_highlight <- left_join(rf_results_long, highlight_rf %>% select(Resample, Metric, is_best),
+                                  by = c("Resample", "Metric")) %>%
+  mutate(is_best = ifelse(is.na(is_best), FALSE, is_best))
+
+ggplot(rf_results_highlight, aes(x = Resample, y = Score, fill = Metric)) +
+  geom_col(width = 0.7) +
+  geom_col(data = subset(rf_results_highlight, is_best),
+           fill = NA, color = "black", linewidth = 1.2, width = 0.7) +
+  facet_wrap(~ Metric, nrow = 2, scales = "free_y") +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_fill_manual(values = rep("#3FA34D", 6)) +
+  labs(
+    title = "RF Performance by Metric and Resampling Method",
+    subtitle = "Black outline shows the best result for each metric",
+    x = "Resampling Strategy", y = "Score"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+### Monitoring Turnover Risk – Random Forest Performance Summary
+
+Random Forest models achieved top classification results across nearly all metrics, with consistent performance regardless of the resampling strategy. However, all variants exhibited **low ROC AUC scores**, indicating poor class probability ranking.
+
+- **No Resampling** yielded **perfect recall (1.000)**, high **F1 score (0.927)**, and excellent **accuracy (0.886)**. **Precision (0.863)** was also strong, but **ROC AUC (0.159)** was weak, showing limited effectiveness in ranking true positives above false ones.
+
+- **SMOTE** delivered identical results to no-resampling, with **recall (1.000)**, **F1 (0.927)**, **accuracy (0.886)**, and **precision (0.863)**. However, **ROC AUC dropped to 0.133**, indicating slight degradation in model confidence separation.
+
+- **Upsampling** maintained high classification performance with **recall (0.993)** and **F1 score (0.923)**. **Accuracy (0.881)** and **precision (0.862)** were nearly on par. Still, **ROC AUC (0.148)** remained low, continuing the trend of poor class ranking.
+
+- **Downsampling** stood out for the **highest specificity (0.661)**, balancing false positives better than other versions. While **recall (0.952)** and **F1 score (0.914)** were slightly reduced, it offered the **best ROC AUC (0.155)** of the group — albeit still low in absolute terms.
+
+Despite outstanding performance on traditional classification metrics, the low ROC AUC values suggest caution: the model's confidence estimates may be unreliable for threshold-based decision-making or risk scoring purposes.
+
+## Monitoring Turnover Risk with XGBoost
+
+### XGBoost - No Resampling
+
+```{r 04-xgb-no-resampling-workflow, message=FALSE}
+# Define XGBoost model
+xgb_model <- boost_tree(
+  trees = 1000,
+  tree_depth = tune(),
+  min_n = tune(),
+  loss_reduction = tune(),        
+  sample_size = tune(),           
+  mtry = tune(),                  
+  learn_rate = tune()             
+) %>%
+  set_engine("xgboost") %>%
+  set_mode("classification")
+
+# Recipe with no resampling
+recipe_xgb_none <- base_recipe
+
+# Combine into Workflow
+workflow_xgb_none <- workflow() %>%
+  add_model(xgb_model) %>%
+  add_recipe(recipe_xgb_none)
+
+# Tune the XGBoost model with cross-validation
+set.seed(42)
+xgb_tuned <- tune_grid(
+  workflow_xgb_none,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc)
+  )
+
+# Select Best model by AUC
+best_xgb <- select_best(xgb_tuned, metric = "roc_auc")
+
+# Final workflow with best XGBoost model
+final_xgb_workflow <- finalize_workflow(workflow_xgb_none, best_xgb)
+
+# Fit to training data
+xgb_fit_none <- fit(final_xgb_workflow, data = mtr_train_data)
+
+# Predict on test data
+xgb_preds_none <- predict(xgb_fit_none, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(xgb_fit_none, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### XGBoost - No Resampling - Performance Metrics
+
+```{r 04-xgb-no-resampling-metrics, echo=TRUE}
+# Metrics
+xgb_none_metrics <- all_metrics(xgb_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+xgb_none_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#E87461", width = 0.7) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – XGB (No Resampling)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+```{r 04-xgb-no-resampling-confmat, echo=TRUE}
+# Confusion Matrix
+xgb_cm_none <- conf_mat(xgb_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+xgb_cm_df_none <- as.data.frame(xgb_cm_none$table)
+
+xgb_cm_df_none$Truth <- factor(xgb_cm_df_none$Truth, levels = c("Yes", "No"))
+xgb_cm_df_none$Prediction <- factor(xgb_cm_df_none$Prediction, levels = c("No", "Yes"))
+
+ggplot(xgb_cm_df_none, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#FDEDEC", high = "#922B21", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – XGB (No Resampling)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+
+```
+
+```{r 04-xgb-no-resampling-roc-curve, echo=TRUE}
+# ROC Curve
+roc_curve(xgb_preds_none, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray70") +
+  labs(
+    title = "ROC Curve – XGB (No Resampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+
+```
+
+```{r 04-xgb-no-resampling-vip, echo=TRUE}
+# Variable Importance
+xgb_fit_none %>%
+  extract_fit_parsnip() %>%
+  vi() %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 15) %>%
+  mutate(Variable = fct_reorder(Variable, Importance)) %>%
+  ggplot(aes(x = Importance, y = Variable)) +
+  geom_col(fill = "#E87461", width = 0.7) +
+  geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Features – XGB (No Resampling)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+### XGBoost - SMOTE
+
+```{r 04-xgb-smote-workflow, message=FALSE}
+# Create SMOTE Recipe
+recipe_xgb_smote <- base_recipe %>%
+  step_smote(Monitoring_Turnover_Risk)
+
+# Build XGBoost Workflow with SMOTE
+workflow_xgb_smote <- workflow() %>%
+  add_model(xgb_model) %>%
+  add_recipe(recipe_xgb_smote)
+
+# Tune Hyperparameters with Cross-Validation
+set.seed(42)
+xgb_tuned_smote <- tune_grid(
+  workflow_xgb_smote,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc)
+)
+
+# Select Best Parameters Based on ROC AUC
+best_xgb_smote <- select_best(xgb_tuned_smote, metric = "roc_auc")
+
+# Finalize Workflow with Best Parameters
+final_xgb_workflow_smote <- finalize_workflow(workflow_xgb_smote, best_xgb_smote)
+
+# Fit Final Model to Training Data
+xgb_fit_smote <- fit(final_xgb_workflow_smote, data = mtr_train_data)
+
+# Predict on Test Data
+xgb_preds_smote <- predict(xgb_fit_smote, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(xgb_fit_smote, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### XGBoost - SMOTE - Peformance Metrics
+
+```{r 04-xgb-smote-metrics, echo=TRUE}
+# Metrics
+xgb_smote_metrics <- all_metrics(xgb_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+xgb_smote_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#E74C3C", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – XGB (SMOTE)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+```{r 04-xgb-smote-confmat, echo=TRUE}
+# Confusion Matrix
+cm_xgb_smote <- conf_mat(xgb_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_xgb_smote <- as.data.frame(cm_xgb_smote$table)
+
+cm_df_xgb_smote$Truth <- factor(cm_df_xgb_smote$Truth, levels = c("Yes", "No"))
+cm_df_xgb_smote$Prediction <- factor(cm_df_xgb_smote$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_xgb_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#fde0dc", high = "#c0392b", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – XGB (SMOTE)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+
+```
+
+```{r 04-xgb-smote-roc-curve, echo=TRUE}
+# ROC Curve
+roc_curve(xgb_preds_smote, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(
+    title = "ROC Curve – XGB (SMOTE)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+
+```
+
+```{r 04-xgb-smote-vip, echo=TRUE}
+# Variable Importance
+vip_xgb_smote <- xgb_fit_smote %>%
+  extract_fit_parsnip() %>%
+  vi() %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 15) %>%
+  mutate(Variable = fct_reorder(Variable, Importance))
+
+ggplot(vip_xgb_smote, aes(x = Importance, y = Variable)) +
+  geom_col(fill = "#C0392B", width = 0.7) +
+  geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Features – XGB (SMOTE)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+### XGBoost - Upsampling
+
+```{r 04-xgb-upsample-workflow, message=FALSE}
+# Create Recipe from Base
+recipe_xgb_upsample <- base_recipe %>%
+  step_upsample(Monitoring_Turnover_Risk)
+
+# Workflow with XGBoost
+workflow_xgb_upsample <- workflow() %>%
+  add_model(xgb_model) %>%
+  add_recipe(recipe_xgb_upsample)
+
+# Tune the XGBoost model with cross-validation
+set.seed(42)
+xgb_tuned_upsample <- tune_grid(
+  workflow_xgb_upsample,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc)
+  )
+
+# Select Best model by AUC
+best_xgb_upsample <- select_best(xgb_tuned_upsample, metric = "roc_auc")
+
+# Final workflow with best XGBoost model
+final_xgb_workflow_upsample <- finalize_workflow(workflow_xgb_upsample, best_xgb_upsample)
+
+# Fit to training data
+xgb_fit_upsample <- fit(final_xgb_workflow_upsample, data = mtr_train_data)
+
+# Predict on test data
+xgb_preds_upsample <- predict(xgb_fit_upsample, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(xgb_fit_upsample, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### XGBoost - Upsampling - Performance Metrics
+
+```{r 04-xgb-upsample-metrics, message=FALSE}
+# Metrics
+xgb_upsample_metrics <- all_metrics(xgb_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+xgb_upsample_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+         !is.na(.estimate)) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate, .na_rm = TRUE))) +
+  geom_col(fill = "#E74C3C", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – XGB (Upsampling)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+```{r 04-xgb-upsample-confmat, echo=TRUE}
+# Confusion Matrix
+cm_xgb_upsample <- conf_mat(xgb_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_xgb_upsample <- as.data.frame(cm_xgb_upsample$table)
+
+cm_df_xgb_upsample$Truth <- factor(cm_df_xgb_upsample$Truth, levels = c("Yes", "No"))
+cm_df_xgb_upsample$Prediction <- factor(cm_df_xgb_upsample$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_xgb_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#fde0dc", high = "#c0392b", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – XGB (Upsampling)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+
+```
+
+```{r 04-xgb-upsample-roc-curve, echo=TRUE}
+# ROC Curve
+roc_curve(xgb_preds_upsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(
+    title = "ROC Curve – XGB (Upsampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+
+```
+
+```{r 04-xgb-upsample-vip, echo=TRUE}
+# Variable Importance
+# Step 1: Prep the recipe used for training
+baked_train <- prep(recipe_xgb_upsample, training = mtr_train_data) %>%
+  bake(new_data = NULL)
+
+# Step 2: Get feature names from preprocessed data (after dummy variables)
+feature_names <- colnames(baked_train %>% select(-Monitoring_Turnover_Risk))
+
+# Step 3: Extract booster
+xgb_booster_upsample <- extract_fit_engine(xgb_fit_upsample)
+
+# Step 4: Plot with feature names
+vip::vip(
+  object = xgb_booster_upsample,
+  num_features = 15,
+  geom = "col",
+  feature_names = feature_names,
+  aesthetics = list(fill = "#C0392B")
+) +
+  labs(
+    title = "Top Features – XGB (Upsampling)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+### XGBoost - Downsampling
+
+```{r 04-xgb-downsample-workflow, message=FALSE}
+# Create Recipe from Base
+recipe_xgb_downsample <- base_recipe %>%
+  step_downsample(Monitoring_Turnover_Risk)
+
+# Workflow with XGBoost
+workflow_xgb_downsample <- workflow() %>%
+  add_model(xgb_model) %>%
+  add_recipe(recipe_xgb_downsample)
+
+# Tune the RF model with cross-validation
+set.seed(42)
+xgb_tuned_downsample <- tune_grid(
+  workflow_xgb_downsample,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc)
+  )
+
+# Select Best model by AUC
+best_xgb_downsample <- select_best(xgb_tuned_downsample, metric = "roc_auc")
+
+# Final workflow with best XGBoost model
+final_xgb_workflow_downsample <- finalize_workflow(workflow_xgb_downsample, best_xgb_downsample)
+
+# Fit to training data
+xgb_fit_downsample <- fit(final_xgb_workflow_downsample, data = mtr_train_data)
+
+# Predict on test data
+xgb_preds_downsample <- predict(xgb_fit_downsample, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(xgb_fit_downsample, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### XGBoost - Downsampling - Performance Metrics
+
+```{r 04-xgb-downsample-metrics, echo=TRUE}
+# Metrics
+xgb_downsample_metrics <- all_metrics(xgb_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Print
+xgb_downsample_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#E74C3C", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)),
+            hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – XGB (Downsampling)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+```{r 04-xgb-down-sample-confmat, echo=TRUE}
+# Confusion Matrix
+cm_xgb_down <- conf_mat(xgb_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_xgb_down <- as.data.frame(cm_xgb_down$table)
+
+cm_df_xgb_down$Truth <- factor(cm_df_xgb_down$Truth, levels = c("Yes", "No"))
+cm_df_xgb_down$Prediction <- factor(cm_df_xgb_down$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_xgb_down, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#fde0dc", high = "#c0392b", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – XGB (Downsampling)",
+    x = "Predicted Class",
+    y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+
+```
+
+```{r 04-xgb-downsample-roc-curve, echo=TRUE}
+# ROC Curve
+roc_curve(xgb_preds_downsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(
+    title = "ROC Curve – XGB (Downsampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+
+```
+
+```{r 04-xgb-downsample-vip, echo=TRUE}
+# Variable Importance
+xgb_fit_downsample %>%
+  extract_fit_parsnip() %>%
+  vi() %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 15) %>%
+  mutate(Variable = fct_reorder(Variable, Importance)) %>%
+  ggplot(aes(x = Importance, y = Variable)) +
+  geom_col(fill = "#C0392B", width = 0.7) +
+  geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Features – XGB (Downsampling)",
+    x = "Importance Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+### Results Table for XGBoost (Monitoring Turnover Risk)
+
+```{r 04-xgb-results-table, results='asis', echo=TRUE}
+# Combine metrics and label with model names
+xgb_results_table <- bind_rows(
+  all_metrics(xgb_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes) %>%
+    mutate(model = "XGB - No Resampling"),
+  all_metrics(xgb_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes) %>%
+    mutate(model = "XGB - SMOTE"),
+  all_metrics(xgb_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes) %>%
+    mutate(model = "XGB - Up Sampling"),
+  all_metrics(xgb_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes) %>%
+    mutate(model = "XGB - Down Sampling")
+)
+
+# Reshape and clean
+xgb_results_long <- xgb_results_table %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(
+    Resample = case_when(
+      str_detect(model, "No Resampling") ~ "No Sampling",
+      str_detect(model, "SMOTE") ~ "SMOTE",
+      str_detect(model, "Up Sampling") ~ "Up Sampling",
+      str_detect(model, "Down Sampling") ~ "Down Sampling",
+      TRUE ~ NA_character_
+    ),
+    Metric = factor(.metric,
+                    levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                    labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))
+  ) %>%
+  filter(!is.na(Resample), !is.na(.estimate))
+
+# Identify top score per metric
+highlight_xgb <- xgb_results_long %>%
+  group_by(Metric) %>%
+  filter(.estimate == max(.estimate, na.rm = TRUE)) %>%
+  mutate(is_best = TRUE)
+
+# Merge with main table
+xgb_results_highlight <- xgb_results_long %>%
+  left_join(highlight_xgb %>% select(Resample, Metric, is_best), by = c("Resample", "Metric")) %>%
+  mutate(is_best = ifelse(is.na(is_best), FALSE, is_best))
+
+# Plot
+ggplot(xgb_results_highlight, aes(x = Resample, y = .estimate, fill = Metric)) +
+  geom_col(width = 0.7, color = NA) +
+  geom_col(
+    data = subset(xgb_results_highlight, is_best),
+    aes(x = Resample, y = .estimate),
+    fill = NA,
+    color = "black",
+    linewidth = 1.2,
+    width = 0.7
+  ) +
+  facet_wrap(~ Metric, nrow = 2, scales = "free_y") +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_fill_manual(values = rep("#C0392B", 6)) +
+  labs(
+    title = "XGB Performance by Metric and Resampling Method",
+    subtitle = "Black outline shows the best result for each metric",
+    x = "Resampling Strategy", y = "Score"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+### XGBoost – Turnover Risk Modeling Summary
+
+XGBoost delivered **high-performing classification results** with strong precision, recall, and F1 scores across most sampling techniques. It consistently captured at-risk employees well, though like other models, it struggled with **calibrated probability estimates**, as reflected in modest ROC AUC scores. Notably, **No Resampling achieved perfect recall**, while **Downsampling delivered the best ROC AUC and specificity**, highlighting varied tradeoffs by sampling strategy.
+
+- **No Resampling** delivered **perfect recall (1.000)** and strong overall metrics including **F1 score (0.927)**, **accuracy (0.886)**, and **precision (0.863)**. However, **ROC AUC was low (0.197)**, indicating limited ability to rank risk probabilities effectively.
+
+- **SMOTE** produced high **recall (0.945)** and **F1 score (0.904)** with strong **precision (0.867)**. **Specificity improved to 0.625**, but **ROC AUC declined slightly to 0.178**, continuing the trend of poor calibration despite high classification scores.
+
+- **Upsampling** maintained excellent performance with **recall (0.910)** and **F1 score (0.889)**, while achieving the **highest specificity (0.643)** among oversampling methods. **ROC AUC was modest at 0.186**.
+
+- **Downsampling** had slightly lower **recall (0.717)** and **F1 score (0.776)**, but delivered the **best ROC AUC (0.223)** and strong **specificity (0.661)**. This method reduced overfitting and improved the model’s probability ranking capability — a distinct advantage over other sampling methods.
+
+XGBoost showed excellent classification metrics across all sampling methods, particularly with **No Resampling** and **SMOTE** for recall and F1. However, if **probability calibration or risk ranking is a priority**, **Downsampling emerged as the best option** due to its superior ROC AUC and specificity. All ROC AUC values remained below **0.25**, highlighting continued challenges in probability-based prediction.
+
+## Monitoring Turnover Risk with Naive Bayes
+
+### Naive Bayes - No Resampling
+
+```{r 04-nb-model, message=FALSE}
+# Define Naive Bayes Model
+nb_model <- naive_Bayes() %>%
+  set_engine("naivebayes") %>%
+  set_mode("classification")
+
+# Build Workflow
+workflow_nb_none <- workflow() %>%
+  add_model(nb_model) %>%
+  add_recipe(base_recipe)
+
+# 10-Fold Cross-Validation on Training Data
+set.seed(42)
+nb_cv_results <- fit_resamples(
+  workflow_nb_none,
+  resamples = mtr_folds,
+  metrics = metric_set(accuracy, precision, recall, f_meas, yardstick::spec, roc_auc)
+)
+
+# Fit Final Model to Full Training Data
+nb_fit_none <- fit(workflow_nb_none, data = mtr_train_data)
+
+# Predict on Test Data
+nb_preds_none <- predict(nb_fit_none, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(nb_fit_none, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Naive Bayes - No Resampling - Performance Metrics
+
+```{r 04-nb-metrics, echo=TRUE}
+# Metrics
+nb_none_metrics <- all_metrics(nb_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Plot
+nb_none_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#F4D03F", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Performance Metrics – NB (No Resampling)",
+    x = "Score", y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        axis.text = element_text(face = "bold"),
+        panel.grid.major.y = element_blank())
+
+```
+
+```{r 04-nb-matrix-none, echo=TRUE}
+# Confusion Matrix
+cm_nb_none <- conf_mat(nb_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_nb_none <- as.data.frame(cm_nb_none$table)
+cm_df_nb_none$Truth <- factor(cm_df_nb_none$Truth, levels = c("Yes", "No"))
+cm_df_nb_none$Prediction <- factor(cm_df_nb_none$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_nb_none, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#FFF9C4", high = "#F4D03F", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(title = "Confusion Matrix – NB (No Resampling)",
+       x = "Predicted Class", y = "Actual Class") +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        axis.title = element_text(face = "bold"),
+        axis.text = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),
+        panel.grid = element_blank())
+
+```
+
+```{r 04-nb-roc-curve-none, echo=TRUE}
+# Roc
+roc_curve(nb_preds_none, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(title = "ROC Curve – NB (No Resampling)",
+       subtitle = "Model performance on predicting Monitoring Turnover Risk",
+       x = "False Positive Rate (1 - Specificity)",
+       y = "True Positive Rate (Sensitivity)") +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        plot.subtitle = element_text(hjust = 0.5, size = 11),
+        axis.title = element_text(face = "bold"),
+        axis.text = element_text(face = "bold"))
+
+```
+
+### Naive Bayes - Smote
+
+```{r 04-nb-smote, message=FALSE}
+# Create Upsampling Recipe
+recipe_nb_smote <- base_recipe %>%
+  step_smote(Monitoring_Turnover_Risk)
+
+# Build Workflow with Upsampling
+workflow_nb_smote <- workflow() %>%
+  add_model(nb_model) %>%
+  add_recipe(recipe_nb_smote)
+
+# 10-Fold Cross-Validation
+set.seed(42)
+nb_cv_smote <- fit_resamples(
+  workflow_nb_smote,
+  resamples = mtr_folds,
+  metrics = metric_set(accuracy, precision, recall, f_meas, yardstick::spec, roc_auc)
+)
+
+# Final Fit on Full Training Data
+nb_fit_smote <- fit(workflow_nb_smote, data = mtr_train_data)
+
+# Predict on Test Set
+nb_preds_smote <- predict(nb_fit_smote, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(nb_fit_smote, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Naive Bayes - SMOTE - Performance Metrics
+
+```{r 04-nb-smote-metrics, echo=TRUE}
+# Metrics
+nb_smote_metrics <- all_metrics(nb_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Print
+nb_smote_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#F4D03F", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(title = "Performance Metrics – NB (SMOTE)",
+       x = "Score", y = NULL) +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        axis.text = element_text(face = "bold"),
+        panel.grid.major.y = element_blank())
+
+```
+
+```{r 04-nb-smote-matrix, echo=TRUE}
+# Confusion Matrix
+cm_nb_smote <- conf_mat(nb_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_nb_smote <- as.data.frame(cm_nb_smote$table)
+cm_df_nb_smote$Truth <- factor(cm_df_nb_smote$Truth, levels = c("Yes", "No"))
+cm_df_nb_smote$Prediction <- factor(cm_df_nb_smote$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_nb_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#FFF9C4", high = "#F4D03F", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(title = "Confusion Matrix – NB (SMOTE)",
+       x = "Predicted Class", y = "Actual Class") +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        axis.title = element_text(face = "bold"),
+        axis.text = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),
+        panel.grid = element_blank())
+
+```
+
+```{r 04-nb-roc-curve-smote, echo=TRUE}
+# Roc
+roc_curve(nb_preds_smote, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(title = "ROC Curve – NB (SMOTE)",
+       subtitle = "Model performance on predicting Monitoring Turnover Risk",
+       x = "False Positive Rate (1 - Specificity)",
+       y = "True Positive Rate (Sensitivity)") +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        plot.subtitle = element_text(hjust = 0.5, size = 11),
+        axis.title = element_text(face = "bold"),
+        axis.text = element_text(face = "bold"))
+
+```
+
+### Naive Bayes - Upsampling
+
+```{r 04-nb-upsample}
+# Create Upsampling Recipe
+recipe_nb_upsample <- base_recipe %>%
+  step_upsample(Monitoring_Turnover_Risk)
+
+# Build Workflow with Upsampling
+workflow_nb_upsample <- workflow() %>%
+  add_model(nb_model) %>%
+  add_recipe(recipe_nb_upsample)
+
+# 10-Fold Cross-Validation
+set.seed(42)
+nb_cv_upsample <- fit_resamples(
+  workflow_nb_upsample,
+  resamples = mtr_folds,
+  metrics = metric_set(accuracy, precision, recall, f_meas, yardstick::spec, roc_auc)
+)
+
+# Final Fit on Full Training Data
+nb_fit_upsample <- fit(workflow_nb_upsample, data = mtr_train_data)
+
+# Predict on Test Set
+nb_preds_upsample <- predict(nb_fit_upsample, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(nb_fit_upsample, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Naive Bayes - Upsampling - Performance Metrics
+
+```{r 04-nb-upsample-metrics, echo=TRUE}
+# Metrics
+nb_upsample_metrics <- all_metrics(nb_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Print
+nb_upsample_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#F4D03F", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(title = "Performance Metrics – NB (Upsampling)",
+       x = "Score", y = NULL) +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        axis.text = element_text(face = "bold"),
+        panel.grid.major.y = element_blank())
+
+```
+
+```{r 04-nb-matrix, echo=TRUE}
+# Confusion Matrix
+cm_nb_upsample <- conf_mat(nb_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_nb_upsample <- as.data.frame(cm_nb_upsample$table)
+cm_df_nb_upsample$Truth <- factor(cm_df_nb_upsample$Truth, levels = c("Yes", "No"))
+cm_df_nb_upsample$Prediction <- factor(cm_df_nb_upsample$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_nb_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#FFF9C4", high = "#F4D03F", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(title = "Confusion Matrix – NB (Upsampling)",
+       x = "Predicted Class", y = "Actual Class") +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        axis.title = element_text(face = "bold"),
+        axis.text = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),
+        panel.grid = element_blank())
+
+```
+
+```{r 04-nb-roc-curve-upsample, echo=TRUE}
+# Roc
+roc_curve(nb_preds_upsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(title = "ROC Curve – NB (Upsampling)",
+       subtitle = "Model performance on predicting Monitoring Turnover Risk",
+       x = "False Positive Rate (1 - Specificity)",
+       y = "True Positive Rate (Sensitivity)") +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        plot.subtitle = element_text(hjust = 0.5, size = 11),
+        axis.title = element_text(face = "bold"),
+        axis.text = element_text(face = "bold"))
+
+```
+
+### Naive Bayes - Downsampling
+
+```{r 04-nb-down-sample, message=FALSE}
+# Create Downsampling Recipe
+recipe_nb_downsample <- base_recipe %>%
+  step_downsample(Monitoring_Turnover_Risk)
+
+# Build Workflow with Downsampling
+workflow_nb_downsample <- workflow() %>%
+  add_model(nb_model) %>%
+  add_recipe(recipe_nb_downsample)
+
+# 10-Fold Cross-Validation
+set.seed(42)
+nb_cv_downsample <- fit_resamples(
+  workflow_nb_downsample,
+  resamples = mtr_folds,
+  metrics = metric_set(accuracy, precision, recall, f_meas, yardstick::spec, roc_auc)
+)
+
+# Fit Final Model on Full Training Data
+nb_fit_downsample <- fit(workflow_nb_downsample, data = mtr_train_data)
+
+# Predict on Test Set
+nb_preds_downsample <- predict(nb_fit_downsample, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(nb_fit_downsample, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Naive Bayes - Downsampling - Performance Metrics
+
+```{r 04-nb-down-sample-metrics, echo=TRUE}
+# Metrics
+nb_downsample_metrics <- all_metrics(nb_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Print
+nb_downsample_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+                          levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#F4D03F", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(title = "Performance Metrics – NB (Downsampling)",
+       x = "Score", y = NULL) +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        axis.text = element_text(face = "bold"),
+        panel.grid.major.y = element_blank())
+
+```
+
+```{r 04-nb-down-sample-matrix, echo=TRUE}
+# Confusion Marix
+cm_nb_downsample <- conf_mat(nb_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_nb_downsample <- as.data.frame(cm_nb_downsample$table)
+cm_df_nb_downsample$Truth <- factor(cm_df_nb_downsample$Truth, levels = c("Yes", "No"))
+cm_df_nb_downsample$Prediction <- factor(cm_df_nb_downsample$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_nb_downsample, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#FFF9C4", high = "#F4D03F", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(title = "Confusion Matrix – NB (Downsampling)",
+       x = "Predicted Class", y = "Actual Class") +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        axis.title = element_text(face = "bold"),
+        axis.text = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),
+        panel.grid = element_blank())
+
+```
+
+```{r 04-nb-down-sample-roc-curve, echo=TRUE}
+# Roc
+roc_curve(nb_preds_downsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(title = "ROC Curve – NB (Downsampling)",
+       subtitle = "Model performance on predicting Monitoring Turnover Risk",
+       x = "False Positive Rate (1 - Specificity)",
+       y = "True Positive Rate (Sensitivity)") +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+        plot.subtitle = element_text(hjust = 0.5, size = 11),
+        axis.title = element_text(face = "bold"),
+        axis.text = element_text(face = "bold"))
+
+```
+
+### Results Table for Naive Bayes (Monitoring Turnover Risk)
+
+```{r 04-nb-results-table, results='asis', echo=TRUE}
+nb_results_long <- bind_rows(
+  nb_none_metrics %>% mutate(Resample = "No Sampling"),
+  nb_smote_metrics %>% mutate(Resample = "SMOTE"),
+  nb_upsample_metrics %>% mutate(Resample = "Up Sampling"),
+  nb_downsample_metrics %>% mutate(Resample = "Down Sampling")
+) %>%
+  mutate(
+    Metric = factor(.metric,
+                    levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                    labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC")),
+    Score = .estimate,
+    Resample = factor(Resample, levels = c("No Sampling", "SMOTE", "Up Sampling", "Down Sampling"))
+  ) %>%
+  filter(!is.na(Score))
+
+highlight_nb <- nb_results_long %>%
+  group_by(Metric) %>%
+  filter(Score == max(Score, na.rm = TRUE)) %>%
+  mutate(is_best = TRUE)
+
+nb_results_highlight <- left_join(nb_results_long, highlight_nb %>% select(Resample, Metric, is_best),
+                                  by = c("Resample", "Metric")) %>%
+  mutate(is_best = ifelse(is.na(is_best), FALSE, is_best))
+
+ggplot(nb_results_highlight, aes(x = Resample, y = Score, fill = Metric)) +
+  geom_col(width = 0.7) +
+  geom_col(data = subset(nb_results_highlight, is_best),
+           fill = NA, color = "black", linewidth = 1.2, width = 0.7) +
+  facet_wrap(~ Metric, nrow = 2, scales = "free_y") +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_fill_manual(values = rep("#F4D03F", 6)) +
+  labs(
+    title = "NB Performance by Metric and Resampling Method",
+    subtitle = "Black outline shows the best result for each metric",
+    x = "Resampling Strategy", y = "Score"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
+  )
+
+```
+
+### Executive Summary for Naive Bayes (Monitoring Turnover Risk)
+
+Naive Bayes delivered **mixed classification performance** when predicting turnover risk. Its simple structure and strong assumptions (e.g., feature independence) made it computationally efficient but less adaptive to complex relationships. Across sampling strategies, performance varied widely—particularly in recall, specificity, and ROC AUC—showing how sensitive NB is to class balance.
+
+- **No Resampling** delivered **perfect recall (1.000)** and a strong **F1 score (0.838)**, identifying all positive cases. However, it **misclassified every negative case** (specificity = **0.000**) and showed a **moderate ROC AUC (0.307)**, indicating poor probability ranking.
+
+- **SMOTE** achieved the **highest specificity (0.857)** and solid **precision (0.818)** but suffered from **low recall (0.248)** and **F1 (0.381)**. Nevertheless, it recorded the **best ROC AUC (0.361)**, suggesting better risk ranking compared to other methods.
+
+- **Upsampling** struck a middle ground, achieving **recall (0.559)**, **F1 (0.672)**, **specificity (0.732)**, and **precision (0.844)**. Its ROC AUC was lower (**0.296**), suggesting limitations in risk stratification despite balanced performance.
+
+- **Downsampling** showed the most **balanced results** with **recall (0.683)**, **F1 score (0.739)**, **specificity (0.571)**, and **precision (0.805)**. ROC AUC reached **0.321**, slightly behind SMOTE but still the second-best, offering a good tradeoff between classification and ranking.
+
+Naive Bayes worked well for **baseline classification**, especially under **No Resampling** for sensitivity and **Downsampling** for balanced tradeoffs. Yet, its limitations in handling feature interactions and calibration suggest that **ensemble models may be better suited** for nuanced turnover predictions.
+
+## Monitoring Turnover Risk with Support Vector Machines
+
+### Support Vector Machines - No Sampling
+
+```{r 04-svm-no-sample, message=FALSE}
+# Linear Support Vector Machine
+svm_model <- svm_linear(cost = tune()) %>%
+  set_engine("kernlab") %>%
+  set_mode("classification")
+
+# Workflow
+workflow_svm_none <- workflow() %>%
+  add_model(svm_model) %>%
+  add_recipe(base_recipe)
+
+# Tuning
+set.seed(42)
+
+svm_tuned <- tune_grid(
+  workflow_svm_none,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc))
+
+# Finalize
+best_svm <- select_best(svm_tuned, metric = "roc_auc")
+final_svm_workflow <- finalize_workflow(workflow_svm_none, best_svm)
+
+# Fit
+svm_fit_none <- fit(final_svm_workflow, data = mtr_train_data)
+
+# Predict
+svm_preds_none <- predict(svm_fit_none, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(svm_fit_none, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Support Vector Machines - No Sampling - Performance Metrics
+
+```{r 04-svm-no-sampling-metrics, echo=TRUE}
+# Metrics
+svm_none_metrics <- all_metrics(svm_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Print
+svm_none_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric, levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                          labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC"))) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#884EA0", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(title = "Performance Metrics – SVM (No Resampling)", x = "Score", y = NULL) +
+  theme_minimal(base_size = 13)
+```
+
+```{r 04-svm-matrix-no-sampling, echo=TRUE}
+# Confusion Matrix
+cm_svm_none <- conf_mat(svm_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_svm_none <- as.data.frame(cm_svm_none$table)
+cm_df_svm_none$Truth <- factor(cm_df_svm_none$Truth, levels = c("Yes", "No"))
+cm_df_svm_none$Prediction <- factor(cm_df_svm_none$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_svm_none, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = Freq), fontface = "bold", size = 5) +
+  scale_fill_gradient(low = "#f2e6f9", high = "#5B2C6F") +
+  scale_y_discrete(limits = rev) +
+  labs(title = "Confusion Matrix – SVM (No Resampling)", x = "Predicted", y = "Actual") +
+  theme_minimal()
+
+```
+
+```{r 04-svm-roc-curve-no-sampling, echo=TRUE}
+# ROC Curve
+roc_curve(svm_preds_none, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray50") +
+  labs(
+    title = "ROC Curve – SVM (No Resampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "1 - Specificity",
+    y = "Sensitivity"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+```
+
+### Support Vector Machines - Smote
+
+```{r 04-svm-smote, message=FALSE}
+# Define the SVM Model
+svm_model <- svm_linear(cost = tune()) %>%
+  set_engine("kernlab") %>%
+  set_mode("classification")
+
+# Create SMOTE Recipe
+recipe_svm_smote <- base_recipe %>%
+  step_smote(Monitoring_Turnover_Risk)
+
+# Build Workflow
+workflow_svm_smote <- workflow() %>%
+  add_model(svm_model) %>%
+  add_recipe(recipe_svm_smote)
+
+# Tune with 10-Fold Cross-Validation
+set.seed(42)
+svm_tuned_smote <- tune_grid(
+  workflow_svm_smote,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc)
+)
+
+# Select Best Model by ROC AUC
+best_svm_smote <- select_best(svm_tuned_smote, metric = "roc_auc")
+
+# Finalize Workflow with Best Hyperparameters
+final_svm_workflow_smote <- finalize_workflow(workflow_svm_smote, best_svm_smote)
+
+# Fit Final Model to Training Data
+svm_fit_smote <- fit(final_svm_workflow_smote, data = mtr_train_data)
+
+# Predict on Test Data
+svm_preds_smote <- predict(svm_fit_smote, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(svm_fit_smote, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Support Vector Machines - Smote - Performance Metrics
+
+```{r 04-svm-smote-metrics, echo=TRUE}
+# Metrics
+svm_smote_metrics <- all_metrics(svm_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Print
+svm_smote_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+    levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+    labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC")
+  )) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#6C3483", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "white", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(title = "Performance Metrics – SVM (SMOTE)", x = "Score", y = NULL) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+```{r 04-svm-matrix-smote, echo=TRUE}
+# Confusion Matrix
+cm_svm_smote <- conf_mat(svm_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_svm_smote <- as.data.frame(cm_svm_smote$table)
+
+cm_df_svm_smote$Truth <- factor(cm_df_svm_smote$Truth, levels = c("Yes", "No"))
+cm_df_svm_smote$Prediction <- factor(cm_df_svm_smote$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_svm_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#E8DAEF", high = "#6C3483", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – SVM (SMOTE)",
+    x = "Predicted Class", y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+
+```
+
+```{r 04-svm-roc-curve-smote, echo=TRUE}
+# ROC Curve
+roc_curve(svm_preds_smote, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(
+    title = "ROC Curve – SVM (SMOTE)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+
+```
+
+### Support Vector Machines - Upsampling
+
+```{r 04-svm-upsampling, message=FALSE}
+# Define the SVM Model
+svm_model <- svm_linear(cost = tune()) %>%
+  set_engine("kernlab") %>%
+  set_mode("classification")
+
+# Create SMOTE Recipe
+recipe_svm_upsample <- base_recipe %>%
+  step_upsample(Monitoring_Turnover_Risk)
+
+# Build Workflow
+workflow_svm_upsample <- workflow() %>%
+  add_model(svm_model) %>%
+  add_recipe(recipe_svm_upsample)
+
+# Tune with 10-Fold Cross-Validation
+set.seed(42)
+svm_tuned_upsample <- tune_grid(
+  workflow_svm_upsample,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc)
+)
+
+# Select Best Model by ROC AUC
+best_svm_upsample <- select_best(svm_tuned_upsample, metric = "roc_auc")
+
+# Finalize Workflow with Best Hyperparameters
+final_svm_workflow_upsample <- finalize_workflow(workflow_svm_upsample, best_svm_upsample)
+
+# Fit Final Model to Training Data
+svm_fit_upsample <- fit(final_svm_workflow_upsample, data = mtr_train_data)
+
+# Predict on Test Data
+svm_preds_upsample <- predict(svm_fit_upsample, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(svm_fit_upsample, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Support Vector Machines - Upsampling - Performance Metrics
+
+```{r 04-svm-upsample-metrics, echo=TRUE}
+# Metrics
+svm_upsample_metrics <- all_metrics(svm_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Print
+svm_upsample_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+    levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+    labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC")
+  )) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#6C3483", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "white", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(title = "Performance Metrics – SVM (Upsampling)", x = "Score", y = NULL) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+```{r 04-svm-matrix-upsample, echo=TRUE}
+# Confusion Matrix
+cm_svm_upsample <- conf_mat(svm_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_svm_upsample <- as.data.frame(cm_svm_upsample$table)
+
+cm_df_svm_upsample$Truth <- factor(cm_df_svm_upsample$Truth, levels = c("Yes", "No"))
+cm_df_svm_upsample$Prediction <- factor(cm_df_svm_upsample$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_svm_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#E8DAEF", high = "#6C3483", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – SVM (Upsampling)",
+    x = "Predicted Class", y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+
+```
+
+```{r 04-svm-roc-curve-upsample, echo=TRUE}
+# ROC Curve
+roc_curve(svm_preds_upsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(
+    title = "ROC Curve – SVM (Upsampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+
+```
+
+### Support Vector Machines - Downsampling
+
+```{r 04-svm-downsampling, message=FALSE}
+# Define the SVM Model
+svm_model <- svm_linear(cost = tune()) %>%
+  set_engine("kernlab") %>%
+  set_mode("classification")
+
+# Create SMOTE Recipe
+recipe_svm_downsample <- base_recipe %>%
+  step_downsample(Monitoring_Turnover_Risk)
+
+# Build Workflow
+workflow_svm_downsample <- workflow() %>%
+  add_model(svm_model) %>%
+  add_recipe(recipe_svm_downsample)
+
+# Tune with 10-Fold Cross-Validation
+set.seed(42)
+svm_tuned_downsample <- tune_grid(
+  workflow_svm_downsample,
+  resamples = mtr_folds,
+  grid = 10,
+  metrics = metric_set(accuracy, roc_auc)
+)
+
+# Select Best Model by ROC AUC
+best_svm_downsample <- select_best(svm_tuned_downsample, metric = "roc_auc")
+
+# Finalize Workflow with Best Hyperparameters
+final_svm_workflow_downsample <- finalize_workflow(workflow_svm_downsample, best_svm_downsample)
+
+# Fit Final Model to Training Data
+svm_fit_downsample <- fit(final_svm_workflow_downsample, data = mtr_train_data)
+
+# Predict on Test Data
+svm_preds_downsample <- predict(svm_fit_downsample, new_data = mtr_test_data, type = "prob") %>%
+  bind_cols(predict(svm_fit_downsample, new_data = mtr_test_data)) %>%
+  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+```
+
+### Support Vector Machines - Upsampling - Performance Metrics
+
+```{r 04-svm-downsampling-metrics, echo=TRUE}
+# Metrics
+svm_downsample_metrics <- all_metrics(svm_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+
+# Print
+svm_downsample_metrics %>%
+  filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
+  mutate(.metric = factor(.metric,
+    levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+    labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC")
+  )) %>%
+  ggplot(aes(x = .estimate, y = fct_reorder(.metric, .estimate))) +
+  geom_col(fill = "#6C3483", width = 0.6) +
+  geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "white", size = 4.2, fontface = "bold") +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
+  labs(title = "Performance Metrics – SVM (Downsampling)", x = "Score", y = NULL) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+```
+
+```{r 04-svm-matrix-downsample, echo=TRUE}
+# Confusion Matrix
+cm_svm_downsample <- conf_mat(svm_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_df_svm_downsample <- as.data.frame(cm_svm_downsample$table)
+
+cm_df_svm_downsample$Truth <- factor(cm_df_svm_downsample$Truth, levels = c("Yes", "No"))
+cm_df_svm_downsample$Prediction <- factor(cm_df_svm_downsample$Prediction, levels = c("No", "Yes"))
+
+ggplot(cm_df_svm_downsample, aes(x = Prediction, y = Truth, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#E8DAEF", high = "#6C3483", name = "Frequency") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    title = "Confusion Matrix – SVM (Downsampling)",
+    x = "Predicted Class", y = "Actual Class"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    axis.text = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+
+```
+
+```{r 04-svm-roc-curve-downsample, echo=TRUE}
+# ROC Curve
+roc_curve(svm_preds_downsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+  autoplot() +
+  geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
+  labs(
+    title = "ROC Curve – SVM (Downsampling)",
+    subtitle = "Model performance on predicting Monitoring Turnover Risk",
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold")
+  )
+
+```
+
+### Results Table for Support Vector Machines (Monitoring Turnover Risk)
+
+```{r 04-svm-results-table, results='asis', echo=TRUE}
+svm_results_long <- bind_rows(
+  svm_none_metrics %>% mutate(Resample = "No Sampling"),
+  svm_smote_metrics %>% mutate(Resample = "SMOTE"),
+  svm_upsample_metrics %>% mutate(Resample = "Up Sampling"),
+  svm_downsample_metrics %>% mutate(Resample = "Down Sampling")
+) %>%
+  mutate(
+    Metric = factor(.metric,
+                    levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+                    labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC")),
+    Score = .estimate,
+    Resample = factor(Resample, levels = c("No Sampling", "SMOTE", "Up Sampling", "Down Sampling"))
+  ) %>%
+  filter(!is.na(Score))
+
+highlight_svm <- svm_results_long %>%
+  group_by(Metric) %>%
+  filter(Score == max(Score, na.rm = TRUE)) %>%
+  mutate(is_best = TRUE)
+
+svm_results_highlight <- left_join(svm_results_long, highlight_svm %>% select(Resample, Metric, is_best),
+                                   by = c("Resample", "Metric")) %>%
+  mutate(is_best = ifelse(is.na(is_best), FALSE, is_best))
+
+ggplot(svm_results_highlight, aes(x = Resample, y = Score, fill = Metric)) +
+  geom_col(width = 0.7) +
+  geom_col(data = subset(svm_results_highlight, is_best),
+           fill = NA, color = "black", linewidth = 1.2, width = 0.7) +
+  facet_wrap(~ Metric, nrow = 2, scales = "free_y") +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_fill_manual(values = rep("#9B59B6", 6)) +
+  labs(
+    title = "SVM Performance by Metric and Resampling Method",
+    subtitle = "Black outline shows the best result for each metric",
+    x = "Resampling Strategy", y = "Score"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+### Executive Summary for Support Vector Machines (Monitoring Turnover Risk)
+
+Support Vector Machines (SVM) offered competitive performance, particularly in terms of **recall, F1 score, and precision**. While not the top-performing model overall, SVM proved reliable for **identifying at-risk employees**, especially when using the original (non-resampled) data. Its moderate ROC AUC and lower specificity indicate some room for improvement in **ranking probabilities** and **reducing false positives**.
+
+- **No Resampling** yielded the **strongest performance overall**, with high **recall (0.883)**, **F1 score (0.845)**, and **precision (0.810)**. **Accuracy (0.766)** was the highest of all configurations. ROC AUC was modest at **0.274**, and specificity was low (**0.464**), showing strong positive-class prediction but limited true negative detection.
+
+- **SMOTE** offered strong **precision (0.917)** and improved **specificity (0.750)**, but had slightly lower **recall (0.676)** and **F1 (0.699)**. ROC AUC was nearly identical to No Resampling (**0.274**), with better balance between classes.
+
+- **Upsampling** maintained similar results to SMOTE, with **precision (0.876)** and **F1 score (0.723)**. Recall (**0.690**) was slightly better than SMOTE, while ROC AUC remained steady at **0.274**.
+
+- **Downsampling** produced the **highest ROC AUC (0.302)** and strong **precision (0.905)**, but came with a drop in **recall (0.648)** and **F1 score (0.709)**. This method reduced false positives and improved class probability ranking, making it more conservative and better calibrated.
+
+SVM maintained consistent ROC AUC across strategies, and benefits may arise from kernel tuning, threshold adjustments, or probability calibration.
+
+## Monitoring Turnover Risk - Master Performance Comparison Table
+
+```{r 04-model-accuracy-comparison, fig.width=14, fig.height=8}
+# Define colors
+model_colors <- c(
+  "Logistic" = "#4B9CD3",
+  "Random Forest" = "#3FA34D",
+  "XGBoost" = "#E87461",
+  "Naive Bayes" = "#FFD700",
+  "SVM" = "#9370DB"
+)
+
+# Identify best performers per model and metric
+best_scores <- all_models_metrics %>%
+  group_by(Model, .metric) %>%
+  filter(.estimate == max(.estimate, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(is_best = TRUE)
+
+# Merge and annotate plot data
+plot_data <- all_models_metrics %>%
+  left_join(
+    best_scores %>% select(Model, Resample, .metric, is_best),
+    by = c("Model", "Resample", ".metric")
+  ) %>%
+  mutate(
+    is_best = ifelse(is.na(is_best), FALSE, is_best),
+    label = ifelse(is.na(.estimate), "NA", sprintf("%.3f", .estimate)),
+    Resample = factor(
+      Resample,
+      levels = c("No Sampling", "SMOTE", "Up Sampling", "Down Sampling", "Not Available")
+    ),
+    Model = factor(
+      Model,
+      levels = c("Logistic", "Random Forest", "XGBoost", "Naive Bayes", "SVM")
+    ),
+    .metric = factor(
+      .metric,
+      levels = c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc"),
+      labels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC")
+    )
+  )
+
+# Create the plot
+ggplot(plot_data, aes(x = Resample, y = .estimate, fill = Model)) +
+  geom_col(width = 0.7, color = NA) +
+  geom_col(
+    data = subset(plot_data, is_best),
+    aes(x = Resample, y = .estimate),
+    fill = NA,
+    color = "black",
+    linewidth = 1.1,
+    width = 0.7
+  ) +
+  geom_text(
+    aes(label = label),
+    vjust = -0.35,
+    size = 3,
+    color = "black"
+  ) +
+  facet_grid(.metric ~ Model, switch = "y") +
+  scale_y_continuous(
+    limits = c(0, 1),
+    expand = expansion(mult = c(0.05, 0.25))
+  ) +
+  scale_fill_manual(values = model_colors, na.translate = FALSE) +
+  labs(
+    title = "Monitoring Turnover Risk – Final Model Performance by Metric and Resampling Strategy",
+    subtitle = "Best scores outlined in black. NA indicates model/strategy not available.",
+    x = "Resampling Method",
+    y = "Score",
+    fill = "Model"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
+    plot.subtitle = element_text(hjust = 0.5, size = 11),
+    strip.text = element_text(face = "bold", size = 11),
+    axis.text.x = element_text(angle = 30, hjust = 1, size = 9),
+    axis.text.y = element_text(size = 9),
+    panel.spacing = unit(1.5, "lines")
+  )
+
+```
+
+## Monitoring Turnover Risk - Master Variable Importance Plot
+
+```{r 04-vip-imp-clean-horizontal, fig.width=14, fig.height=10, message=FALSE, warning=FALSE}
+# Helper function to extract VI from a workflow
+get_importance <- function(fit_obj, model_label, resample_label) {
+  vi(extract_fit_parsnip(fit_obj), scale = TRUE) %>%
+    mutate(Model = model_label, Resample = resample_label)
+}
+
+# Extract VIPs for each model and resample method
+model_importance_all <- bind_rows(
+  get_importance(fit_logit_none, "Logistic", "No Sampling"),
+  get_importance(fit_logit_smote, "Logistic", "SMOTE"),
+  get_importance(fit_logit_upsample, "Logistic", "Upsampling"),
+  get_importance(fit_logit_downsample, "Logistic", "Downsampling"),
+  
+  get_importance(rf_fit_none, "Random Forest", "No Sampling"),
+  get_importance(rf_fit_smote, "Random Forest", "SMOTE"),
+  get_importance(rf_fit_upsample, "Random Forest", "Upsampling"),
+  get_importance(rf_fit_downsample, "Random Forest", "Downsampling"),
+  
+  get_importance(xgb_fit_none, "XGBoost", "No Sampling"),
+  get_importance(xgb_fit_smote, "XGBoost", "SMOTE"),
+  get_importance(xgb_fit_upsample, "XGBoost", "Upsampling"),
+  get_importance(xgb_fit_downsample, "XGBoost", "Downsampling")
+)
+
+# Top 5 VIPs per Model + Resampling combo, scaled
+top_vars <- model_importance_all %>%
+  filter(!is.na(Importance)) %>%
+  mutate(
+    Resample = factor(Resample, levels = c("No Sampling", "SMOTE", "Upsampling", "Downsampling")),
+    Model = factor(Model, levels = c("Logistic", "Random Forest", "XGBoost"))
+  ) %>%
+  group_by(Model, Resample) %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 5) %>%
+  ungroup() %>%
+  group_by(Model) %>%
+  mutate(ScaledImportance = Importance / max(Importance)) %>%
+  ungroup()
+
+# Custom model colors
+model_colors <- c(
+  "Logistic" = "#4B9CD3",
+  "Random Forest" = "#3FA34D",
+  "XGBoost" = "#E87461"
+)
+
+# Plot VIPs
+ggplot(top_vars, aes(
+  y = ScaledImportance,
+  x = fct_reorder(Variable, ScaledImportance),
+  fill = Model
+)) +
+  geom_col(width = 0.75, show.legend = FALSE) +
+  geom_text(
+    aes(label = round(Importance, 2)),
+    vjust = -0.3,
+    size = 3.2,
+    color = "black"
+  ) +
+  facet_grid(Resample ~ Model, scales = "free_x") +
+  scale_fill_manual(values = model_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Top Five Most Important Features by Model and Resampling Method",
+    subtitle = "Importance scaled within each model to allow comparison",
+    y = "Scaled Importance (Within Model)",
+    x = "Variable"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    strip.text = element_text(face = "bold", size = 11),
+    axis.text.x = element_text(size = 9, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 10),
+    panel.grid.major.y = element_blank(),
+    panel.spacing = unit(1, "lines")
+  )
+```
+
+## Monitoring Turnover Risk - Top Five Performing Models Plot
+
+```{r 04-best-model-monitoring, fig.width=14, fig.height=10, message=FALSE, warning=FALSE}
+# Define top 5 model scores – Monitoring Turnover Risk (ordered by F1 Score)
+top5_model_scores <- tibble::tribble(
+  ~Model, ~Metric, ~Score,
+
+  # Random Forest (No Sampling)
+  "Random Forest (No Sampling)", "Accuracy", 0.886,
+  "Random Forest (No Sampling)", "Precision", 0.863,
+  "Random Forest (No Sampling)", "Recall", 1.000,
+  "Random Forest (No Sampling)", "F1 Score", 0.927,
+  "Random Forest (No Sampling)", "Specificity", 0.589,
+  "Random Forest (No Sampling)", "ROC AUC", 0.133,
+
+  # XGBoost (No Sampling)
+  "XGBoost (No Sampling)", "Accuracy", 0.886,
+  "XGBoost (No Sampling)", "Precision", 0.863,
+  "XGBoost (No Sampling)", "Recall", 1.000,
+  "XGBoost (No Sampling)", "F1 Score", 0.927,
+  "XGBoost (No Sampling)", "Specificity", 0.589,
+  "XGBoost (No Sampling)", "ROC AUC", 0.197,
+
+  # SVM (No Sampling)
+  "SVM (No Sampling)", "Accuracy", 0.766,
+  "SVM (No Sampling)", "Precision", 0.810,
+  "SVM (No Sampling)", "Recall", 0.883,
+  "SVM (No Sampling)", "F1 Score", 0.845,
+  "SVM (No Sampling)", "Specificity", 0.464,
+  "SVM (No Sampling)", "ROC AUC", 0.274,
+
+  # Logistic (No Sampling)
+  "Logistic (No Sampling)", "Accuracy", 0.736,
+  "Logistic (No Sampling)", "Precision", 0.813,
+  "Logistic (No Sampling)", "Recall", 0.828,
+  "Logistic (No Sampling)", "F1 Score", 0.819,
+  "Logistic (No Sampling)", "Specificity", 0.500,
+  "Logistic (No Sampling)", "ROC AUC", 0.283,
+
+  # Naive Bayes (Down Sampling)
+  "Naive Bayes (Down Sampling)", "Accuracy", 0.737,
+  "Naive Bayes (Down Sampling)", "Precision", 0.805,
+  "Naive Bayes (Down Sampling)", "Recall", 0.683,
+  "Naive Bayes (Down Sampling)", "F1 Score", 0.739,
+  "Naive Bayes (Down Sampling)", "Specificity", 0.768,
+  "Naive Bayes (Down Sampling)", "ROC AUC", 0.321
+)
+
+# Set metric order
+top5_model_scores <- top5_model_scores %>%
+  mutate(Metric = factor(
+    Metric,
+    levels = c("Accuracy", "Precision", "Recall", "F1 Score", "Specificity", "ROC AUC")
+  ))
+
+# Define model colors
+model_colors <- c(
+  "Random Forest (No Sampling)" = "#3FA34D",
+  "XGBoost (No Sampling)" = "#E87461",
+  "SVM (No Sampling)" = "#9370DB",
+  "Logistic (No Sampling)" = "#4B9CD3",
+  "Naive Bayes (Down Sampling)" = "#F4D03F"
+)
+
+# Create the plot
+ggplot(top5_model_scores, aes(x = Metric, y = Score, fill = Model)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  geom_text(
+    aes(label = sprintf("%.3f", Score)),
+    position = position_dodge(width = 0.8),
+    vjust = -0.5,
+    size = 3.5,
+    color = "black"
+  ) +
+  scale_fill_manual(values = model_colors) +
+  scale_y_continuous(limits = c(0, 1.1)) +
+  labs(
+    title = "Top 5 Model Performers – Monitoring Turnover Risk",
+    subtitle = "Each model's best resampling strategy ranked by F1 Score",
+    x = "Metric",
+    y = "Score",
+    fill = "Model"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16, hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5),
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size = 11),
+    legend.position = "top",
+    legend.title = element_text(face = "bold")
+  )
+```
+
+## Monitoring Turnover Risk – Top Five Best Performing Models
+
+To evaluate turnover risk, models were assessed across six key classification metrics: **accuracy**, **precision**, **recall**, **F1 score**, **specificity**, and **ROC AUC**. Among the top-performing configurations, two models — **Random Forest** and **XGBoost (both with no sampling)** — delivered near-identical classification strength, with XGBoost edging ahead overall due to its superior ranking ability (ROC AUC).
+
+---
+
+**1. XGBoost (No Sampling)** – Best Overall for Classification and Ranking
+
+- **Accuracy**: 0.886  
+- **Precision**: 0.863  
+- **Recall**: 1.000  
+- **F1 Score**: 0.927  
+- **Specificity**: 0.589  
+- **ROC AUC**: 0.197  
+
+XGBoost achieved **perfect recall** and **top F1 score**, matching Random Forest across all classification metrics. Its higher **ROC AUC** makes it the best option for **risk ranking**, making it ideal when both classification and **probability-based prioritization** are important.
+
+---
+
+**2. Random Forest (No Sampling)** – Best Pure Classifier
+
+- **Accuracy**: 0.886  
+- **Precision**: 0.863  
+- **Recall**: 1.000  
+- **F1 Score**: 0.927  
+- **Specificity**: 0.589  
+- **ROC AUC**: 0.133  
+
+Random Forest excelled as a **classification model**, equaling XGBoost on all predictive metrics. While its **ROC AUC** was lower, it remains a top-tier model for **high-recall use cases** where missing a true at-risk employee is unacceptable.
+
+---
+
+**3. SVM (No Sampling)** – Balanced and Precise
+
+- **Accuracy**: 0.766  
+- **Precision**: 0.810  
+- **Recall**: 0.883  
+- **F1 Score**: 0.845  
+- **Specificity**: 0.464  
+- **ROC AUC**: 0.274  
+
+SVM offered a strong **balance between recall and precision**, with solid classification strength across the board. It’s well-suited for **proactive retention strategies** that seek to reduce both false positives and false negatives.
+
+---
+
+**4. Logistic Regression (No Sampling)** – Interpretable and Reliable
+
+- **Accuracy**: 0.736  
+- **Precision**: 0.813  
+- **Recall**: 0.828  
+- **F1 Score**: 0.819  
+- **Specificity**: 0.500  
+- **ROC AUC**: 0.283  
+
+Logistic Regression provides a **transparent, interpretable option** with consistent metrics and decent ROC AUC. It's an excellent choice for organizations that value **clarity in decision-making** and stakeholder trust.
+
+---
+
+**5. Naive Bayes (Down Sampling)** – Most Calibrated for Risk Ranking
+
+- **Accuracy**: 0.737  
+- **Precision**: 0.805  
+- **Recall**: 0.683  
+- **F1 Score**: 0.739  
+- **Specificity**: 0.768  
+- **ROC AUC**: 0.321  
+
+Naive Bayes stood out for its **highest ROC AUC**, offering **stronger probability calibration** despite lower recall. It’s a great option for **risk scoring and ranking**, especially in scenarios where prioritization is key.
+
+
+<div style="display: flex; justify-content: space-between; margin-top: 20px; margin-bottom: 30px;">
+  <a href="HR_Data_Quiet_Quitting_Results.html" style="background-color: #4B9CD3; color: white; padding: 10px 20px; 
+     text-align: center; text-decoration: none; font-size: 16px; border-radius: 8px;">
+    🔗 Back to Quiet Quitting Results
+  </a>
+
+  <a href="HR_Data_EDA.html" style="background-color: #E74C3C; color: white; padding: 10px 20px; 
+     text-align: center; text-decoration: none; font-size: 16px; border-radius: 8px;">
+    🔗 Back to HR EDA
+  </a>
+</div>
+
+```{r 00-image-save, include=FALSE}
+# Save the current R session to restore later
+save.image(file = "outputs/my_environment.RData")
+```
