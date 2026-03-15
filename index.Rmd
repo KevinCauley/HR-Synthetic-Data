@@ -1,0 +1,119 @@
+---
+title: "Workforce Analytics Using Synthetic HR Data"
+author: "Kevin Allen Cauley"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+
+output:
+  html_document:
+    self_contained: false
+    theme: flatly
+    toc: false
+---
+
+# Project Overview
+
+This project demonstrates how **synthetic HR datasets can support modern workforce analytics and predictive modeling workflows**.
+
+The dataset was constructed using research-informed workforce variables covering:
+
+- employee demographics
+- workplace monitoring
+- job satisfaction
+- employee wellbeing
+- performance metrics
+- privacy perceptions
+- attrition indicators
+
+The goal is to evaluate whether **synthetic data can support realistic exploratory analysis and predictive modeling** for workforce outcomes.
+
+The dataset contains:
+
+- **1,000 employees**
+- **73 variables**
+- multiple behavioral and organizational constructs
+
+---
+
+# Analytical Workflow
+
+The project follows a structured analytics pipeline:
+
+Synthetic Data Generation (Python)
+            ↓
+Exploratory Data Analysis (R)
+            ↓
+Predictive Modeling
+            ↓
+Model Comparison
+            ↓
+Insights and Recommendations
+
+---
+
+## Reports
+
+### Exploratory Data Analysis
+
+This report examines dataset structure, distributions, correlations, skewness, and multicollinearity diagnostics.
+
+<div style="margin-top:20px;">
+<a href="hr_data_eda.html"
+style="background:#4B9CD3;color:white;padding:12px 20px;border-radius:8px;text-decoration:none;display:inline-block;">
+View Exploratory Data Analysis
+</a>
+</div>
+
+---
+
+### Modeling
+
+This report evaluates multiple classification algorithms for predicting employee **turnover intention**, **quiet quitting**, and **monitoring-related turnover risk**.
+
+Models tested include:
+
+- Logistic Regression  
+- Random Forest  
+- XGBoost  
+- Support Vector Machines  
+- Naive Bayes  
+
+Each model is evaluated using:
+
+- No Resampling  
+- Up-Sampling  
+- Down-Sampling  
+- SMOTE  
+
+<br>
+
+<div style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap; margin-top:25px;">
+
+<a href="HR_Data_Turnover_Intention_Results.html"
+style="background:#4B9CD3;color:white;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:600;">
+Turnover Intention
+</a>
+
+<a href="HR_Data_Quiet_Quitting_Results.html"
+style="background:#5FA8D3;color:white;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:600;">
+Quiet Quitting
+</a>
+
+<a href="HR_Data_Monitoring_Turnover_Risk_Results.html"
+style="background:#6FAED9;color:white;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:600;">
+Monitoring Turnover Risk
+</a>
+
+</div>
+
+---
+
+### Insights Gleaned
+
+This final report synthesizes key findings across the EDA and predictive modeling reports, highlighting the most important workforce patterns, modeling takeaways, and practical implications of the synthetic HR analytics pipeline.
+
+<div style="margin-top:20px;">
+<a href="HR_Data_Insights_Gleaned.html"
+style="background:#4B9CD3;color:white;padding:12px 20px;border-radius:8px;text-decoration:none;display:inline-block;">
+View Insights Gleaned
+</a>
+</div>

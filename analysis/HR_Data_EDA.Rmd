@@ -1,7 +1,7 @@
 ---
-title: "Workforce Analytics Using Synthetic HR Data"
+title: "Workforce Analytics Using Synthetic HR Data: Exploratory Data Analysis"
 author: "Kevin Allen Cauley"
-date: "`r Sys.Date()`"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
 
 output:
   html_document:
@@ -11,9 +11,10 @@ output:
     toc: true
     toc_float: true
     toc_depth: 3
+    smooth_scroll: true
     code_folding: hide
     df_print: paged
-    
+
 number_sections: true
 
 editor_options:
@@ -154,7 +155,14 @@ pre {
 
 ```{r 00-clean-environment, include=FALSE}
 rm(list = ls())
+
 set.seed(123)
+
+library(rprojroot)
+
+knitr::opts_knit$set(
+  root.dir = rprojroot::find_rstudio_root_file()
+)
 ```
 
 ```{r 00-global-options, include=FALSE}
@@ -250,9 +258,6 @@ options(
   pcre.limit.recursion = 1000000,
   pcre.limit.match = 1000000
 )
-
-# Reproducibility
-set.seed(123)
 
 # Directory structure
 dir.create("outputs", showWarnings = FALSE)
@@ -2178,7 +2183,7 @@ However, the initial multicollinearity diagnostics revealed elevated variance in
 
 Finally, the imbalance diagnostics showed that several categorical variables contain dominant categories. While such patterns are common in workforce datasets, they may influence model learning if not handled carefully. These characteristics will therefore be considered during model development through appropriate validation strategies and performance metrics.
 
-Together, these exploratory findings confirm that the synthetic dataset captures realistic structural relationships commonly observed in organizational data while remaining suitable for predictive modeling.
+The exploratory diagnostics suggest that the synthetic dataset reproduces several statistical patterns commonly observed in organizational workforce datasets.
 
 # Summary of Exploratory Diagnostics
 
@@ -2307,13 +2312,13 @@ print(p)
 
 # Feature Importance Overview
 
-This preliminary feature importance analysis provides an early indication of which workforce variables may be most strongly associated with employee turnover intention. While these results are exploratory and derived from a simple screening model, they highlight several potential drivers of turnover risk related to employee engagement, workload pressure, and organizational support. A more rigorous comparison of predictive models is conducted in the subsequent modeling report.
+This preliminary feature importance analysis provides an early indication of which workforce variables may be most strongly associated with employee turnover intention. While these results are exploratory and derived from a simple screening model, they highlight variables potentially associated with turnover risk. A more rigorous comparison of predictive models is conducted in the subsequent modeling report.
 
 # Transition to Predictive Modeling
 
 The exploratory analysis confirms that the synthetic workforce dataset reflects realistic organizational patterns observed in employee analytics research. Distribution diagnostics, correlation analysis, and multicollinearity checks suggest that the predictor variables exhibit meaningful variability while maintaining acceptable statistical independence.
 
-These findings support the use of predictive modeling techniques to examine employee turnover dynamics. The next stage of analysis focuses on building machine learning models to predict **Turnover Intention**, while also exploring related behavioral outcomes such as **Quiet Quitting** and **Monitoring Turnover Risk**.
+These findings indicate that the dataset is suitable for predictive modeling experiments. The next stage of analysis focuses on building machine learning models to predict **Turnover Intention**, while also exploring related behavioral outcomes such as **Quiet Quitting** and **Monitoring Turnover Risk**.
 
 The modeling report evaluates multiple algorithms and compares predictive performance across approaches to identify the most informative workforce indicators associated with employee retention risk.
 

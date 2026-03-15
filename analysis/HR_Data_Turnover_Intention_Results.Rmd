@@ -1,95 +1,209 @@
 ---
-title: "HR Predictive Analytics Project – Turnover Intention"
+title: "Workforce Analytics Using Synthetic HR Data: Modeling and Predicting Turnover Intention"
 author: "Kevin Allen Cauley"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
   html_document:
-    code_folding: hide
+    self_contained: false
+    theme: flatly
+    highlight: tango
     toc: true
     toc_float: true
     toc_depth: 3
-    number_sections: true
-    theme: flatly
-    highlight: tango
+    smooth_scroll: true
+    code_folding: hide
     df_print: paged
+number_sections: true
+editor_options:
+  chunk_output_type: console
 ---
 
-```{r 00-setup, include=FALSE}
-# Set working directory to the project root
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```{css, echo=FALSE}
+/* Main container */
+.main-container {
+  max-width: 1200px;
+}
 
-# Create output folders if they don't exist
-if (!dir.exists("outputs")) dir.create("outputs", recursive = TRUE)
-if (!dir.exists("outputs/figures")) dir.create("outputs/figures", recursive = TRUE)
-if (!dir.exists("data/processed")) dir.create("data/processed", recursive = TRUE)
+/* Section spacing */
+.section.level2 {
+  margin-top: 40px;
+}
 
-# Global chunk options
+.section.level3 {
+  margin-top: 25px;
+}
+
+.section.level4 {
+  margin-top: 15px;
+}
+
+/* Image centering */
+img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Slick carousel spacing */
+.slick-slide img {
+  margin-top: 10px;
+}
+
+/* Code blocks */
+pre {
+  margin-bottom: 0px;
+}
+
+/* Toggle buttons */
+.showhide {
+  margin-top: -10px;
+}
+
+/* Headers */
+h1 {
+  margin-top: 50px;
+  margin-bottom: 15px;
+}
+
+h2 {
+  border-bottom: 2px solid #e5e5e5;
+  padding-bottom: 5px;
+}
+```
+
+```{r 00-clean-environment, include=FALSE}
+rm(list = ls())
+
+set.seed(123)
+
+library(rprojroot)
+
+knitr::opts_knit$set(
+  root.dir = rprojroot::find_rstudio_root_file()
+)
+```
+
+```{r 00-global-options, include=FALSE}
 knitr::opts_chunk$set(
   echo = TRUE,
   warning = FALSE,
   message = FALSE,
-  fig.path = "outputs/figures/",
   fig.align = "center",
-  cache = TRUE
+  fig.width = 9,
+  fig.height = 5.5,
+  dpi = 200,
+  cache = TRUE,
+  fig.path = "outputs/figures/"
+)
+```
+
+```{r 00-create-directories, include=FALSE}
+# Output folders
+if (!dir.exists("outputs")) dir.create("outputs")
+if (!dir.exists("outputs/figures")) dir.create("outputs/figures", recursive = TRUE)
+if (!dir.exists("outputs/plots")) dir.create("outputs/plots", recursive = TRUE)
+
+# Data folders
+if (!dir.exists("data/processed")) dir.create("data/processed", recursive = TRUE)
+```
+
+```{r 00-install-packages, include=FALSE}
+required_packages <- c(
+  "car",
+  "cowplot",
+  "caret",
+  "corrplot",
+  "discrim",
+  "dplyr",
+  "e1071",
+  "fastDummies",
+  "forcats",
+  "gbm",
+  "GGally",
+  "ggcorrplot",
+  "ggplot2",
+  "ggthemes",
+  "glmnet",
+  "grid",
+  "gridExtra",
+  "iml",
+  "kableExtra",
+  "knitr",
+  "mgcv",
+  "naivebayes",
+  "naniar",
+  "patchwork",
+  "pheatmap",
+  "plotly",
+  "psych",
+  "randomForest",
+  "ranger",
+  "RColorBrewer",
+  "readxl",
+  "reshape2",
+  "skimr",
+  "themis",
+  "tidymodels",
+  "tidyverse",
+  "vip",
+  "viridis",
+  "xgboost"
 )
 
-# Load previous session
-if (file.exists("outputs/my_environment.RData")) {
-  load("outputs/my_environment.RData")
+installed <- rownames(installed.packages())
+
+for(pkg in required_packages){
+  if(!pkg %in% installed){
+    install.packages(pkg)
+  }
+  library(pkg, character.only = TRUE)
+}
+
+format_table <- function(df, caption=""){
+  knitr::kable(df, caption = caption) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("striped","hover","condensed"),
+      full_width = FALSE,
+      position = "center"
+    )
 }
 ```
 
-```{r 00-setup-save, include=FALSE}
-# Save the current R session to restore later
-save.image(file = "outputs/my_environment.RData")
-```
-
-```{r 00-setup-packages, include=FALSE}
-# Load packages
-library(car)
-library(cowplot)
-library(caret)
-library(corrplot)
-library(discrim)
+```{r 00-load-packages, include=FALSE}
 library(dplyr)
-library(e1071)
-library(fastDummies)
-library(forcats)
-library(gbm)
-library(GGally)
-library(ggcorrplot)
 library(ggplot2)
-library(ggthemes)
-library(glmnet)
-library(grid)
-library(gridExtra)
-library(iml)
-library(kableExtra)
-library(keras3)
-library(keras)
-library(knitr)
-library(mgcv)
-library(naivebayes)
-library(naniar)
-library(patchwork)
-library(pheatmap)
-library(plotly)
-library(psych)
+library(caret)
+library(tidymodels)
 library(randomForest)
 library(ranger)
-library(RColorBrewer)
-library(readxl)
-library(reshape2)
-library(skimr)
-library(tensorflow)
-library(themis)
-library(tidymodels)
-library(tidyverse)
-library(vip)
-library(viridis)
 library(xgboost)
+library(e1071)
+library(naivebayes)
+library(themis)
+library(pROC)
+library(vip)
+library(readxl)
+library(knitr)
+library(kableExtra)
 ```
----
+
+```{r 00-load-data, echo=TRUE}
+
+# Load combined HR dataset
+hr_df <- readxl::read_excel("data/raw/HR_Data.xlsx")
+
+# Convert to data frame
+hr_df <- as.data.frame(hr_df)
+
+# Quick validation
+dim(hr_df)
+names(hr_df)
+```
+
+```{r debug-columns}
+names(hr_df)
+```
+
 ## Predictive Modeling Strategy
 
 Following the exploratory analysis, predictive models were developed to identify factors associated with employee turnover intention. The modeling process was designed to evaluate multiple algorithms and compare their predictive performance.
@@ -3299,7 +3413,4 @@ While not the top performer in any category, Logistic Regression with up-samplin
   </a>
 </div>
 
-```{r 00-image-save, include=FALSE}
-# Save the current R session to restore later
-save.image(file = "outputs/my_environment.RData")
-```
+<hr>
