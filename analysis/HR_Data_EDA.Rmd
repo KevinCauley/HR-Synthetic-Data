@@ -2,9 +2,10 @@
 title: "Workforce Analytics Using Synthetic HR Data"
 author: "Kevin Allen Cauley"
 date: "`r Sys.Date()`"
+
 output:
   html_document:
-    self_contained: true
+    self_contained: false
     theme: flatly
     highlight: tango
     toc: true
@@ -12,62 +13,164 @@ output:
     toc_depth: 3
     code_folding: hide
     df_print: paged
+    
+number_sections: true
+
 editor_options:
   chunk_output_type: console
 ---
 
 ```{css, echo=FALSE}
+/* Main container */
 .main-container {
   max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  overflow-x: hidden;
 }
 
+/* Floating TOC width */
+#TOC {
+  width: 250px;
+}
+
+/* Section spacing */
 .section.level2 {
-  margin-top: 40px;
+  margin-top: 50px;
 }
 
 .section.level3 {
-  margin-top: 25px;
+  margin-top: 35px;
 }
 
 .section.level4 {
-  margin-top: 15px;
+  margin-top: 25px;
 }
 
+/* Headings */
+h1 {
+  margin-top: 40px;
+  margin-bottom: 15px;
+}
+
+h2 {
+  border-bottom: 2px solid #E5E7E9;
+  padding-bottom: 6px;
+  margin-top: 50px;
+}
+
+h3 {
+  margin-top: 35px;
+}
+
+h4 {
+  margin-top: 25px;
+}
+
+/* Typography */
+body {
+  font-size: 16px;
+}
+
+p {
+  line-height: 1.6;
+}
+
+/* Images */
 img {
   display: block;
   margin-left: auto;
   margin-right: auto;
+  border-radius: 6px;
 }
 
-.slick-slide img {
-  margin-top: 10px;
+/* Tables */
+.table {
+  margin-left: auto;
+  margin-right: auto;
 }
 
+/* Code blocks */
 pre {
-  margin-bottom: 0px;
+  overflow-x: auto;
+  max-width: 100%;
+  margin-bottom: 8px;
 }
 
+/* slickR container fixes */
+.slick-slider {
+  margin-top: 20px;
+  margin-bottom: 20px !important;
+}
+
+/* remove phantom whitespace */
+.slick-list {
+  height: auto !important;
+}
+
+/* center slides */
+.slick-track {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* remove extra padding */
+.slick-slide {
+  padding-top: 0px;
+}
+
+/* navigation dots */
+.slick-dots {
+  bottom: -20px;
+}
+
+/* remove weird carousel spacing */
+.slick-slide img {
+  margin-top: 5px;
+}
+
+/* prevent huge gaps under carousels */
+.html-widget {
+  margin-bottom: 10px !important;
+}
+
+/* remove extra margins around figures */
+.figure {
+  margin-bottom: 20px;
+}
+
+/* clean spacing for show/hide buttons */
 .showhide {
-  margin-top: -10px;
+  margin-top: -8px;
 }
-
-h3 {
-  margin-top: 30px;
-}
-
-h4 {
-  margin-top: 15px;
+/* Force slickR widgets to collapse to content height */
+.slickR html-widget,
+.html-widget,
+.slick-slider {
+  height: auto !important;
+  max-height: none !important;
 }
 ```
 
-```{r 00-setup, include=FALSE}
+```{r 00-clean-environment, include=FALSE}
+rm(list = ls())
+set.seed(123)
+```
+
+```{r 00-global-options, include=FALSE}
+# Global chunk options
 knitr::opts_chunk$set(
   echo = FALSE,
   warning = FALSE,
   message = FALSE,
-  fig.path = "outputs/plots/",
   fig.align = "center",
-  cache = TRUE
+  fig.width = 9,
+  fig.height = 5.5,
+  out.width = "90%",
+  fig.retina = 2,
+  dpi = 200,
+  cache = TRUE,
+  fig.path = "outputs/figures/"
 )
 ```
 
@@ -77,6 +180,7 @@ required_packages <- c(
   "tidyverse",
   "readxl",
   "here",
+  "broom",
   "knitr",
   "kableExtra",
   "janitor",
@@ -109,10 +213,11 @@ if(length(missing_packages) > 0){
 ```
 
 ```{r 00-load-packages, include=FALSE}
-
+# Load Packages
 library(tidyverse)
 library(readxl)
 library(here)
+library(broom)
 library(knitr)
 library(kableExtra)
 library(janitor)
@@ -129,7 +234,6 @@ library(cowplot)
 library(gridExtra)
 library(slickR)
 library(car)
-library(caret)
 library(e1071)
 library(fastDummies)
 library(naniar)
@@ -140,6 +244,12 @@ clean_title <- function(x){
     stringr::str_replace_all("_"," ") %>%
     stringr::str_to_title()
 }
+
+# Increase regex limits to prevent PCRE warnings in large HTML outputs
+options(
+  pcre.limit.recursion = 1000000,
+  pcre.limit.match = 1000000
+)
 
 # Reproducibility
 set.seed(123)
@@ -176,20 +286,6 @@ create_plot_dir("ordered")
 create_plot_dir("categorical")
 create_plot_dir("targets")
 
-# Global chunk options
-knitr::opts_chunk$set(
-  echo = FALSE,
-  warning = FALSE,
-  message = FALSE,
-  fig.path = "outputs/figures/",
-  fig.align = "center",
-  cache = TRUE,
-  dpi = 200
-)
-
-# Project data path
-file_path <- here("data","raw","HR_Data.xlsx")
-
 # Table helper
 format_table <- function(df, caption=""){
   knitr::kable(df, caption = caption) %>%
@@ -201,7 +297,10 @@ format_table <- function(df, caption=""){
 }
 ```
 
-```{r 00-import-data, include=FALSE}
+```{r 00-import-data}
+# Define data path
+file_path <- here("data", "raw", "HR_Data.xlsx")
+
 # Import individual sheets
 data_demographics <- read_excel(file_path, sheet = "Data & Demographics")
 data_metrics <- read_excel(file_path, sheet = "Metrics")
@@ -210,8 +309,11 @@ data_wellness <- read_excel(file_path, sheet = "Wellness")
 data_monitoring <- read_excel(file_path, sheet = "Monitoring")
 data_privacy <- read_excel(file_path, sheet = "Privacy")
 data_attrition <- read_excel(file_path, sheet = "Attrition")
+```
 
-# Merge datasets
+```{r 00-merge-datasets}
+# Merge HR datasets into a single dataframe
+
 hr_df <- data_demographics %>%
   left_join(data_metrics, by = "Employee_ID") %>%
   left_join(data_satisfaction, by = "Employee_ID") %>%
@@ -224,10 +326,11 @@ hr_df <- data_demographics %>%
     -First_Name,
     -Last_Name,
     -Voluntary_Resignation,
-    -Involuntary_Termination)
+    -Involuntary_Termination
+  )
 ```
 
-```{r fig.show="hold", 00-data-tables, include=FALSE}
+```{r 00-metadata-tables, fig.show="hold", include=FALSE}
 employee_data_demo_meta <- tribble(
   ~Variable, ~Type, ~Measurement, ~Purpose,
   "Employee_ID", "Character", "Nominal", "Identifier/Drop",
@@ -343,7 +446,7 @@ project_overview <- tibble(
     "Research-informed synthetic HR dataset",
     "1,000 employees",
     "73 workforce variables",
-    "R, tidyverse, ggplot2, caret, fastDummies",
+    "R, tidyverse, ggplot2, fastDummies",
     "Exploratory analysis, correlation analysis, multicollinearity diagnostics, and predictive modeling preparation"
   )
 )
@@ -360,7 +463,7 @@ knitr::kable(
   )
 ```
 
-## Introduction
+# Introduction
 
 The objective of this project is to demonstrate how organizations can use internal employee data to build predictive analytics models that support evidence-based human resource decision-making.
 
@@ -381,9 +484,9 @@ By combining these research-informed variables, the project demonstrates how org
 
 This project demonstrates a full analytics pipeline exploring workforce behavior, employee wellbeing, workplace monitoring, and turnover prediction using a synthetic HR dataset.
 
-The analysis includes exploratory data analysis, multicollinearity diagnostics, and predictive modeling to understand patterns in employee engagement, monitoring practices, and turnover risk.
+The analysis includes exploratory data analysis, correlation analysis, multicollinearity diagnostics, and predictive modeling to examine patterns in employee engagement, monitoring practices, and turnover risk.
 
-## Exploratory Analysis Objectives
+# Exploratory Analysis Objectives
 
 The goal of the exploratory data analysis (EDA) phase is to better understand the structure, distribution, and relationships within the synthetic HR dataset before developing predictive models.
 
@@ -399,13 +502,13 @@ The analysis focuses on four key objectives:
 
 These steps ensure that the dataset is properly validated before model development begins and help guide feature selection and modeling strategies.
 
-## Data Overview
+# Data Overview
 
-The dataset contains **1,000 synthetic employee records across 73 variables**, representing multiple dimensions of the employee experience including demographics, workplace engagement, monitoring practices, privacy perceptions, and organizational outcomes.
+The dataset used in this analysis represents a synthetic workforce dataset informed by real-world labor statistics, organizational research literature, and survey-based employee engagement measures. The dataset was designed to simulate realistic relationships between employee characteristics, workplace experiences, monitoring practices, and organizational outcomes such as turnover intention.
 
-These variables collectively support predictive modeling of employee attitudes, behavior, and potential attrition risk.
+These variables collectively support predictive modeling of employee attitudes, behavior, and attrition risk.
 
-### Data Dictionary
+## Data Dictionary
 
 The following metadata tables document the structure of the synthetic HR dataset.
 
@@ -418,7 +521,7 @@ Each variable is described according to:
 
 Documenting these attributes improves transparency and ensures reproducibility in later modeling stages.
 
-```{r fig.show="hold", 02-employee-metadata-tables, results='asis', echo=FALSE}
+```{r 02-data-dictionary, fig.show="hold", results='asis'}
 # Clean styled HTML table for metadata
 make_pretty_html_table <- function(data, title) {
 
@@ -460,41 +563,43 @@ make_pretty_html_table(employee_attrition_meta,    "7. Attrition")
 
 We begin by reviewing the first few entries of the dataset.
 
-```{r 02-dataset-summary-head, echo=TRUE}
-head(hr_df)
+```{r 02-dataset-preview, echo=TRUE}
+head(hr_df) %>%
+  knitr::kable() %>%
+  kableExtra::kable_styling()
 ```
 
 ### Dataset Structure
 
 This view helps confirm data types and overall structure before preprocessing and modeling.
 
-```{r 02-dataset-summary-structure, echo=TRUE}
-glimpse(hr_df)
+```{r 02-dataset-structure, echo=TRUE}
+dplyr::glimpse(hr_df, width = 80)
+```
+
+### Dataset Summary Statistics
+
+```{r 02-numeric-summary, echo=TRUE}
+hr_df %>%
+  select(where(is.numeric)) %>%
+  psych::describe()
 ```
 
 ### Missing Data Check
 
 Before performing exploratory analysis, we verify whether any missing values exist in the dataset. Missing values can distort statistical inference and predictive modeling if not addressed appropriately.
 
-```{r 02-dataset-summary-missing, echo=TRUE}
+```{r 02-missing-data-check, echo=TRUE}
 sum(is.na(hr_df))
 ```
 
-## Data Preprocessing
+# Data Preparation
 
-Prior to exploratory analysis, character variables are converted to factors to ensure appropriate handling during statistical modeling and visualization.
-
-```{r 02-data-preprocessing}
-# Convert Data
-hr_df <- hr_df %>%
-  mutate(across(where(is.character), as.factor))
-```
-
-### Variable Definitions
+## Variable Definitions
 
 We define groups of numeric predictors, categorical predictors, and target variables to support later exploratory analysis and modeling.
 
-```{r fig.show="hold", 02-define-vars, echo=TRUE}
+```{r 03-define-variable-groups, fig.show="hold", echo=TRUE}
 # Numeric variables (including Likert scale variables)
 num_vars <- c(
   "Average_Salary", "Tenure_Years", "Distance_From_Home", "Actual_Training_Hours",
@@ -533,26 +638,36 @@ num_target_vars <- c(
   "Burnout_Score", "Wellbeing_Score", "Privacy_Concern_Score", "Privacy_Complaints_Score")
 ```
 
-### Variable Validation
+## Variable Validation
 
 This validation step confirms that all expected predictor variables exist in the merged dataset before downstream analysis begins. Detecting missing variables early prevents silent modeling errors later in the pipeline.
 
-```{r 03-safety-check}
+```{r 03-variable-validation, echo=FALSE}
 missing_vars <- setdiff(num_vars, names(hr_df))
 
 if (length(missing_vars) > 0) {
   stop(paste("Missing variables:", paste(missing_vars, collapse = ", ")))}
 ```
 
-## Exploratory Data Analysis
+## Data Preprocessing
+
+Prior to exploratory analysis, character variables are converted to factors to ensure appropriate handling during statistical modeling and visualization.
+
+```{r 03-factor-conversion, echo=FALSE}
+# Convert Data
+hr_df <- hr_df %>%
+  mutate(across(where(is.character), as.factor))
+```
+
+# Exploratory Data Analysis
 
 This section explores trends, patterns, distributions, and possible anomalies across both numeric and categorical variables. The goal is to better understand the synthetic dataset before predictive modeling.
 
-### Variable Type Classification
+## Variable Type Classification
 
 Before plotting, numeric variables are divided into likely continuous variables and Likert-style variables based on the number of distinct values.
 
-```{r 03-num-var-split}
+```{r 04-variable-type-classification, echo=FALSE}
 # Automatically detect continuous numeric variables
 numeric_vars <- hr_df %>% select(where(is.numeric))
 
@@ -565,15 +680,28 @@ continuous_vars <- numeric_vars %>%
 likert_vars <- setdiff(names(numeric_vars), continuous_vars)
 ```
 
-### Continuous Variable Distributions
+## Variable Classification
+
+For exploratory analysis, variables were grouped into four categories based on their measurement scale and analytical purpose:
+
+- **Continuous variables** representing measurable workforce characteristics such as salary, tenure, and distance from home.
+
+- **Likert-scale variables** capturing employee attitudes, perceptions, and workplace satisfaction measures.
+
+- **Categorical variables** describing demographic attributes and organizational context such as department, occupation, and work arrangement.
+
+- **Target variables** representing key organizational outcomes including turnover intention, quiet quitting behavior, and monitoring-related turnover risk.
+
+This classification structure guides the exploratory analysis and ensures that each variable type is visualized using the most appropriate statistical and graphical techniques.
+
+## Continuous Variable Distributions
 
 We use histogram and density plots to inspect the spread and shape of continuous variables.
 
-```{r 03-num-hist-density, echo=TRUE}
-# Create output directory for continuous variable plots
+```{r 04-continuous-distributions, echo=TRUE, cache=FALSE}
+
 plot_dir <- create_plot_dir("continuous")
 
-# Convert continuous variables to long format
 numeric_long <- hr_df %>%
   select(all_of(continuous_vars)) %>%
   pivot_longer(
@@ -582,10 +710,9 @@ numeric_long <- hr_df %>%
     values_to = "Value"
   )
 
-# Generate histogram + density plots for each variable
 continuous_hist_files <- numeric_long %>%
   group_split(Variable) %>%
-  purrr::map_chr(function(data) {
+  purrr::map_chr(function(data){
 
     var <- unique(data$Variable)
 
@@ -594,12 +721,11 @@ continuous_hist_files <- numeric_long %>%
       paste0("hist_", var, ".png")
     )
 
-    # Create histogram + density plot
     p <- ggplot(data, aes(x = Value)) +
 
       geom_histogram(
         aes(y = after_stat(density)),
-        bins = 30,
+        bins = 25,
         fill = "#6C8EBF",
         color = "white",
         alpha = 0.9
@@ -607,7 +733,8 @@ continuous_hist_files <- numeric_long %>%
 
       geom_density(
         color = "#8B0000",
-        linewidth = 1.2
+        linewidth = 1.3,
+        adjust = 1.2
       ) +
 
       labs(
@@ -616,21 +743,20 @@ continuous_hist_files <- numeric_long %>%
         y = "Density"
       ) +
 
+      scale_x_continuous(expand = expansion(mult = c(0.01,0.01))) +
+      scale_y_continuous(expand = expansion(mult = c(0.01,0.01))) +
+
       theme_minimal(base_size = 14) +
 
       theme(
-        plot.title = element_text(face = "bold", hjust = 0.5),
-        axis.text = element_text(size = 11),
-        axis.title = element_text(size = 12),
-        plot.margin = margin(15, 15, 15, 15)
+        plot.margin = margin(5,5,5,5)
       )
 
-    # Save plot
     ggsave(
       filename = filepath,
       plot = p,
       width = 9,
-      height = 6,
+      height = 5.5,
       dpi = 200,
       bg = "white"
     )
@@ -639,32 +765,27 @@ continuous_hist_files <- numeric_long %>%
 
   })
 
-# Display histogram carousel
-carousel <- slickR(
+slickR(
   continuous_hist_files,
   slideType = "img",
-  width = "900px",
-  height = "550px"
+  width = "900px"
 ) +
 settings(
   dots = TRUE,
   arrows = TRUE,
   infinite = FALSE
 )
-
-print(carousel)
 ```
 
-### Likert Scale Variable Distributions
+## Likert Scale Variable Distributions
 
 Likert-scale variables are plotted as bar charts to show the distribution of employee attitudes, perceptions, and satisfaction levels.
 
-```{r 03-likert-distributions, echo=TRUE}
-# Create output directory for Likert variable plots
+```{r 04-likert-distributions, echo=TRUE, cache=FALSE}
+
 plot_dir <- create_plot_dir("likert")
 
-# Save bar plots for each Likert variable
-likert_plot_files <- purrr::map_chr(likert_vars, function(var) {
+likert_plot_files <- purrr::map_chr(likert_vars, function(var){
 
   filepath <- file.path(
     plot_dir,
@@ -674,6 +795,7 @@ likert_plot_files <- purrr::map_chr(likert_vars, function(var) {
   p <- hr_df %>%
     count(!!sym(var)) %>%
     mutate(score = factor(!!sym(var), levels = sort(unique(!!sym(var))))) %>%
+
     ggplot(aes(x = score, y = n)) +
 
     geom_col(
@@ -694,15 +816,147 @@ likert_plot_files <- purrr::map_chr(likert_vars, function(var) {
       y = "Employee Count"
     ) +
 
+    scale_y_continuous(expand = expansion(mult = c(0,0.1))) +
+
     theme_minimal(base_size = 14) +
 
     theme(
-      plot.title = element_text(face = "bold", hjust = 0.5),
-      axis.text.x = element_text(size = 11),
-      axis.text.y = element_text(size = 11),
-      axis.title = element_text(size = 12),
-      plot.margin = margin(10,10,10,10)
+      plot.margin = margin(5,5,5,5)
     )
+
+  ggsave(
+    filename = filepath,
+    plot = p,
+    width = 9,
+    height = 5.5,
+    dpi = 200,
+    bg = "white"
+  )
+
+  normalizePath(filepath)
+
+})
+
+slickR(
+  likert_plot_files,
+  slideType = "img",
+  width = "900px"
+) +
+settings(
+  dots = TRUE,
+  arrows = TRUE,
+  infinite = FALSE
+)
+```
+
+**Interpretation**
+
+Several productivity and engagement metrics appear normally distributed, suggesting that they may perform well in regression-based models. However, variables such as **Overtime_Hours** and **Mental_Health_Days_Taken** show right-skewed distributions, indicating potential behavioral outliers. These patterns may justify transformation or robust modeling approaches in later stages.
+
+## Outlier Detection
+
+Outliers can influence statistical inference, model stability, and interpretation of workforce trends.  
+Boxplots combined with jittered observations allow us to visually inspect potential extreme values while preserving the underlying distribution of employee observations.
+
+This step helps identify whether unusually high or low values represent realistic workforce variation or potential data anomalies that may require transformation or robust modeling techniques.
+
+### Numeric (Likert) Variables
+
+```{r 04-likert-outlier-boxplots, echo=TRUE, cache=FALSE}
+
+plot_dir <- create_plot_dir("numeric_outliers")
+
+likert_outlier_files <- purrr::map_chr(likert_vars, function(var){
+
+  filepath <- file.path(
+    plot_dir,
+    paste0("outlier_", var, ".png")
+  )
+
+  p <- ggplot(
+        hr_df,
+        aes(x = "", y = .data[[var]])
+      ) +
+
+    geom_boxplot(
+      fill = "#6C8EBF",
+      alpha = 0.75,
+      outlier.color = "#B22222",
+      outlier.size = 2
+    ) +
+
+    geom_jitter(
+      width = 0.12,
+      alpha = 0.35,
+      color = "gray40"
+    ) +
+
+    labs(
+      title = paste("Outlier Inspection:", clean_title(var)),
+      x = NULL,
+      y = "Score"
+    ) +
+
+    theme_minimal(base_size = 14) +
+
+    theme(
+      axis.text.x = element_blank(),
+      plot.margin = margin(5,5,5,5)
+    )
+
+  ggsave(
+    filename = filepath,
+    plot = p,
+    width = 7,
+    height = 5,
+    dpi = 200,
+    bg = "white"
+  )
+
+  normalizePath(filepath)
+
+})
+
+slickR(
+  likert_outlier_files,
+  slideType = "img",
+  width = "900px"
+) +
+settings(
+  dots = TRUE,
+  arrows = TRUE,
+  infinite = FALSE
+)
+```
+
+### Numeric (Ordered) Variables
+
+```{r 04-ordered-variable-distributions, echo=TRUE, cache=FALSE}
+
+plot_dir <- create_plot_dir("ordered")
+
+ordered_plot_files <- purrr::map_chr(likert_vars, function(var){
+
+  filepath <- file.path(
+    plot_dir,
+    paste0("ordered_", var, ".png")
+  )
+
+  p <- hr_df %>%
+    count(!!sym(var)) %>%
+    ggplot(aes(x = factor(!!sym(var)), y = n)) +
+
+    geom_col(fill = "#4C72B0", color = "white") +
+
+    geom_text(aes(label = n), vjust = -0.3) +
+
+    labs(
+      title = paste("Distribution of", clean_title(var)),
+      x = "Ordered Scale",
+      y = "Employee Count"
+    ) +
+
+    theme_minimal()
 
   ggsave(
     filename = filepath,
@@ -717,282 +971,31 @@ likert_plot_files <- purrr::map_chr(likert_vars, function(var) {
 
 })
 
-# Display image carousel
-carousel <- slickR(
-  obj = likert_plot_files,
+slickR(
+  ordered_plot_files,
   slideType = "img",
-  width = "900px",
-  height = "550px"
+  width = "900px"
 ) +
 settings(
   dots = TRUE,
   arrows = TRUE,
   infinite = FALSE
 )
-
-print(carousel)
 ```
 
-**Interpretation**
+# Correlation Analysis
 
-Several productivity and engagement metrics appear normally distributed, suggesting that they may perform well in regression-based models. However, variables such as **Overtime_Hours** and **Mental_Health_Days_Taken** show right-skewed distributions, indicating potential behavioral outliers. These patterns may justify transformation or robust modeling approaches in later stages.
+Correlation analysis helps identify relationships between workforce variables and highlights clusters of related predictors that may influence employee behavior. Strong correlations may indicate shared underlying factors such as organizational support, engagement, or workplace monitoring practices.
 
-### Outlier Detection
-
-Outliers can distort model interpretation, especially for linear models.  
-In this section, we inspect outliers across numeric, Likert, and categorical variables.
-
-#### Numeric Variables
-
-```{r 03-numeric-outliers, fig.width=12, fig.height=10, fig.cap="Boxplots of Numeric Variables: Outlier Detection", echo=TRUE}
-
-# Create output directory for numeric outlier plots
-plot_dir <- create_plot_dir("numeric_outliers")
-
-# Select numeric variables
-numeric_vars <- hr_df %>% 
-  select(where(is.numeric))
-
-# Generate boxplots for each numeric variable
-numeric_plot_files <- purrr::map_chr(names(numeric_vars), function(var) {
-
-  filepath <- file.path(
-    plot_dir,
-    paste0("box_", var, ".png")
-  )
-
-  p <- ggplot(hr_df, aes(x = "", y = .data[[var]])) +
-
-    geom_boxplot(
-      fill = "#2A9D8F",
-      color = "black",
-      width = 0.45,
-      outlier.shape = NA
-    ) +
-
-    geom_jitter(
-      width = 0.15,
-      alpha = 0.35,
-      size = 2,
-      color = "gray40"
-    ) +
-
-    labs(
-      title = paste("Outlier Detection:", clean_title(var)),
-      x = NULL,
-      y = "Observed Value"
-    ) +
-
-    theme_minimal(base_size = 13) +
-
-    theme(
-      plot.title = element_text(face = "bold", hjust = 0.5),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank()
-    )
-
-  ggsave(
-    filename = filepath,
-    plot = p,
-    width = 6.5,
-    height = 4.5,
-    dpi = 150,
-    bg = "white"
-  )
-
-  normalizePath(filepath)
-
-})
-
-# Display image carousel
-carousel <- slickR(
-  obj = numeric_plot_files,
-  slideType = "img",
-  width = "700px",
-  height = "500px"
-) +
-settings(
-  dots = TRUE,
-  arrows = TRUE,
-  infinite = FALSE
-)
-
-print(carousel)
-```
-
-#### Ordered Numeric Variables
-
-```{r ordered-num-outliers, fig.width=12, fig.height=10, fig.cap="Distribution of Ordered Scale Variables", echo=TRUE}
-# Create output directory for ordered scale plots
-plot_dir <- create_plot_dir("ordered")
-
-# Identify ordered numeric variables (Likert-style scales)
-likert_vars <- hr_df %>%
-  select(where(is.numeric)) %>%
-  select(where(~ all(.x %in% 1:5) || all(.x %in% 1:7))) %>%
-  names()
-
-# Generate plots for ordered variables
-ordered_plot_files <- purrr::map_chr(likert_vars, function(var){
-
-  filepath <- file.path(
-    plot_dir,
-    paste0("ordered_", var, ".png")
-  )
-
-  p <- hr_df %>%
-    count(!!sym(var)) %>%
-    mutate(score = factor(!!sym(var), levels = sort(unique(!!sym(var))))) %>%
-    ggplot(aes(x = score, y = n)) +
-
-    geom_col(
-      fill = "#4C72B0",
-      color = "white",
-      width = 0.7
-    ) +
-
-    geom_text(
-      aes(label = n),
-      vjust = -0.4,
-      size = 4
-    ) +
-
-    labs(
-      title = paste("Distribution of", clean_title(var)),
-      x = "Ordered Scale Value",
-      y = "Employee Count"
-    ) +
-
-    theme_minimal(base_size = 13) +
-
-    theme(
-      plot.title = element_text(face = "bold", hjust = 0.5),
-      axis.text.x = element_text(size = 10),
-      axis.text.y = element_text(size = 10)
-    )
-
-  ggsave(
-    filename = filepath,
-    plot = p,
-    width = 6.5,
-    height = 4.5,
-    dpi = 150,
-    bg = "white"
-  )
-
-  normalizePath(filepath)
-
-})
-
-# Display carousel
-carousel <- slickR(
-  obj = ordered_plot_files,
-  slideType = "img",
-  width = "700px",
-  height = "500px"
-) +
-settings(
-  dots = TRUE,
-  arrows = TRUE,
-  infinite = FALSE
-)
-
-print(carousel)
-```
-
-#### Categorical Variable Distributions
-
-Categorical variables describe employee attributes and organizational context, including gender, department, occupation, and work arrangement.
-
-```{r 03-categorical-variable-distributions, fig.width=12, fig.height=8, echo=TRUE}
-# Create output directory for categorical plots
-plot_dir <- create_plot_dir("categorical")
-
-# Identify categorical variables
-cat_vars <- hr_df %>%
-  select(where(~ is.character(.x) | is.factor(.x))) %>%
-  names()
-
-# Generate plots for categorical variables
-cat_plot_files <- purrr::map_chr(cat_vars, function(var){
-
-  filepath <- file.path(
-    plot_dir,
-    paste0("cat_", var, ".png")
-  )
-
-  p <- hr_df %>%
-    count(!!sym(var)) %>%
-    ggplot(aes(x = !!sym(var), y = n)) +
-
-    geom_col(
-      fill = "#4C72B0",
-      color = "white",
-      width = 0.7
-    ) +
-
-    geom_text(
-      aes(label = n),
-      vjust = -0.4,
-      size = 4
-    ) +
-
-    labs(
-      title = paste("Distribution of", clean_title(var)),
-      x = clean_title(var),
-      y = "Employee Count"
-    ) +
-
-    theme_minimal(base_size = 13) +
-
-    theme(
-      plot.title = element_text(face = "bold", hjust = 0.5),
-      axis.text.x = element_text(angle = 40, hjust = 1),
-      axis.text.y = element_text(size = 10)
-    )
-
-  ggsave(
-    filename = filepath,
-    plot = p,
-    width = 7,
-    height = 5,
-    dpi = 150,
-    bg = "white"
-  )
-
-  normalizePath(filepath)
-
-})
-
-# Display carousel
-carousel <- slickR(
-  obj = cat_plot_files,
-  slideType = "img",
-  width = "700px",
-  height = "500px"
-) +
-settings(
-  dots = TRUE,
-  arrows = TRUE,
-  infinite = FALSE
-)
-
-print(carousel)
-```
-
-### Correlation Analysis of Numeric Variables
-
-Correlation analysis helps identify relationships between numeric variables in the dataset. Understanding these relationships is important for several reasons:
-
--  Detecting **multicollinearity**, which can distort statistical models
--  Identifying **clusters of related workplace metrics** such as engagement, wellbeing, or monitoring variables  
--  Revealing **behavioral patterns** that may influence employee outcomes
+Understanding these relationships is critical before predictive modeling, as highly correlated predictors can introduce multicollinearity and reduce model interpretability.
 
 Because hierarchical clustering is used to organize the correlation matrix, we first remove numeric variables with **zero variance**. Variables with no variation cannot produce valid correlations and may introduce missing values that interfere with clustering algorithms.
 
+## Correlation Matrix for Numeric Variables
+
 The following visualization displays pairwise correlations between numeric variables. Variables are automatically reordered using hierarchical clustering so that related features appear closer together in the matrix, improving interpretability.
 
-```{r 03-correlation-matrix, fig.width=12, fig.height=12, echo=TRUE}
+```{r 05-correlation-matrix, fig.width=18, fig.height=16, out.width="100%"}
 # Create output directory for report figures
 fig_dir <- "outputs/figures"
 
@@ -1044,22 +1047,75 @@ theme(
     size = 16,
     hjust = 0.5
   ),
-  axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+  axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
   axis.text.y = element_text(size = 8)
 )
 
 # Save high-resolution version for documentation
-ggsave(
-  filename = file.path(fig_dir, "correlation_matrix.png"),
-  plot = p,
-  width = 14,
-  height = 14,
-  dpi = 300,
-  bg = "white"
-)
+fig_path <- file.path(fig_dir, "correlation_matrix.png")
+
+if(!file.exists(fig_path)){
+  ggsave(
+    filename = fig_path,
+    plot = p,
+    width = 14,
+    height = 14,
+    dpi = 300,
+    bg = "white"
+  )
+}
 
 # Display plot in report
 print(p)
+```
+
+## Pairwise Relationship Exploration
+
+```{r 05-pairwise-relationships, fig.width=12, fig.height=10}
+sample_vars <- hr_df %>%
+  select(
+    Average_Salary,
+    Tenure_Years,
+    Engagement_Level,
+    Job_Satisfaction,
+    Burnout_Score,
+    Stress_Level
+  )
+
+GGally::ggpairs(
+  sample_vars,
+  upper = list(continuous = wrap("cor", size = 3)),
+  lower = list(continuous = wrap("points", alpha = 0.4)),
+  diag = list(continuous = wrap("densityDiag"))
+)
+```
+
+### Correlation Strength Distribution
+
+```{r 05-correlation-strength-distribution, fig.width=8, fig.height=5}
+
+corr_values <- corr_matrix[lower.tri(corr_matrix)]
+
+corr_df <- data.frame(Correlation = corr_values)
+
+ggplot(corr_df, aes(x = Correlation)) +
+
+  geom_histogram(
+    bins = 30,
+    fill = "#4C72B0",
+    color = "white"
+  ) +
+
+  labs(
+    title = "Distribution of Pairwise Correlations",
+    x = "Correlation Coefficient",
+    y = "Frequency"
+  ) +
+
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face="bold", hjust=0.5)
+  )
 ```
 
 ### Strongest Relationships Between Numeric Variables
@@ -1068,7 +1124,7 @@ While the full correlation matrix provides a comprehensive view of all numeric r
 
 Rather than using a single strict threshold such as ∣r∣≥0.50, this plot highlights the top strongest correlations overall, allowing moderate but meaningful relationships to remain visible. This is especially useful in behavioral and organizational datasets, where important associations are often present at modest correlation levels.
 
-```{r 03-strong-correlation-matrix, fig.width=10, fig.height=8, echo=TRUE}
+```{r 03-strong-correlations, fig.width=10, fig.height=8, echo=TRUE}
 # Create output directory for report figures
 fig_dir <- "outputs/figures"
 
@@ -1158,20 +1214,22 @@ p <- ggplot(top_corr_df, aes(x = Pair, y = Correlation, fill = Direction)) +
   )
 
 # Save high-resolution version for documentation
-ggsave(
-  filename = file.path(fig_dir, "strongest_correlations.png"),
-  plot = p,
-  width = 12,
-  height = 9,
-  dpi = 300,
-  bg = "white"
-)
+fig_path <- file.path(fig_dir, "strongest_correlations.png")
+
+if(!file.exists(fig_path)){
+  ggsave(
+    filename = fig_path,
+    plot = p,
+    width = 14,
+    height = 14,
+    dpi = 300,
+    bg = "white"
+  )
+}
 
 # Display plot in report
 print(p)
 ```
-
-The threshold analysis allows clearer interpretation of relationships between variables, which are summarized below.
 
 ### Key Correlation Insights
 
@@ -1193,77 +1251,74 @@ Taken together, the correlation analysis suggests three broad clusters of relate
 
 These patterns indicate that the synthetic dataset captures several structural relationships commonly observed in organizational behavior research, particularly the connections between workplace stressors, employee well-being, and perceptions of organizational monitoring practices.
 
-### Target Variable Distributions
+# Target Variable Exploration
+
+This section examines the distribution of the key outcome variables used in predictive modeling. Understanding the balance of these classes is important because class imbalance can influence model training and evaluation metrics.
+
+The following plots visualize the distribution of:
+
+- Turnover Intention
+- Quiet Quitting
+- Monitoring Turnover Risk
+
+These visualizations help assess whether the outcomes occur with roughly balanced frequencies or whether resampling techniques may be necessary during model development.
+
+## Target Variable Distributions
 
 Below we visualize the target categorical outcomes: Turnover Intention, Quiet Quitting, and Monitoring Turnover Risk.
 
-```{r 03-categorical-targets, fig.width=12, fig.height=8, echo=TRUE}
-# Create output directory for target variable plots
-plot_dir <- create_plot_dir("targets")
+```{r 06-categorical-distributions, echo=TRUE, cache=FALSE}
 
-# Reshape target variables
-target_long <- hr_df %>%
-  select(all_of(cat_target_vars)) %>%
-  pivot_longer(
-    cols = everything(),
-    names_to = "variable",
-    values_to = "value"
-  )
+cat_vars_current <- hr_df %>%
+  select(where(~ is.character(.x) | is.factor(.x))) %>%
+  names()
 
-target_names <- unique(target_long$variable)
+plot_dir <- create_plot_dir("categorical")
 
-# Generate plots for each target variable
-target_plot_files <- purrr::map_chr(target_names, function(var){
+cat_plot_files <- purrr::map_chr(cat_vars_current, function(var){
 
   filepath <- file.path(
     plot_dir,
-    paste0("target_", var, ".png")
+    paste0("cat_", var, ".png")
   )
 
-  p <- target_long %>%
-    filter(variable == var) %>%
-    count(value) %>%
-    ggplot(aes(x = value, y = n, fill = value)) +
+  p <- hr_df %>%
+    count(!!sym(var)) %>%
+
+    ggplot(aes(x = reorder(!!sym(var), n), y = n)) +
 
     geom_col(
-      color = "white",
+      fill = "#5A8F7B",
+      color = "black",
       width = 0.7
     ) +
 
     geom_text(
       aes(label = n),
-      vjust = -0.4,
-      size = 4
-    ) +
-
-    scale_fill_manual(
-      values = c(
-        "Yes" = "#2166AC",
-        "No" = "#B2182B"
-      )
+      vjust = -0.35
     ) +
 
     labs(
       title = paste("Distribution of", clean_title(var)),
-      x = clean_title(var),
+      x = NULL,
       y = "Employee Count"
     ) +
 
-    theme_minimal(base_size = 13) +
+    scale_y_continuous(expand = expansion(mult = c(0,0.1))) +
+
+    theme_minimal(base_size = 14) +
 
     theme(
-      plot.title = element_text(face = "bold", hjust = 0.5),
-      axis.text.x = element_text(size = 10),
-      axis.text.y = element_text(size = 10),
-      legend.position = "none"
+      axis.text.x = element_text(angle = 35, hjust = 1),
+      plot.margin = margin(5,5,5,5)
     )
 
   ggsave(
     filename = filepath,
     plot = p,
-    width = 6.5,
-    height = 4.5,
-    dpi = 150,
+    width = 9,
+    height = 5.5,
+    dpi = 200,
     bg = "white"
   )
 
@@ -1271,30 +1326,94 @@ target_plot_files <- purrr::map_chr(target_names, function(var){
 
 })
 
-# Display carousel
-carousel <- slickR(
-  obj = target_plot_files,
+slickR(
+  cat_plot_files,
   slideType = "img",
-  width = "700px",
-  height = "480px"
+  width = "900px"
 ) +
 settings(
   dots = TRUE,
   arrows = TRUE,
   infinite = FALSE
 )
-
-print(carousel)
 ```
 
-## Multicollinearity Assessment
+### Target Class Balance Comparison
+
+```{r 06-target-class-balance, fig.width=10, fig.height=6}
+target_balance <- hr_df %>%
+  select(all_of(cat_target_vars)) %>%
+  pivot_longer(cols = everything(),
+               names_to = "Variable",
+               values_to = "Value") %>%
+  count(Variable, Value) %>%
+  group_by(Variable) %>%
+  mutate(Proportion = n / sum(n))
+
+ggplot(target_balance,
+       aes(x = Value,
+           y = Proportion,
+           fill = Value)) +
+
+  geom_col(width = 0.7) +
+
+  facet_wrap(~Variable, scales = "free_x") +
+
+  scale_y_continuous(labels = scales::percent_format()) +
+
+  labs(
+    title = "Class Balance Across Target Variables",
+    x = NULL,
+    y = "Proportion"
+  ) +
+
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face="bold", hjust=0.5),
+    legend.position = "none"
+  )
+```
+
+### Turnover Intention by Department
+
+```{r 06-turnover-by-department, fig.width=10, fig.height=6}
+ggplot(hr_df,
+       aes(x = Department,
+           fill = Turnover_Intention)) +
+
+  geom_bar(position = "fill") +
+
+  scale_y_continuous(labels = scales::percent) +
+
+  scale_fill_manual(
+    values = c(
+      "Yes" = "#C0392B",
+      "No" = "#2E86C1"
+    )
+  ) +
+
+  labs(
+    title = "Turnover Intention by Department",
+    x = "Department",
+    y = "Proportion"
+  ) +
+
+  theme_minimal(base_size = 13) +
+
+  theme(
+    axis.text.x = element_text(angle = 40, hjust = 1),
+    plot.title = element_text(face="bold", hjust=.5)
+  )
+```
+
+# Multicollinearity Assessment
 
 Multicollinearity occurs when two or more predictors are highly correlated, making it difficult for statistical models to distinguish their unique contributions.
 This section evaluates multicollinearity for both numeric and categorical predictors.
 
-### VIF for Numeric Predictors
+## VIF for Numeric Predictors
 
-```{r fig.show="hold", 03-check-predictors-vif-numeric, echo=FALSE}
+```{r 07-vif-numeric-calculation, fig.show="hold", echo=FALSE}
 # Subset only numeric predictors (exclude targets)
 numeric_predictors <- hr_df %>%
   select(all_of(num_vars)) %>%
@@ -1320,7 +1439,7 @@ vif_df <- data.frame(
 print(vif_results)
 ```
 
-```{r improved-vif-numeric-plot, fig.width=11, fig.height=8, echo=TRUE}
+```{r 07-vif-numeric-plot, fig.width=11, fig.height=8, echo=TRUE}
 # Create output directory for report figures
 fig_dir <- "outputs/figures"
 
@@ -1389,24 +1508,28 @@ p <- ggplot(vif_df, aes(x = reorder(Variable, -VIF), y = VIF, fill = VIF_Level))
   )
 
 # Save high-resolution version for documentation
-ggsave(
-  filename = file.path(fig_dir, "vif_numeric_predictors.png"),
-  plot = p,
-  width = 12,
-  height = 9,
-  dpi = 300,
-  bg = "white"
-)
+fig_path <- file.path(fig_dir, "vif_numeric_predictors.png")
+
+if(!file.exists(fig_path)){
+  ggsave(
+    filename = fig_path,
+    plot = p,
+    width = 14,
+    height = 14,
+    dpi = 300,
+    bg = "white"
+  )
+}
 
 # Display plot in report
 print(p)
 ```
 
-### VIF for Categorical Predictors
+## VIF for Categorical Predictors
 
 To assess multicollinearity among categorical predictors, we convert factor variables into dummy variables using one-hot encoding.
 
-```{r fig.show="hold", 03-check-vif-categorical, echo=FALSE}
+```{r 07-vif-categorical-calculation, fig.show="hold", echo=FALSE}
 # Target Variables
 cat_predictors <- setdiff(cat_vars, cat_target_vars)
 
@@ -1440,8 +1563,7 @@ vif_df_cat <- data.frame(
   VIF = vif_results_cat)
 ```
 
-```{r improved-vif-categorical-plot, fig.width=11, fig.height=8, echo=TRUE}
-
+```{r 07-vif-categorical-plot, fig.width=11, fig.height=8, echo=TRUE}
 # Create output directory for report figures
 fig_dir <- "outputs/figures"
 
@@ -1513,20 +1635,24 @@ p <- ggplot(vif_df_cat, aes(x = reorder(Variable, -VIF), y = VIF, fill = VIF_Lev
   )
 
 # Save high-resolution version for documentation
-ggsave(
-  filename = file.path(fig_dir, "vif_categorical_predictors.png"),
-  plot = p,
-  width = 12,
-  height = 9,
-  dpi = 300,
-  bg = "white"
-)
+fig_path <- file.path(fig_dir, "vif_categorical_predictors.png")
+
+if(!file.exists(fig_path)){
+  ggsave(
+    filename = fig_path,
+    plot = p,
+    width = 14,
+    height = 14,
+    dpi = 300,
+    bg = "white"
+  )
+}
 
 # Display plot in report
 print(p)
 ```
 
-### Addressing Age Group Multicollinearity
+## Addressing Age Group Multicollinearity
 
 The Variance Inflation Factor (VIF) measures the extent to which predictor variables are linearly associated with one another. Using a threshold of 5, the numeric predictors show no meaningful multicollinearity concerns.
 
@@ -1540,7 +1666,7 @@ To improve model stability and reduce redundancy, the original age-group categor
 
 This transformation preserves the conceptual meaning of the variable while reducing unnecessary multicollinearity among age-related predictors.
 
-```{r fig.show="hold", 03-update-age-group, echo=TRUE}
+```{r 07-update-age-groups, fig.show="hold", echo=TRUE}
 hr_df <- hr_df %>%
   mutate(
     Age_Group = case_when(
@@ -1558,11 +1684,11 @@ hr_df <- hr_df %>%
   )
 ```
 
-### Updated Categorical VIF Check
+## Updated Categorical VIF Check
 
 After collapsing the age categories into broader career stages, the multicollinearity diagnostics are recalculated for the categorical predictors to confirm that the issue has been resolved.
 
-```{r 03-reevaluate-multicollinearity-cat}
+```{r 07-vif-categorical-recheck, echo=FALSE}
 cat_vars_updated <- hr_df %>%
   select(where(~ is.character(.x) | is.factor(.x))) %>%
   names()
@@ -1594,7 +1720,7 @@ vif_df_cat_updated <- data.frame(
 )
 ```
 
-```{r categorical_vif_plot, fig.width=9, fig.height=6, fig.align="center", echo=TRUE}
+```{r 07-vif-categorical-updated-plot, fig.width=9, fig.height=6, fig.align="center", echo=TRUE}
 # Create output directory for report figures
 fig_dir <- "outputs/figures"
 
@@ -1645,24 +1771,28 @@ p <- vif_df_cat_updated %>%
   )
 
 # Save high-resolution version
-ggsave(
-  filename = file.path(fig_dir, "vif_categorical_updated.png"),
-  plot = p,
-  width = 11,
-  height = 8,
-  dpi = 300,
-  bg = "white"
-)
+fig_path <- file.path(fig_dir, "vif_categorical_updated.png")
+
+if(!file.exists(fig_path)){
+  ggsave(
+    filename = fig_path,
+    plot = p,
+    width = 14,
+    height = 14,
+    dpi = 300,
+    bg = "white"
+  )
+}
 
 # Display plot
 print(p)
 ```
 
-## Variable Distribution Imbalance
+# Variable Distribution Imbalance
 
 Given that the data is informed by real-world statistics, surveys, and scholarly literature, some degree of imbalance is expected.
 
-```{r 03-skewness-of-num-vars, fig.width=9, fig.height=6, fig.align="center", echo=TRUE}
+```{r 08-numeric-skewness-calculation, fig.width=9, fig.height=6, fig.align="center", echo=TRUE}
 # Create output directory for report figures
 fig_dir <- "outputs/figures"
 
@@ -1750,22 +1880,28 @@ p <- ggplot(skew_df, aes(x = Skewness, y = Variable, fill = Skew_Type)) +
   )
 
 # Save high-resolution figure
-ggsave(
-  filename = file.path(fig_dir, "numeric_variable_skewness.png"),
-  plot = p,
-  width = 11,
-  height = 8,
-  dpi = 300,
-  bg = "white"
-)
+fig_path <- file.path(fig_dir, "numeric_variable_skewness.png")
+
+if(!file.exists(fig_path)){
+  ggsave(
+    filename = fig_path,
+    plot = p,
+    width = 14,
+    height = 14,
+    dpi = 300,
+    bg = "white"
+  )
+}
 
 # Display plot
 print(p)
 ```
 
-### Numeric Variable Skewness
+Most workforce variables exhibit moderate skewness, particularly behavioral indicators such as overtime hours, mental health days taken, and absenteeism. These right-skewed patterns are common in organizational datasets where extreme behaviors occur among a smaller subset of employees.
 
-```{r 03-skew-num-graph, fig.width=9, fig.height=6, echo=TRUE}
+## Numeric Variable Imbalance
+
+```{r 08-numeric-skewness-plot, fig.width=12, fig.height=10, echo=TRUE}
 # Create output directory for report figures
 fig_dir <- "outputs/figures"
 
@@ -1822,36 +1958,30 @@ p <- ggplot(
   )
 
 # Save high-resolution figure
-ggsave(
-  filename = file.path(fig_dir, "most_skewed_numeric_variables.png"),
-  plot = p,
-  width = 11,
-  height = 8,
-  dpi = 300,
-  bg = "white"
-)
+fig_path <- file.path(fig_dir, "most_skewed_numeric_variables.png")
+
+if(!file.exists(fig_path)){
+  ggsave(
+    filename = fig_path,
+    plot = p,
+    width = 14,
+    height = 14,
+    dpi = 300,
+    bg = "white"
+  )
+}
 
 # Display plot
 print(p)
 ```
 
-### Modeling Implications of Distribution Imbalance
-
-Several categorical predictors display moderate imbalance, with certain categories representing a large share of the observations. This pattern is expected because the synthetic dataset was informed by real-world workforce statistics and organizational research. In practice, many workplace attributes—such as department composition, role distribution, or managerial structure—naturally occur with uneven frequencies.
-
-From a modeling perspective, variable imbalance can influence how predictive algorithms learn patterns from the data. Highly dominant categories may contribute disproportionately to model training, while smaller categories may provide limited information for estimating reliable effects.
-
-For categorical target variables, class imbalance can also affect model evaluation metrics. Predictive models may achieve high overall accuracy while still performing poorly for minority outcomes. For this reason, later modeling stages may consider techniques such as class weighting, resampling, or evaluation metrics beyond simple accuracy (e.g., precision, recall, or F1-score).
-
-Understanding these distribution patterns during exploratory analysis ensures that subsequent predictive models are interpreted appropriately and evaluated using metrics that reflect the structure of the data.
-
-### Categorical Variable Imbalance
+## Categorical Class Imbalance
 
 Categorical variables can sometimes exhibit class imbalance, where one category appears much more frequently than others. While some imbalance is expected in real-world workforce data, extreme imbalance may influence modeling performance and interpretation.
 
 To assess the distribution of categorical variables, bar charts are generated for each categorical feature. The plots are presented in an interactive carousel for easier exploration.
 
-```{r 03-categorical-distributions, results='asis', echo=TRUE}
+```{r 08-categorical-distributions-plot, results='asis', echo=TRUE}
 # Create output directory for categorical plots
 plot_dir <- create_plot_dir("categorical")
 
@@ -1900,14 +2030,16 @@ cat_plot_files <- purrr::map_chr(cat_vars_current, function(var) {
       axis.text.y = element_text(size = 10)
     )
 
+  if(!file.exists(filepath)){
   ggsave(
     filename = filepath,
     plot = p,
-    width = 7,
-    height = 4.5,
-    dpi = 150,
+    width = 9,
+    height = 6,
+    dpi = 200,
     bg = "white"
   )
+}
 
   normalizePath(filepath)
 
@@ -1917,22 +2049,16 @@ cat_plot_files <- purrr::map_chr(cat_vars_current, function(var) {
 carousel <- slickR(
   obj = cat_plot_files,
   slideType = "img",
-  width = "750px",
-  height = "450px"
+  width = "750px"
 ) +
 settings(
   dots = TRUE,
   arrows = TRUE,
   infinite = FALSE
 )
-
-print(carousel)
-
-cat("<br><br><br>")
 ```
 
-```{r 03-skew-cat-graph, fig.width=9, fig.height=6, echo=TRUE}
-
+```{r 08-categorical-imbalance-plot, fig.width=12, fig.height=8, echo=TRUE}
 # Create output directory for report figures
 fig_dir <- "outputs/figures"
 
@@ -1979,8 +2105,9 @@ p <- cat_imbalance_df %>%
   ) +
 
   scale_x_continuous(
-    limits = c(0, 1),
-    expand = expansion(mult = c(0, 0.1))
+  labels = scales::percent,
+  limits = c(0, 1),
+  expand = expansion(mult = c(0, 0.1))
   ) +
 
   labs(
@@ -2000,18 +2127,32 @@ p <- cat_imbalance_df %>%
   )
 
 # Save high-resolution figure
-ggsave(
-  filename = file.path(fig_dir, "categorical_variable_imbalance.png"),
-  plot = p,
-  width = 11,
-  height = 8,
-  dpi = 300,
-  bg = "white"
-)
+fig_path <- file.path(fig_dir, "categorical_variable_imbalance.png")
+
+if(!file.exists(fig_path)){
+  ggsave(
+    filename = fig_path,
+    plot = p,
+    width = 14,
+    height = 14,
+    dpi = 300,
+    bg = "white"
+  )
+}
 
 # Display plot
 print(p)
 ```
+
+# Modeling Implications
+
+Several categorical predictors display moderate imbalance, with certain categories representing a large share of the observations. This pattern is expected because the synthetic dataset was informed by real-world workforce statistics and organizational research. In practice, many workplace attributes—such as department composition, role distribution, or managerial structure—naturally occur with uneven frequencies.
+
+From a modeling perspective, variable imbalance can influence how predictive algorithms learn patterns from the data. Highly dominant categories may contribute disproportionately to model training, while smaller categories may provide limited information for estimating reliable effects.
+
+For categorical target variables, class imbalance can also affect model evaluation metrics. Predictive models may achieve high overall accuracy while still performing poorly for minority outcomes. For this reason, later modeling stages may consider techniques such as class weighting, resampling, or evaluation metrics beyond simple accuracy (e.g., precision, recall, or F1-score).
+
+Understanding these distribution patterns during exploratory analysis ensures that subsequent predictive models are interpreted appropriately and evaluated using metrics that reflect the structure of the data.
 
 ## Implications for Predictive Modeling
 
@@ -2039,11 +2180,11 @@ Finally, the imbalance diagnostics showed that several categorical variables con
 
 Together, these exploratory findings confirm that the synthetic dataset captures realistic structural relationships commonly observed in organizational data while remaining suitable for predictive modeling.
 
-## Summary of Exploratory Diagnostics
+# Summary of Exploratory Diagnostics
 
 The exploratory analysis evaluated several diagnostic aspects of the dataset, including variable distributions, correlation structure, and multicollinearity. The table below summarizes the primary findings and their implications for predictive modeling.
 
-```{r 03-eda-summary-tables, echo=FALSE}
+```{r 09-eda-summary-table, echo=FALSE}
 
 eda_summary <- tibble(
   Diagnostic = c(
@@ -2083,6 +2224,106 @@ knitr::kable(
   )
 ```
 
-<div style="text-align:center; margin-top:25px; margin-bottom:35px;"><a href="HR_Data_Turnover_Intention_Results.html"
-style="background-color: #4B9CD3; color: white; padding: 12px 24px; text-decoration: none; font-size:16px; border-radius:8px;
-font-weight:bold; display:inline-block;">🔗 View Turnover Intention Results</a></div>
+# Predictive Modeling Preview
+
+```{r 10-logistic-preview, fig.width=10, fig.height=7}
+# Create output directory
+fig_dir <- "outputs/figures"
+
+if (!dir.exists(fig_dir)) {
+  dir.create(fig_dir, recursive = TRUE)
+}
+
+# Use numeric predictors only
+model_df <- hr_df %>%
+  select(all_of(num_vars), Turnover_Intention)
+
+# Convert target
+model_df$Turnover_Intention <- as.factor(model_df$Turnover_Intention)
+
+# Remove missing rows
+model_df <- na.omit(model_df)
+
+# Fit logistic regression
+log_model <- glm(
+  Turnover_Intention ~ .,
+  data = model_df,
+  family = binomial
+)
+
+# Extract coefficients
+coef_df <- broom::tidy(log_model) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(
+    Variable = clean_title(term),
+    Direction = ifelse(
+      estimate > 0,
+      "Increases Turnover Risk",
+      "Decreases Turnover Risk"
+    ),
+    Importance = abs(estimate)
+  ) %>%
+  arrange(desc(Importance)) %>%
+  slice(1:20)
+
+# Plot
+p <- ggplot(
+  coef_df,
+  aes(x = reorder(Variable, estimate), y = estimate, fill = Direction)
+) +
+  geom_col(width = 0.7) +
+  coord_flip() +
+  geom_hline(yintercept = 0, color = "gray40", linetype = "dashed") +
+  scale_fill_manual(
+    values = c(
+      "Increases Turnover Risk" = "#C0392B",
+      "Decreases Turnover Risk" = "#2E86C1"
+    )
+  ) +
+  labs(
+    title = "Preliminary Predictors of Turnover Intention",
+    subtitle = "Logistic regression coefficient direction and magnitude",
+    x = NULL,
+    y = "Coefficient Estimate",
+    fill = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face="bold", hjust=0.5),
+    plot.subtitle = element_text(hjust=0.5),
+    axis.text.y = element_text(size = 10),
+    legend.position = "bottom"
+  )
+
+# Save figure
+fig_path <- file.path(fig_dir, "logistic_preview_importance.png")
+
+if(!file.exists(fig_path)){
+  ggsave(fig_path, p, width = 11, height = 8, dpi = 300, bg = "white")
+}
+
+print(p)
+```
+
+# Feature Importance Overview
+
+This preliminary feature importance analysis provides an early indication of which workforce variables may be most strongly associated with employee turnover intention. While these results are exploratory and derived from a simple screening model, they highlight several potential drivers of turnover risk related to employee engagement, workload pressure, and organizational support. A more rigorous comparison of predictive models is conducted in the subsequent modeling report.
+
+# Transition to Predictive Modeling
+
+The exploratory analysis confirms that the synthetic workforce dataset reflects realistic organizational patterns observed in employee analytics research. Distribution diagnostics, correlation analysis, and multicollinearity checks suggest that the predictor variables exhibit meaningful variability while maintaining acceptable statistical independence.
+
+These findings support the use of predictive modeling techniques to examine employee turnover dynamics. The next stage of analysis focuses on building machine learning models to predict **Turnover Intention**, while also exploring related behavioral outcomes such as **Quiet Quitting** and **Monitoring Turnover Risk**.
+
+The modeling report evaluates multiple algorithms and compares predictive performance across approaches to identify the most informative workforce indicators associated with employee retention risk.
+
+<div style="text-align:center; margin-top:25px; margin-bottom:30px;">
+<a href="HR_Data_Turnover_Intention_Results.html"
+style="background-color: #4B9CD3; color: white; padding: 12px 24px;
+text-decoration: none; font-size:16px; border-radius:8px;
+font-weight:bold; display:inline-block;">
+🔗 View Turnover Intention Results
+</a>
+</div>
+
+<hr>
