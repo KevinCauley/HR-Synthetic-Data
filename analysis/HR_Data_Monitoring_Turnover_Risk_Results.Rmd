@@ -18,17 +18,12 @@ output:
 # Set working directory to the project root
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
-# Create output folders if they don't exist
-if (!dir.exists("outputs")) dir.create("outputs", recursive = TRUE)
-if (!dir.exists("outputs/figures")) dir.create("outputs/figures", recursive = TRUE)
-if (!dir.exists("data/processed")) dir.create("data/processed", recursive = TRUE)
-
 # Global chunk options
 knitr::opts_chunk$set(
   echo = TRUE,
   warning = FALSE,
   message = FALSE,
-  fig.path = "outputs/figures/",
+  fig.path = "figures/",
   fig.align = "center",
   cache = TRUE
 )
@@ -107,7 +102,7 @@ This approach ensures fairness, robustness, and clarity in identifying the most 
 ```{r 04-logit-shared-model-setup}
 # Ensure Monitoring Turnover Risk is a Factor
 hr_df <- hr_df %>%
-  mutate(Monitoring_Turnover_Risk = as.factor(Monitoring_Turnover_Risk))
+  mutate(monitoring_turnover_risk = as.factor(monitoring_turnover_risk))
 
 # Set Seed
 set.seed(42)

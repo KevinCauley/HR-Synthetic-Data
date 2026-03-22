@@ -2,6 +2,7 @@
 title: "Workforce Analytics Using Synthetic HR Data: Modeling and Predicting Turnover Intention"
 author: "Kevin Allen Cauley"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
+
 output:
   html_document:
     self_contained: false
@@ -13,7 +14,9 @@ output:
     smooth_scroll: true
     code_folding: hide
     df_print: paged
+
 number_sections: true
+
 editor_options:
   chunk_output_type: console
 ---
@@ -71,19 +74,17 @@ h2 {
 }
 ```
 
-```{r 00-clean-environment, include=FALSE}
-rm(list = ls())
-
+```{r 00-setup, include=FALSE}
 set.seed(123)
 
 library(rprojroot)
 
+# Ensure paths resolve from project root
 knitr::opts_knit$set(
   root.dir = rprojroot::find_rstudio_root_file()
 )
-```
 
-```{r 00-global-options, include=FALSE}
+# Global chunk options
 knitr::opts_chunk$set(
   echo = TRUE,
   warning = FALSE,
@@ -93,61 +94,20 @@ knitr::opts_chunk$set(
   fig.height = 5.5,
   dpi = 200,
   cache = TRUE,
-  fig.path = "outputs/figures/"
+  fig.path = "figures/"
 )
 ```
 
-```{r 00-create-directories, include=FALSE}
-# Output folders
-if (!dir.exists("outputs")) dir.create("outputs")
-if (!dir.exists("outputs/figures")) dir.create("outputs/figures", recursive = TRUE)
-if (!dir.exists("outputs/plots")) dir.create("outputs/plots", recursive = TRUE)
+```{r 00-packages, include=FALSE}
 
-# Data folders
-if (!dir.exists("data/processed")) dir.create("data/processed", recursive = TRUE)
-```
-
-```{r 00-install-packages, include=FALSE}
 required_packages <- c(
-  "car",
-  "cowplot",
-  "caret",
-  "corrplot",
-  "discrim",
-  "dplyr",
-  "e1071",
-  "fastDummies",
-  "forcats",
-  "gbm",
-  "GGally",
-  "ggcorrplot",
-  "ggplot2",
-  "ggthemes",
-  "glmnet",
-  "grid",
-  "gridExtra",
-  "iml",
-  "kableExtra",
-  "knitr",
-  "mgcv",
-  "naivebayes",
-  "naniar",
-  "patchwork",
-  "pheatmap",
-  "plotly",
-  "psych",
-  "randomForest",
-  "ranger",
-  "RColorBrewer",
-  "readxl",
-  "reshape2",
-  "skimr",
-  "themis",
-  "tidymodels",
-  "tidyverse",
-  "vip",
-  "viridis",
-  "xgboost"
+  "car","cowplot","caret","corrplot","discrim","dplyr","e1071",
+  "fastDummies","forcats","gbm","GGally","ggcorrplot","ggplot2",
+  "ggthemes","glmnet","grid","gridExtra","iml","kableExtra",
+  "knitr","mgcv","naivebayes","naniar","patchwork","pheatmap",
+  "plotly","psych","randomForest","ranger","RColorBrewer",
+  "readxl","reshape2","skimr","themis","tidymodels",
+  "tidyverse","vip","viridis","xgboost","janitor","pROC"
 )
 
 installed <- rownames(installed.packages())
@@ -169,38 +129,18 @@ format_table <- function(df, caption=""){
 }
 ```
 
-```{r 00-load-packages, include=FALSE}
-library(dplyr)
-library(ggplot2)
-library(caret)
-library(tidymodels)
-library(randomForest)
-library(ranger)
-library(xgboost)
-library(e1071)
-library(naivebayes)
-library(themis)
-library(pROC)
-library(vip)
-library(readxl)
-library(knitr)
-library(kableExtra)
-```
+```{r 00-load-data}
+hr_df <- read_excel("data/raw/HR_Data.xlsx") %>%
+  janitor::clean_names()
 
-```{r 00-load-data, echo=TRUE}
-
-# Load combined HR dataset
-hr_df <- readxl::read_excel("data/raw/HR_Data.xlsx")
-
-# Convert to data frame
-hr_df <- as.data.frame(hr_df)
+# Ensure target variable is a factor
+hr_df <- hr_df %>%
+  mutate(
+    turnover_intention = as.factor(turnover_intention)
+  )
 
 # Quick validation
 dim(hr_df)
-names(hr_df)
-```
-
-```{r debug-columns}
 names(hr_df)
 ```
 
