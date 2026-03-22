@@ -2,3 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
+.DS_Store
+Thumbs.db
+analysis/*_cache/
+analysis/*_files/
+analysis/outputs/
+docs/figures/
