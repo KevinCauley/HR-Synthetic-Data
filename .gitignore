@@ -1,10 +1,9 @@
 .Rproj.user
 .Rhistory
+.Rhistory
 .RData
-.Ruserdata
-.DS_Store
-Thumbs.db
-analysis/*_cache/
-analysis/*_files/
-analysis/outputs/
-docs/figures/
+.Rproj.user
+*.Rproj
+analysis/HR_Data_EDA_cache/
+outputs/plots/
+outputs/figures/
