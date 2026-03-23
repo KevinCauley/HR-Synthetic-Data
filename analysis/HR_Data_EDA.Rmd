@@ -147,6 +147,10 @@ knitr::opts_chunk$set(
 )
 
 # Global Theme (Consistency)
+theme_update(
+  axis.title.x = element_text(face = "bold", margin = margin(t = 10)),
+  axis.title.y = element_text(face = "bold", margin = margin(r = 10))
+)
 theme_set(
   theme_minimal(base_size = 14) %+replace%
     theme(
@@ -670,12 +674,19 @@ We use histogram and density plots to inspect the spread and shape of continuous
 ```{r 04-continuous-distributions, echo=TRUE, cache=FALSE}
 plot_dir <- create_plot_dir("continuous")
 
+numeric_long <- hr_df %>%
+  select(all_of(continuous_vars)) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "Variable",
+    values_to = "Value"
+  )
+
 continuous_hist_files <- numeric_long %>%
   group_split(Variable) %>%
   purrr::map_chr(function(data){
 
     var <- unique(data$Variable)
-
     filepath <- file.path(plot_dir, paste0("hist_", var, ".png"))
 
     p <- ggplot(data, aes(x = Value)) +
@@ -683,22 +694,23 @@ continuous_hist_files <- numeric_long %>%
         aes(y = after_stat(density)),
         bins = 25,
         fill = COLORS$primary,
-        color = "white"
+        color = "white",
+        alpha = 0.9
       ) +
       geom_density(color = COLORS$accent, linewidth = 1.2) +
       labs(
-        title = paste("Distribution of", clean_label(var)),
+        title = paste("Distribution of", var),
         x = "Value",
         y = "Density"
       )
 
-    ggsave(filepath, p, width = 10, height = 6, dpi = 300, bg = "white")
+    ggsave(filename = filepath, plot = p, width = 10, height = 6, dpi = 300, bg = "white")
 
     normalizePath(filepath, winslash = "/", mustWork = FALSE)
   })
 
 slickR(continuous_hist_files, slideType = "img", width = "900px") +
-  settings(dots = TRUE, arrows = TRUE, infinite = FALSE, adaptiveHeight = TRUE)
+  settings(dots = TRUE, arrows = TRUE)
 ```
 
 ## Likert Scale Variable Distributions
@@ -714,67 +726,27 @@ likert_plot_files <- purrr::map_chr(likert_vars, function(var){
 
   p <- hr_df %>%
     count(!!sym(var)) %>%
-
-    # Force correct Likert ordering
-    mutate(score = factor(
-      !!sym(var),
-      levels = sort(unique(!!sym(var)))
-    )) %>%
+    mutate(score = factor(!!sym(var), levels = sort(unique(!!sym(var))))) %>%
 
     ggplot(aes(x = score, y = n)) +
-
-    geom_col(
-      fill = COLORS$primary,
-      width = 0.65
-    ) +
-
-    geom_text(
-      aes(label = n),
-      vjust = -0.4,
-      size = 3.8
-    ) +
+    geom_col(fill = COLORS$primary, width = 0.7) +
+    geom_text(aes(label = n), vjust = -0.4, size = 4) +
 
     labs(
-      title = paste("Distribution of", clean_label(var)),
+      title = paste("Distribution of", var),
       x = "Likert Score",
       y = "Employee Count"
     ) +
 
-    scale_y_continuous(
-      expand = expansion(mult = c(0, 0.15))
-    ) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.12)))
 
-    theme(
-      axis.text.x = element_text(size = 11),
-      axis.title = element_text(face = "bold"),
-      plot.margin = margin(10,10,10,10)
-    )
-
-  ggsave(
-    filename = filepath,
-    plot = p,
-    width = 10,
-    height = 6,
-    dpi = 300,
-    bg = "white"
-  )
+  ggsave(filename = filepath, plot = p, width = 10, height = 6, dpi = 300, bg = "white")
 
   normalizePath(filepath, winslash = "/", mustWork = FALSE)
 })
 
-# slickR Settings
-slickR(
-  obj = likert_plot_files,
-  slideType = "img",
-  width = "850px",
-  height = "500px"
-) +
-settings(
-  dots = TRUE,
-  arrows = TRUE,
-  infinite = FALSE,
-  adaptiveHeight = TRUE
-)
+slickR(likert_plot_files, slideType = "img", width = "900px") +
+  settings(dots = TRUE, arrows = TRUE)
 ```
 
 **Interpretation**
@@ -791,7 +763,6 @@ This step helps identify whether unusually high or low values represent realisti
 ### Likert Variables (Outliers)
 
 ```{r 04-likert-outlier-boxplots, echo=TRUE, cache=FALSE}
-
 plot_dir <- create_plot_dir("numeric_outliers")
 
 likert_outlier_files <- purrr::map_chr(likert_vars, function(var){
@@ -799,60 +770,21 @@ likert_outlier_files <- purrr::map_chr(likert_vars, function(var){
   filepath <- file.path(plot_dir, paste0("outlier_", var, ".png"))
 
   p <- ggplot(hr_df, aes(x = "", y = .data[[var]])) +
-
-    # Clean Boxplot with no duplicate outliers
-    geom_boxplot(
-      fill = COLORS$primary,
-      alpha = 0.7,
-      width = 0.3,
-      outlier.shape = NA
-    ) +
-
-    # Controlled Jitter
-    geom_jitter(
-      width = 0.08,
-      alpha = 0.25,
-      size = 1.2,
-      color = "black"
-    ) +
-
+    geom_boxplot(fill = COLORS$primary) +
+    geom_jitter(width = 0.12, alpha = 0.3) +
     labs(
-      title = paste("Outlier Distribution:", clean_label(var)),
+      title = paste("Outliers in", var),
       x = NULL,
       y = "Value"
-    ) +
-
-    theme(
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      plot.margin = margin(10,10,10,10)
     )
 
-  ggsave(
-    filename = filepath,
-    plot = p,
-    width = 8,
-    height = 5.5,
-    dpi = 300,
-    bg = "white"
-  )
+  ggsave(filename = filepath, plot = p, width = 8, height = 5, dpi = 300, bg = "white")
 
   normalizePath(filepath, winslash = "/", mustWork = FALSE)
 })
 
-# slickR Settings
-slickR(
-  obj = likert_outlier_files,
-  slideType = "img",
-  width = "850px",
-  height = "500px"
-) +
-settings(
-  dots = TRUE,
-  arrows = TRUE,
-  infinite = FALSE,
-  adaptiveHeight = TRUE
-)
+slickR(likert_outlier_files, slideType = "img", width = "900px") +
+  settings(dots = TRUE, arrows = TRUE)
 ```
 
 # Correlation Analysis
@@ -881,37 +813,18 @@ p <- ggcorrplot(
   corr_matrix,
   method = "square",
   type = "lower",
-  outline.color = "white",
+  lab = FALSE,
   colors = c(COLORS$accent, "white", COLORS$primary),
   hc.order = TRUE
 ) +
+  labs(
+    title = "Correlation Matrix of Workforce Variables",
+    x = NULL,
+    y = NULL
+  )
 
-labs(
-  title = "Correlation Matrix of Workforce Variables"
-) +
-
-theme_minimal(base_size = 12) +
-
-theme(
-  plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
-
-  axis.text.x = element_text(
-    angle = 45,
-    hjust = 1,
-    size = 8
-  ),
-
-  axis.text.y = element_text(size = 8)
-)
-
-ggsave(
-  filename = file.path(FIG_DIR, "correlation_matrix.png"),
-  plot = p,
-  width = 14,
-  height = 12,
-  dpi = 300,
-  bg = "white"
-)
+ggsave(filename = file.path(FIG_DIR, "correlation_matrix.png"),
+       plot = p, width = 14, height = 12, dpi = 300, bg = "white")
 
 print(p)
 ```
@@ -933,45 +846,18 @@ top_corr_df <- corr_df %>%
   slice_head(n = 20) %>%
   mutate(Pair = factor(Pair, levels = rev(Pair)))
 
-p <- ggplot(top_corr_df, aes(x = Pair, y = Correlation, fill = Direction)) +
-
-  geom_col(width = 0.7) +
-
+p <- ggplot(top_corr_df, aes(x = reorder(Pair, Correlation), y = Correlation, fill = Correlation > 0)) +
+  geom_col() +
   coord_flip() +
-
-  geom_text(
-    aes(label = round(Correlation, 2)),
-    size = 3.5,
-    hjust = ifelse(top_corr_df$Correlation > 0, -0.2, 1.2)
-  ) +
-
-  scale_fill_manual(
-    values = c(
-      "Positive" = COLORS$primary,
-      "Negative" = COLORS$accent
-    )
-  ) +
-
   labs(
     title = "Top Correlated Variable Pairs",
-    subtitle = "Top 20 relationships by strength",
     x = NULL,
     y = "Correlation"
   ) +
+  scale_fill_manual(values = c(COLORS$accent, COLORS$primary), guide = "none")
 
-  theme(
-    legend.position = "bottom",
-    axis.text.y = element_text(size = 9)
-  )
-
-ggsave(
-  filename = file.path(FIG_DIR, "strongest_correlations.png"),
-  plot = p,
-  width = 12,
-  height = 8,
-  dpi = 300,
-  bg = "white"
-)
+ggsave(filename = file.path(FIG_DIR, "top_correlations.png"),
+       plot = p, width = 12, height = 8, dpi = 300, bg = "white")
 
 print(p)
 ```
@@ -996,14 +882,8 @@ p <- GGally::ggpairs(
   diag  = list(continuous = wrap("densityDiag"))
 )
 
-ggsave(
-  filename = file.path(FIG_DIR, "pairwise_relationships.png"),
-  plot = p,
-  width = 12,
-  height = 10,
-  dpi = 300,
-  bg = "white"
-)
+ggsave(filename = file.path(FIG_DIR, "pairwise_relationships.png"),
+       plot = p, width = 12, height = 10, dpi = 300, bg = "white")
 
 print(p)
 ```
@@ -1100,44 +980,27 @@ print(p)
 ### Turnover Intention by Department
 
 ```{r 06-turnover-by-department, fig.width=10, fig.height=6}
-plot_df <- hr_df %>%
-  count(department, turnover_intention)
+plot_dir <- create_plot_dir("turnover")
 
-p <- ggplot(plot_df,
-       aes(x = reorder(department, n), y = n, fill = turnover_intention)) +
+filepath <- file.path(plot_dir, "turnover_by_department.png")
 
+p <- hr_df %>%
+  count(department, turnover_intention) %>%
+  group_by(department) %>%
+  mutate(prop = n / sum(n)) %>%
+
+  ggplot(aes(x = department, y = prop, fill = turnover_intention)) +
   geom_col(position = "fill") +
-
-  scale_y_continuous(labels = scales::percent) +
-
-  scale_fill_manual(
-    values = c(
-      "Yes" = COLORS$accent,
-      "No"  = COLORS$primary
-    )
-  ) +
 
   labs(
     title = "Turnover Intention by Department",
     x = "Department",
     y = "Proportion"
-  ) +
-
-  theme(
-    axis.text.x = element_text(angle = 35, hjust = 1),
-    legend.position = "bottom"
   )
 
-ggsave(
-  filename = file.path(FIG_DIR, "turnover_department.png"),
-  plot = p,
-  width = 10,
-  height = 6,
-  dpi = 300,
-  bg = "white"
-)
+ggsave(filename = filepath, plot = p, width = 10, height = 6, dpi = 300, bg = "white")
 
-print(p)
+knitr::include_graphics(filepath)
 ```
 
 # Multicollinearity Assessment
@@ -1476,57 +1339,47 @@ Most workforce variables exhibit moderate skewness, particularly behavioral indi
 
 ## Numeric Variable Imbalance (Most Skewed Variables)
 
+```{r 08-numeric-imbalance-prep, echo=TRUE}
+# Select numeric variables (excluding IDs if needed)
+numeric_vars <- hr_df %>%
+  select(where(is.numeric))
+
+# Compute skewness
+numeric_imbalance_df <- numeric_vars %>%
+  summarise(across(everything(), ~ e1071::skewness(.x, na.rm = TRUE))) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "Variable",
+    values_to = "Skewness"
+  ) %>%
+  arrange(desc(abs(Skewness)))
+```
+
 ```{r 08-numeric-skewness-plot, fig.width=12, fig.height=10, echo=TRUE}
-# Show only most skewed variables
-skew_plot_df <- skew_df %>%
-  arrange(desc(abs(Skewness))) %>%
-  slice(1:20)
+fig_path <- file.path(FIG_DIR, "numeric_imbalance.png")
 
-# Create plot
-p <- ggplot(
-  skew_plot_df,
-  aes(
-    x = reorder(Variable, Skewness),
-    y = Skewness,
-    fill = Skewness
-  )
-) +
+p <- ggplot(numeric_imbalance_df,
+            aes(x = reorder(Variable, Skewness), y = Skewness)) +
 
-  geom_col(width = 0.7) +
-
-  scale_fill_gradient2(
-  low = COLORS$positive,
-  mid = COLORS$neutral,
-  high = COLORS$negative,
-  midpoint = 0
-) +
-
-  geom_hline(
-    yintercept = c(-1, 1),
-    linetype = "dashed",
-    color = "#B22222"
-  ) +
+  geom_col(fill = COLORS$primary) +
 
   coord_flip() +
 
   labs(
-    title = "Most Skewed Numeric Variables",
-    subtitle = "Top 20 variables ranked by absolute skewness",
-    x = NULL,
+    title = "Numeric Variable Imbalance (Skewness)",
+    x = "Variable",
     y = "Skewness"
   ) +
+
   theme(
-    plot.title = element_text(face = "bold", size = 16, hjust = 0.5),
-    plot.subtitle = element_text(size = 11, hjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    legend.position = "none"
+    axis.text.y = element_text(size = 9)
   )
 
 ggsave(
-  filename = file.path(FIG_DIR, "most_skewed.png"),
+  filename = fig_path,
   plot = p,
   width = 12,
-  height = 10,
+  height = 8,
   dpi = 300,
   bg = "white"
 )
@@ -1542,6 +1395,9 @@ To assess the distribution of categorical variables, bar charts are generated fo
 
 ```{r 08-categorical-distributions-plot, results='asis', echo=TRUE}
 # Define categorical variables
+plot_dir <- create_plot_dir("categorical")
+
+# Define categorical variables
 cat_vars_current <- hr_df %>%
   select(where(is.factor)) %>%
   names()
@@ -1552,19 +1408,44 @@ cat_plot_files <- purrr::map_chr(cat_vars_current, function(var){
 
   plot_df <- hr_df %>%
     count(!!sym(var)) %>%
-    mutate(label = clean_label(!!sym(var)))
+    mutate(label = as.character(!!sym(var)))
 
   p <- ggplot(plot_df, aes(x = reorder(label, n), y = n)) +
-    geom_col(fill = COLORS$secondary) +
-    geom_text(aes(label = n), vjust = -0.3) +
-    labs(
-      title = paste("Distribution of", clean_label(var)),
-      x = NULL,
-      y = "Count"
-    ) +
-    theme(axis.text.x = element_text(angle = 35, hjust = 1))
 
-  ggsave(filepath, p, width = 9, height = 5.5, dpi = 300, bg = "white")
+    geom_col(
+      fill = COLORS$secondary,
+      width = 0.7
+    ) +
+
+    geom_text(
+      aes(label = n),
+      vjust = -0.4,
+      size = 3.8
+    ) +
+
+    coord_flip() +
+
+    labs(
+      title = paste("Distribution of", var),
+      x = "Category",
+      y = "Employee Count"
+    ) +
+
+    scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+
+    theme(
+      plot.margin = margin(10,10,10,10),
+      axis.text.y = element_text(size = 10)
+    )
+
+  ggsave(
+    filename = filepath,
+    plot = p,
+    width = 10,
+    height = 6,
+    dpi = 300,
+    bg = "white"
+  )
 
   normalizePath(filepath, winslash = "/", mustWork = FALSE)
 })
@@ -1745,31 +1626,20 @@ coef_df <- coef_df %>%
   mutate(term_clean = clean_label(term))
 
 p <- ggplot(coef_df,
-       aes(x = reorder(term_clean, estimate), y = estimate, fill = estimate > 0)) +
+            aes(x = estimate, y = reorder(term, estimate), fill = estimate > 0)) +
 
-  geom_col(width = 0.7) +
-  coord_flip() +
-
-  scale_fill_manual(
-    values = c("TRUE" = COLORS$primary, "FALSE" = COLORS$accent)
-  ) +
+  geom_col() +
 
   labs(
     title = "Logistic Regression Feature Influence (Preview)",
-    x = NULL,
-    y = "Coefficient (Log-Odds)"
+    x = "Coefficient (Log-Odds)",
+    y = NULL
   ) +
 
-  theme(legend.position = "none")
+  scale_fill_manual(values = c(COLORS$accent, COLORS$primary), guide = "none")
 
-ggsave(
-  filename = file.path(FIG_DIR, "logistic_importance.png"),
-  plot = p,
-  width = 10,
-  height = 6,
-  dpi = 300,
-  bg = "white"
-)
+ggsave(filename = file.path(FIG_DIR, "logistic_preview.png"),
+       plot = p, width = 10, height = 6, dpi = 300, bg = "white")
 
 print(p)
 ```
