@@ -24,7 +24,11 @@ editor_options:
 ```{css, echo=FALSE}
 /* ===== FIX RIGHT EDGE CLIPPING (SHOW BUTTONS / ARROWS) ===== */
 .main-container {
-  padding-right: 40px !important;  /* give breathing room on right */
+  width: calc(100vw - 300px) !important;
+  max-width: 1200px !important;   /* <-- THIS FIXES EVERYTHING */
+  margin-left: 270px !important;
+  margin-right: auto !important;
+  padding-right: 20px !important;
 }
 
 /* ===== PREVENT CONTENT OVERFLOW CUT-OFF ===== */
@@ -37,13 +41,6 @@ pre, .sourceCode {
   position: relative !important;
   right: 0 !important;
   margin-right: 10px !important;
-}
-
-/* ===== FIX DATA TABLE (DATASET PREVIEW) ===== */
-table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
 }
 
 /* Constrain super-wide tables */
@@ -253,6 +250,67 @@ img {
     padding-left: 16px !important;
     padding-right: 16px !important;
   }
+}
+
+/* ===== CONTROL DT TABLE HEIGHT ===== */
+.dataTables_wrapper {
+  max-width: 100% !important;
+}
+
+.dataTables_scrollBody {
+  max-height: 400px !important;
+}
+
+/* ===== FIX SHOW CODE BUTTON POSITION ===== */
+.showhide {
+  position: relative !important;
+  right: auto !important;
+  margin-right: 0 !important;
+}
+
+/* ===== FORCE PAGE HEIGHT ALIGNMENT ===== */
+html, body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+.main-container {
+  flex: 1;
+}
+
+/* ===== ALIGN TOC HEIGHT WITH CONTENT ===== */
+#TOC {
+  bottom: 16px;
+}
+
+/* ===== CONTROL IMAGE HEIGHT ===== */
+img {
+  max-height: 500px !important;
+  object-fit: contain;
+}
+
+/* ===== TIBBLE (KNITR TABLE) SCALING ===== */
+table {
+  display: table !important;
+  width: auto !important;
+  max-width: 100% !important;
+  font-size: 16px !important;   /* increase readability */
+}
+
+/* Increase spacing + readability */
+table th,
+table td {
+  padding: 8px 12px !important;
+  font-size: 15px !important;
+}
+
+/* Bold headers more */
+table th {
+  font-weight: 600;
 }
 ```
 
