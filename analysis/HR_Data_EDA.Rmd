@@ -22,35 +22,56 @@ editor_options:
 ---
 
 ```{css, echo=FALSE}
-/* ===== CORE PAGE LAYOUT ===== */
+/* ===== CORE PAGE RESET ===== */
 body {
   font-size: 16px;
   line-height: 1.6;
+  overflow-x: hidden;
 }
 
+/* ===== REMOVE BOOTSTRAP CONSTRAINTS ===== */
 .main-container {
-  width: calc(100vw - 310px) !important;
-  max-width: none !important;
-  margin-left: 275px !important;
-  margin-right: 20px !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  overflow-x: hidden !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding-left: 280px !important;  /* space for TOC */
+  padding-right: 20px !important;
 }
 
-/* ===== TOC ===== */
+/* ===== TOC (LEFT SIDEBAR) ===== */
 #TOC {
   position: fixed;
   top: 16px;
   left: 16px;
-  width: 235px;
-  max-width: 235px;
+  width: 240px;
   height: calc(100vh - 32px);
   overflow-y: auto;
   background: #f8f9fa;
   padding: 14px;
   border: 1px solid #d9dde3;
   border-radius: 8px;
+  z-index: 1000;
+}
+
+/* ===== REMOVE ALL GRID / COLUMN BEHAVIOR ===== */
+.row {
+  margin: 0 !important;
+}
+
+.col-sm-4,
+.col-sm-8 {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+}
+
+/* ===== SECTION ALIGNMENT ===== */
+.section,
+.section.level1,
+.section.level2,
+.section.level3 {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
 }
 
 /* ===== HEADINGS ===== */
@@ -81,7 +102,7 @@ p {
   margin-right: auto !important;
 }
 
-/* ===== CODE FOLDING ===== */
+/* ===== CODE BLOCKS ===== */
 pre {
   overflow-x: auto;
   max-width: 100%;
@@ -93,8 +114,9 @@ pre {
   margin-bottom: 6px !important;
 }
 
-/* ===== STATIC FIGURES ===== */
-.figure {
+/* ===== FIGURE / IMAGE FIXES ===== */
+.figure,
+div.figure {
   margin-top: 6px !important;
   margin-bottom: 6px !important;
 }
@@ -103,6 +125,7 @@ img {
   display: block;
   max-width: 100%;
   height: auto;
+  margin-left: 0 !important;
 }
 
 /* ===== HTMLWIDGET / SLICK FIX ===== */
@@ -153,7 +176,11 @@ img {
   position: relative !important;
   bottom: 0 !important;
   margin-top: 6px !important;
-  margin-bottom: 0 !important;
+}
+
+/* ===== FORCE CONTENT TO FILL SPACE ===== */
+.main-container > * {
+  max-width: 100% !important;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -161,46 +188,14 @@ img {
   #TOC {
     position: relative;
     width: 100%;
-    max-width: none;
     height: auto;
     margin-bottom: 16px;
   }
 
   .main-container {
-    width: auto !important;
-    margin-left: 16px !important;
-    margin-right: 16px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
   }
-}
-
-/* ===== FIX RMD SECTION SPACING ===== */
-.section {
-  margin-left: 0 !important;
-  padding-left: 0 !important;
-}
-
-.section.level1,
-.section.level2,
-.section.level3 {
-  margin-left: 0 !important;
-  padding-left: 0 !important;
-}
-
-/* ===== FORCE CONTENT ALIGNMENT ===== */
-.main-container > * {
-  max-width: 100% !important;
-}
-
-/* ===== REMOVE RANDOM WHITE SPACE BLOCKS ===== */
-div.figure {
-  display: block !important;
-  margin-top: 6px !important;
-  margin-bottom: 6px !important;
-}
-
-/* ===== IMAGE WRAPPER FIX ===== */
-img {
-  margin-left: 0 !important;
 }
 ```
 
