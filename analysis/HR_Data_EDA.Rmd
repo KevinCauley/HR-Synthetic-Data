@@ -83,6 +83,32 @@ p {
 h2, h3 {
   margin-top: 25px !important;
 }
+
+.slick-slider {
+  margin-bottom: 10px !important;
+}
+
+.slick-slide img {
+  margin: 0 auto !important;
+  max-height: 500px;
+}
+
+.slick-track {
+  display: flex !important;
+  align-items: center !important;
+}
+
+.section.level3 {
+  margin-bottom: 10px !important;
+}
+
+.chart-stage {
+  padding-bottom: 0px !important;
+}
+
+.html-widget {
+  margin-bottom: 0px !important;
+}
 ```
 
 ```{r 00-setup, include=FALSE}
@@ -125,7 +151,7 @@ knitr::opts_chunk$set(
   out.width = "100%",
   fig.retina = 2,
   fig.width = 10,
-  fig.height = 5.5,
+  fig.height = 6,
   dpi = 300,
   cache = FALSE
 )
@@ -803,7 +829,7 @@ likert_outlier_files <- purrr::map_chr(likert_vars, function(var){
       y = "Value"
     )
 
-  ggsave(filename = filepath, plot = p, width = 10, height = 5.5, dpi = 300, bg = "white")
+  ggsave(filename = filepath, plot = p, width = 7, height = 5, dpi = 300, bg = "white")
 
   normalizePath(filepath, winslash = "/", mustWork = FALSE)
 })
@@ -830,9 +856,15 @@ Because hierarchical clustering is used to organize the correlation matrix, we f
 The following visualization displays pairwise correlations between numeric variables. Variables are automatically reordered using hierarchical clustering so that related features appear closer together in the matrix, improving interpretability.
 
 ```{r 05-correlation-matrix, echo=TRUE}
+fig_path <- file.path(FIG_DIR, "correlation_matrix.png")
+
 numeric_vars <- hr_df %>%
   select(where(is.numeric)) %>%
   select(where(~ sd(.x, na.rm = TRUE) > 0))
+
+# Top variables (prevents chaos)
+numeric_vars <- numeric_vars %>%
+  select(1:25)   
 
 corr_matrix <- cor(numeric_vars, use = "pairwise.complete.obs")
 
@@ -844,17 +876,29 @@ p <- ggcorrplot(
   method = "square",
   type = "lower",
   lab = FALSE,
-  colors = c(COLORS$accent, "white", COLORS$primary),
+  outline.color = "white",
+  colors = c("#B2182B", "white", "#2166AC"),
   hc.order = TRUE
 ) +
-  labs(
-    title = "Correlation Matrix of Workforce Variables",
-    x = NULL,
-    y = NULL
-  )
 
-ggsave(filename = file.path(FIG_DIR, "correlation_matrix.png"),
-       plot = p, width = 10, height = 5.5, dpi = 300, bg = "white")
+labs(
+  title = "Correlation Matrix (Top Variables)"
+) +
+
+theme(
+  axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+  axis.text.y = element_text(size = 8),
+  plot.margin = margin(20, 20, 20, 20)
+)
+
+ggsave(
+  filename = fig_path,
+  plot = p,
+  width = 12,     
+  height = 10,
+  dpi = 300,
+  bg = "white"
+)
 
 print(p)
 ```
