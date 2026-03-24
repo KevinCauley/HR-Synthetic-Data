@@ -312,6 +312,36 @@ table td {
 table th {
   font-weight: 600;
 }
+
+/* ===== HARD LIMIT ALL PLOTS ===== */
+img,
+.plotly,
+.html-widget,
+.ggplot,
+.figure {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* ===== PREVENT ANY OVERFLOW ===== */
+.main-container {
+  overflow-x: hidden !important;
+}
+
+/* ===== FIX SLICK/CAROUSEL WIDTH ===== */
+.slick-slider,
+.slick-list,
+.slick-track {
+  max-width: 100% !important;
+}
+
+/* ===== REMOVE SCROLLBARS FROM PLOTS ===== */
+.html-widget,
+.slickR,
+.figure {
+  overflow: hidden !important;
+}
 ```
 
 ```{r 00-setup, include=FALSE}
@@ -351,10 +381,10 @@ knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE,
   fig.align = "center",
-  out.width = "100%",
+  out.width = "85%",      
   fig.retina = 2,
-  fig.width = 10,
-  fig.height = 6,
+  fig.width = 7,          
+  fig.height = 4.5,       
   dpi = 300,
   cache = FALSE
 )
@@ -916,8 +946,8 @@ continuous_hist_files <- numeric_long %>%
     ggsave(
       filename = filepath,
       plot = p,
-      width = 10,
-      height = 5,
+      width = 8,
+      height = 4.5,
       dpi = 300,
       bg = "white"
     )
@@ -971,8 +1001,8 @@ likert_plot_files <- purrr::map_chr(likert_vars, function(var){
     ggsave(
       filename = filepath,
       plot = p,
-      width = 10,
-      height = 5,
+      width = 8,
+      height = 4.5,
       dpi = 300,
       bg = "white"
     )
@@ -1041,7 +1071,7 @@ likert_outlier_files <- purrr::map_chr(likert_vars, function(var){
     filename = filepath,
     plot = p,
     width = 8,
-    height = 5,
+    height = 4.5,
     dpi = 300,
     bg = "white"
   )
@@ -1132,8 +1162,8 @@ p <- ggcorrplot(
 ggsave(
   filename = fig_path,
   plot = p,
-  width = 10,
-  height = 5.5,
+  width = 8.5,
+  height = 7,
   dpi = 300,
   bg = "white"
 )
@@ -1171,8 +1201,8 @@ p <- ggplot(top_corr_df, aes(x = reorder(Pair, Correlation), y = Correlation, fi
 ggsave(
   filename = file.path(FIG_DIR, "top_correlations.png"),
   plot = p,
-  width = 10,
-  height = 5.2,
+  width = 8,
+  height = 4.5,
   dpi = 300,
   bg = "white"
 )
@@ -1203,8 +1233,8 @@ p <- GGally::ggpairs(
 ggsave(
   filename = file.path(FIG_DIR, "pairwise_relationships.png"),
   plot = p,
-  width = 10,
-  height = 5.5,
+  width = 8,
+  height = 4.5,
   dpi = 300,
   bg = "white"
 )
@@ -1292,8 +1322,8 @@ p <- ggplot(target_balance,
 ggsave(
   filename = file.path(FIG_DIR, "target_class_balance.png"),
   plot = p,
-  width = 10,
-  height = 5.2,
+  width = 8,
+  height = 4.5,
   dpi = 300,
   bg = "white"
 )
@@ -1325,8 +1355,8 @@ p <- hr_df %>%
 ggsave(
   filename = filepath,
   plot = p,
-  width = 10,
-  height = 5.2,
+  width = 8,
+  height = 4.5,
   dpi = 300,
   bg = "white"
 )
@@ -1410,7 +1440,7 @@ p <- ggplot(vif_df,
     plot.margin = margin(6, 10, 6, 10)
   )
 
-ggsave(fig_path, p, width = 10, height = 5.2, dpi = 300, bg = "white")
+ggsave(fig_path, p, width = 8, height = 4.5, dpi = 300, bg = "white")
 
 knitr::include_graphics(fig_path)
 ```
@@ -1492,7 +1522,7 @@ p <- ggplot(vif_df_cat, aes(x = reorder(Variable, -VIF), y = VIF, fill = VIF_Lev
     plot.margin = margin(6, 10, 6, 10)
   )
 
-ggsave(fig_path, p, width = 10, height = 5.3, dpi = 300, bg = "white")
+ggsave(fig_path, p, width = 8, height = 4.5, dpi = 300, bg = "white")
 
 knitr::include_graphics(fig_path)
 ```
@@ -1590,7 +1620,7 @@ p <- vif_df_cat_updated %>%
     plot.margin = margin(6, 10, 6, 10)
   )
 
-ggsave(fig_path, p, width = 10, height = 5.2, dpi = 300, bg = "white")
+ggsave(fig_path, p, width = 8, height = 4.5, dpi = 300, bg = "white")
 
 knitr::include_graphics(fig_path)
 ```
@@ -1650,7 +1680,7 @@ p <- ggplot(skew_df, aes(x = Skewness, y = Variable, fill = Skew_Type)) +
     plot.margin = margin(6, 10, 6, 10)
   )
 
-ggsave(fig_path, p, width = 10, height = 5.5, dpi = 300, bg = "white")
+ggsave(fig_path, p, width = 8, height = 4.5, dpi = 300, bg = "white")
 
 knitr::include_graphics(fig_path)
 ```
@@ -1705,8 +1735,8 @@ cat_plot_files <- purrr::map_chr(cat_vars_current, function(var){
   ggsave(
     filename = filepath,
     plot = p,
-    width = 10,
-    height = 5,
+    width = 8,
+    height = 4.5,
     dpi = 300,
     bg = "white"
   )
@@ -1784,8 +1814,8 @@ p <- cat_imbalance_df %>%
 ggsave(
   filename = file.path(FIG_DIR, "categorical_imbalance.png"),
   plot = p,
-  width = 10,
-  height = 5.5,
+  width = 8,
+  height = 4.5,
   dpi = 300,
   bg = "white"
 )
@@ -1940,7 +1970,7 @@ p <- ggplot(
     plot.margin = margin(8, 10, 8, 10)
   )
 
-ggsave(fig_path, p, width = 10, height = 5.2, dpi = 300, bg = "white")
+ggsave(fig_path, p, width = 8, height = 4.5, dpi = 300, bg = "white")
 
 knitr::include_graphics(fig_path)
 ```
