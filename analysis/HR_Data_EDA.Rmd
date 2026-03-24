@@ -80,9 +80,8 @@ p {
   margin-bottom: 20px !important;
 }
 
-/* ===== PREVENT GIANT EMPTY BLOCKS ===== */
-div {
-  min-height: 0 !important;
+h2, h3 {
+  margin-top: 25px !important;
 }
 ```
 
@@ -126,27 +125,29 @@ knitr::opts_chunk$set(
   out.width = "100%",
   fig.retina = 2,
   fig.width = 10,
-  fig.height = 6,
+  fig.height = 5.5,
   dpi = 300,
   cache = FALSE
 )
 
 # Global Theme (Consistency)
-theme_update(
-  axis.title.x = element_text(face = "bold", margin = margin(t = 10)),
-  axis.title.y = element_text(face = "bold", margin = margin(r = 10))
-)
 theme_set(
-  theme_minimal(base_size = 14) %+replace%
+  theme_minimal(base_size = 14) +
     theme(
       plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
-      plot.subtitle = element_text(size = 12, hjust = 0.5, color = "grey40"),
+      plot.subtitle = element_text(size = 13, hjust = 0.5),
+
       axis.title = element_text(face = "bold"),
       axis.text.x = element_text(angle = 35, hjust = 1),
+
       panel.grid.minor = element_blank(),
-      panel.grid.major = element_line(color = "grey90"),
+      panel.grid.major = element_line(color = "grey85"),
+
       legend.position = "bottom",
-      plot.margin = margin(10, 15, 10, 15)
+
+      # spacing fixes (important)
+      plot.title.position = "plot",
+      plot.margin = margin(15, 15, 15, 15)
     )
 )
 
@@ -244,13 +245,6 @@ data_wellness <- read_excel(file_path, sheet = "Wellness")
 data_monitoring <- read_excel(file_path, sheet = "Monitoring")
 data_privacy <- read_excel(file_path, sheet = "Privacy")
 data_attrition <- read_excel(file_path, sheet = "Attrition")
-```
-
-```{r 00-import-data-path}
-file_path <- here("data", "raw", "HR_Data.xlsx")
-
-print(file_path)
-print(file.exists(file_path))
 ```
 
 ```{r 00-merge-datasets}
@@ -645,16 +639,6 @@ For exploratory analysis, variables were grouped into four categories based on t
 
 This classification structure guides the exploratory analysis and ensures that each variable type is visualized using the most appropriate statistical and graphical techniques.
 
-```{r 04-prepare-numeric-long, echo=FALSE}
-numeric_long <- hr_df %>%
-  select(all_of(continuous_vars)) %>%
-  pivot_longer(
-    cols = everything(),
-    names_to = "Variable",
-    values_to = "Value"
-  )
-```
-
 ## Continuous Variable Distributions
 
 We use histogram and density plots to inspect the spread and shape of continuous variables.
@@ -675,9 +659,11 @@ continuous_hist_files <- numeric_long %>%
   purrr::map_chr(function(data){
 
     var <- unique(data$Variable)
+
     filepath <- file.path(plot_dir, paste0("hist_", var, ".png"))
 
     p <- ggplot(data, aes(x = Value)) +
+
       geom_histogram(
         aes(y = after_stat(density)),
         bins = 25,
@@ -685,25 +671,42 @@ continuous_hist_files <- numeric_long %>%
         color = "white",
         alpha = 0.9
       ) +
-      geom_density(color = COLORS$accent, linewidth = 1.2) +
-      labs(
-  title = paste("Distribution of", clean_label(var)),
-  x = clean_label(var),
-  y = "Density"
-)
 
-    ggsave(filename = filepath, plot = p, width = 10, height = 6, dpi = 300, bg = "white")
+      geom_density(
+        color = COLORS$accent,
+        linewidth = 1.2
+      ) +
+
+      labs(
+        title = paste("Distribution of", clean_label(var)),
+        x = clean_label(var),
+        y = "Density"
+      ) +
+
+      theme(
+        axis.text.x = element_text(angle = 30, hjust = 1),
+        plot.margin = margin(15, 15, 30, 15)                 
+      )
+
+    ggsave(
+      filename = filepath,
+      plot = p,
+      width = 10,
+      height = 5.5,
+      dpi = 300,
+      bg = "white"
+    )
 
     normalizePath(filepath, winslash = "/", mustWork = FALSE)
   })
 
 slickR(continuous_hist_files, slideType = "img", width = "900px") +
   settings(
-  dots = TRUE,
-  arrows = TRUE,
-  infinite = FALSE,
-  adaptiveHeight = TRUE
-)
+    dots = TRUE,
+    arrows = TRUE,
+    infinite = FALSE,
+    adaptiveHeight = TRUE
+  )
 ```
 
 ## Likert Scale Variable Distributions
@@ -717,34 +720,58 @@ likert_plot_files <- purrr::map_chr(likert_vars, function(var){
 
   filepath <- file.path(plot_dir, paste0("likert_", var, ".png"))
 
-  p <- hr_df %>%
-    count(!!sym(var)) %>%
-    mutate(score = factor(!!sym(var), levels = sort(unique(!!sym(var))))) %>%
+  plot_df <- hr_df %>%
+    count(.data[[var]]) %>%
+    rename(score = .data[[var]]) %>%
+    mutate(score = factor(score, levels = sort(unique(score))))
 
-    ggplot(aes(x = score, y = n)) +
-    geom_col(fill = COLORS$primary, width = 0.7) +
-    geom_text(aes(label = n), vjust = -0.4, size = 4) +
+  p <- ggplot(plot_df, aes(x = score, y = n)) +
+
+    geom_col(
+      fill = COLORS$primary,
+      width = 0.7
+    ) +
+
+    geom_text(
+      aes(label = n),
+      vjust = -0.4,
+      size = 4
+    ) +
 
     labs(
-  title = paste("Distribution of", clean_label(var)),
-  x = "Response Level",
-  y = "Employee Count"
-) +
+      title = paste("Distribution of", clean_label(var)),
+      x = "Response Level",
+      y = "Employee Count"
+    ) +
 
-    scale_y_continuous(expand = expansion(mult = c(0, 0.12)))
+    scale_y_continuous(
+      expand = expansion(mult = c(0, 0.12))
+    ) +
 
-  ggsave(filename = filepath, plot = p, width = 10, height = 6, dpi = 300, bg = "white")
+    theme(
+      axis.text.x = element_text(angle = 25, hjust = 1),
+      plot.margin = margin(15, 15, 30, 15)
+    )
+
+  ggsave(
+    filename = filepath,
+    plot = p,
+    width = 10,
+    height = 5.5,
+    dpi = 300,
+    bg = "white"
+  )
 
   normalizePath(filepath, winslash = "/", mustWork = FALSE)
 })
 
 slickR(likert_plot_files, slideType = "img", width = "900px") +
   settings(
-  dots = TRUE,
-  arrows = TRUE,
-  infinite = FALSE,
-  adaptiveHeight = TRUE
-)
+    dots = TRUE,
+    arrows = TRUE,
+    infinite = FALSE,
+    adaptiveHeight = TRUE
+  )
 ```
 
 **Interpretation**
@@ -771,12 +798,12 @@ likert_outlier_files <- purrr::map_chr(likert_vars, function(var){
     geom_boxplot(fill = COLORS$primary) +
     geom_jitter(width = 0.12, alpha = 0.3) +
     labs(
-      title = paste("Outliers in", var),
+      title = paste("Outliers in", clean_label(var)),
       x = NULL,
       y = "Value"
     )
 
-  ggsave(filename = filepath, plot = p, width = 8, height = 5, dpi = 300, bg = "white")
+  ggsave(filename = filepath, plot = p, width = 10, height = 5.5, dpi = 300, bg = "white")
 
   normalizePath(filepath, winslash = "/", mustWork = FALSE)
 })
@@ -802,7 +829,7 @@ Because hierarchical clustering is used to organize the correlation matrix, we f
 
 The following visualization displays pairwise correlations between numeric variables. Variables are automatically reordered using hierarchical clustering so that related features appear closer together in the matrix, improving interpretability.
 
-```{r 05-correlation-matrix, fig.width=16, fig.height=14}
+```{r 05-correlation-matrix, echo=TRUE}
 numeric_vars <- hr_df %>%
   select(where(is.numeric)) %>%
   select(where(~ sd(.x, na.rm = TRUE) > 0))
@@ -827,14 +854,14 @@ p <- ggcorrplot(
   )
 
 ggsave(filename = file.path(FIG_DIR, "correlation_matrix.png"),
-       plot = p, width = 14, height = 12, dpi = 300, bg = "white")
+       plot = p, width = 10, height = 5.5, dpi = 300, bg = "white")
 
 print(p)
 ```
 
 ## Correlation Strength
 
-```{r 05-strong-correlations, fig.width=10, fig.height=8}
+```{r 05-strong-correlations, echo=TRUE}
 corr_df <- as.data.frame(as.table(corr_matrix)) %>%
   rename(Var1 = Var1, Var2 = Var2, Correlation = Freq) %>%
   filter(as.character(Var1) < as.character(Var2)) %>%
@@ -860,14 +887,14 @@ p <- ggplot(top_corr_df, aes(x = reorder(Pair, Correlation), y = Correlation, fi
   scale_fill_manual(values = c(COLORS$accent, COLORS$primary), guide = "none")
 
 ggsave(filename = file.path(FIG_DIR, "top_correlations.png"),
-       plot = p, width = 12, height = 8, dpi = 300, bg = "white")
+       plot = p, width = 10, height = 5.5, dpi = 300, bg = "white")
 
 print(p)
 ```
 
 ## Pairwise Relationship Exploration
 
-```{r 05-pairwise-relationships, fig.width=12, fig.height=10}
+```{r 05-pairwise-relationships, echo=TRUE}
 sample_vars <- hr_df %>%
   select(
     average_salary,
@@ -886,7 +913,7 @@ p <- GGally::ggpairs(
 )
 
 ggsave(filename = file.path(FIG_DIR, "pairwise_relationships.png"),
-       plot = p, width = 12, height = 10, dpi = 300, bg = "white")
+       plot = p, width = 10, height = 5.5, dpi = 300, bg = "white")
 
 print(p)
 ```
@@ -929,7 +956,7 @@ Below we visualize the target categorical outcomes: Turnover Intention, Quiet Qu
 
 ### Target Class Balance Comparison
 
-```{r 06-target-class-balance, fig.width=10, fig.height=6}
+```{r 06-target-class-balance, echo=TRUE}
 target_balance <- hr_df %>%
   select(all_of(cat_target_vars)) %>%
   pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
@@ -972,7 +999,7 @@ ggsave(
   filename = file.path(FIG_DIR, "target_class_balance.png"),
   plot = p,
   width = 10,
-  height = 6,
+  height = 5.5,
   dpi = 300,
   bg = "white"
 )
@@ -982,7 +1009,7 @@ print(p)
 
 ### Turnover Intention by Department
 
-```{r 06-turnover-by-department, fig.width=10, fig.height=6}
+```{r 06-turnover-by-department, echo=TRUE}
 plot_dir <- create_plot_dir("turnover")
 
 filepath <- file.path(plot_dir, "turnover_by_department.png")
@@ -1001,7 +1028,7 @@ p <- hr_df %>%
     y = "Proportion"
   )
 
-ggsave(filename = filepath, plot = p, width = 10, height = 6, dpi = 300, bg = "white")
+ggsave(filename = filepath, plot = p, width = 10, height = 5.5, dpi = 300, bg = "white")
 
 knitr::include_graphics(filepath)
 ```
@@ -1038,7 +1065,7 @@ vif_df <- data.frame(
 print(vif_results)
 ```
 
-```{r 07-vif-numeric-plot, fig.width=11, fig.height=8, echo=TRUE}
+```{r 07-vif-numeric-plot, echo=TRUE}
 vif_df <- vif_df %>%
   mutate(
     Variable = clean_label(Variable),
@@ -1123,7 +1150,7 @@ vif_df_cat <- data.frame(
   VIF = vif_results_cat)
 ```
 
-```{r 07-vif-categorical-plot, fig.width=11, fig.height=8, echo=TRUE}
+```{r 07-vif-categorical-plot, echo=TRUE}
 # Wrap long variable names for readability
 vif_df_cat$Variable <- stringr::str_wrap(vif_df_cat$Variable, width = 28)
 
@@ -1237,7 +1264,7 @@ vif_df_cat_updated <- data.frame(
 )
 ```
 
-```{r 07-vif-categorical-updated-plot, fig.width=9, fig.height=6}
+```{r 07-vif-categorical-updated-plot, echo=TRUE}
 p <- vif_df_cat_updated %>%
   mutate(Variable = forcats::fct_reorder(clean_label(Variable), VIF)) %>%
 
@@ -1269,7 +1296,7 @@ print(p)
 
 Given that the data is informed by real-world statistics, surveys, and scholarly literature, some degree of imbalance is expected.
 
-```{r 08-numeric-skewness-calculation, fig.width=9, fig.height=6, fig.align="center", echo=TRUE}
+```{r 08-numeric-skewness-calculation, echo=TRUE}
 # Identify numeric variables
 num_vars_current <- hr_df %>%
   select(where(is.numeric)) %>%
@@ -1358,7 +1385,7 @@ numeric_imbalance_df <- numeric_vars %>%
   arrange(desc(abs(Skewness)))
 ```
 
-```{r 08-numeric-skewness-plot, fig.width=12, fig.height=10, echo=TRUE}
+```{r 08-numeric-skewness-plot, echo=TRUE}
 fig_path <- file.path(FIG_DIR, "numeric_imbalance.png")
 
 p <- ggplot(numeric_imbalance_df,
@@ -1445,7 +1472,7 @@ cat_plot_files <- purrr::map_chr(cat_vars_current, function(var){
     filename = filepath,
     plot = p,
     width = 10,
-    height = 6,
+    height = 5.5,
     dpi = 300,
     bg = "white"
   )
@@ -1462,7 +1489,7 @@ slickR(cat_plot_files, slideType = "img", width = "900px") +
 )
 ```
 
-```{r 08-categorical-imbalance-plot, fig.width=12, fig.height=8, echo=TRUE}
+```{r 08-categorical-imbalance-plot, echo=TRUE}
 # Calculate categorical imbalance statistics
 cat_imbalance_df <- lapply(cat_vars_current, function(var) {
 
@@ -1610,7 +1637,7 @@ knitr::kable(
 # Predictive Modeling Preview
 
 ```{r 10-build-model, echo=FALSE}
-# Build a simple logistic regression model
+# Build logistic regression model
 log_model <- glm(
   turnover_intention ~ 
     average_salary +
@@ -1623,25 +1650,49 @@ log_model <- glm(
   family = binomial
 )
 
-# Extract coefficients FIRST (THIS WAS MISSING)
+# Extract coefficients properly
 coef_df <- broom::tidy(log_model) %>%
-  filter(term != "(Intercept)") %>%
-  mutate(term = clean_label(term)) %>%
-  arrange(estimate)
+  dplyr::filter(term != "(Intercept)") %>%
+  dplyr::mutate(
+    term = clean_label(term),
+    direction = ifelse(estimate > 0, "Positive", "Negative")
+  ) %>%
+  dplyr::arrange(estimate)
 ```
 
-```{r 10-logistic-preview, fig.width=10, fig.height=7, cache=FALSE}
-```{r 10-logistic-preview, fig.width=10, fig.height=7, cache=FALSE}
+cat("<br><br>", sep = "")
+
+```{r 10-logistic-preview, echo=TRUE}
 fig_path <- file.path(FIG_DIR, "logistic_preview.png")
 
-p <- ggplot(coef_df,
-            aes(x = estimate, y = reorder(term, estimate), fill = estimate > 0)) +
+p <- ggplot(
+  coef_df,
+  aes(
+    x = estimate,
+    y = reorder(term, estimate),
+    fill = direction
+  )
+) +
 
-  geom_col(width = 0.7, alpha = 0.9) +
+  geom_col(width = 0.7, alpha = 0.95) +
+
+  geom_vline(
+    xintercept = 0,
+    linetype = "dashed",
+    color = "grey40",
+    linewidth = 0.7
+  ) +
 
   scale_fill_manual(
-    values = c("TRUE" = COLORS$primary, "FALSE" = COLORS$accent),
+    values = c(
+      "Positive" = COLORS$primary,
+      "Negative" = COLORS$accent
+    ),
     guide = "none"
+  ) +
+
+  scale_x_continuous(
+    expand = expansion(mult = c(0.02, 0.08))
   ) +
 
   labs(
@@ -1654,14 +1705,14 @@ p <- ggplot(coef_df,
   theme(
     axis.text.x = element_text(size = 10),
     axis.text.y = element_text(size = 11),
-    plot.margin = margin(10, 10, 10, 10)
+    plot.margin = margin(15, 20, 15, 20)
   )
 
 ggsave(
   filename = fig_path,
   plot = p,
   width = 10,
-  height = 6,
+  height = 5.5,
   dpi = 300,
   bg = "white"
 )
