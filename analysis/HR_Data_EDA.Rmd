@@ -22,89 +22,61 @@ editor_options:
 ---
 
 ```{css, echo=FALSE}
-/* ===== GLOBAL LAYOUT ===== */
-.main-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  overflow-x: hidden;
+/* Remove bootstrap container padding */
+.container-fluid {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
-/* ===== TOC ===== */
+/* Sidebar (TOC) */
 #TOC {
-  width: 260px;
   position: fixed;
-  left: 0;
-  top: 0;
-  height: 100%;
+  top: 20px;
+  left: 15px;
+  width: 240px;
+  max-height: 90vh;
   overflow-y: auto;
-  background: #f8f9fa;
-  padding: 15px;
-  border-right: 1px solid #ddd;
 }
 
-/* push content right */
-body {
-  margin-left: 280px;
-  font-size: 16px;
-  line-height: 1.6;
+/* Main Content — Hard Align */
+.main-container {
+  max-width: 1000px;
+  margin-left: 260px !important;
+  margin-right: 40px !important;
 }
 
-/* ===== HEADINGS ===== */
-h1 { margin-top: 40px; }
-h2 {
-  margin-top: 50px;
-  border-bottom: 2px solid #E5E7E9;
-  padding-bottom: 6px;
+/* Remove hidden spacing wrappers */
+.section {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
 }
-h3 { margin-top: 30px; }
 
-/* ===== FIGURES ===== */
+/* Remove extra white space below plots */
 .figure {
-  margin: 15px 0 !important;
+  margin-bottom: 5px !important;
 }
 
-/* REMOVE MASSIVE SPACE FROM WIDGETS */
-.html-widget {
-  margin: 0 !important;
-  padding: 0 !important;
-  height: auto !important;
-}
-
-/* SLICK FIXES */
-.slick-slider {
-  margin: 10px 0 !important;
-}
-
-.slick-list {
-  height: auto !important;
-}
-
-.slick-track {
-  display: flex !important;
-  align-items: center !important;
-}
-
-.slick-slide {
-  padding: 0 !important;
-}
-
-.slick-slide img {
-  margin: 0 auto !important;
-  max-height: 520px;
-}
-
-/* DOTS */
-.slick-dots {
-  bottom: -15px;
-}
-
-/* REMOVE RANDOM EXTRA SPACE */
-pre {
+img {
+  margin-top: 5px;
   margin-bottom: 5px;
 }
 
-.showhide {
-  margin-top: -10px;
+/* slickR cleanup */
+.slick-slide img {
+  margin: auto;
+}
+
+/* Mobile fallback */
+@media (max-width: 1100px) {
+  #TOC {
+    position: relative;
+    width: 100%;
+  }
+
+  .main-container {
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
 }
 ```
 
@@ -125,14 +97,19 @@ here::i_am("analysis/HR_Data_EDA.Rmd")
 OUTPUT_ROOT <- here("outputs")
 FIG_DIR     <- here("outputs", "figures")
 
-dir.create(FIG_DIR, recursive = TRUE, showWarnings = FALSE)
+# Global Plot Directory (Base)
+PLOT_DIR <- file.path(OUTPUT_ROOT, "plots")
+dir.create(PLOT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # Plot Directory Helper (Required)
 create_plot_dir <- function(folder){
-  path <- file.path(OUTPUT_ROOT, "plots", folder)
+  path <- file.path(PLOT_DIR, folder)
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
   return(path)
 }
+
+# Initialize a Default
+plot_dir <- create_plot_dir("global")
 
 # Global Options (we control saving manually)
 knitr::opts_chunk$set(
@@ -155,12 +132,13 @@ theme_set(
   theme_minimal(base_size = 14) %+replace%
     theme(
       plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
-      plot.subtitle = element_text(size = 13, hjust = 0.5),
+      plot.subtitle = element_text(size = 12, hjust = 0.5, color = "grey40"),
       axis.title = element_text(face = "bold"),
       axis.text.x = element_text(angle = 35, hjust = 1),
       panel.grid.minor = element_blank(),
-      panel.grid.major = element_line(color = "grey85"),
-      legend.position = "bottom"
+      panel.grid.major = element_line(color = "grey90"),
+      legend.position = "bottom",
+      plot.margin = margin(10, 15, 10, 15)
     )
 )
 
@@ -242,7 +220,9 @@ library(naniar)
 
 ```{r 00-clean-labels}
 clean_label <- function(x) {
-  gsub("_", " ", x)
+  x %>%
+    gsub("_", " ", .) %>%
+    tools::toTitleCase()
 }
 ```
 
@@ -699,10 +679,10 @@ continuous_hist_files <- numeric_long %>%
       ) +
       geom_density(color = COLORS$accent, linewidth = 1.2) +
       labs(
-        title = paste("Distribution of", var),
-        x = "Value",
-        y = "Density"
-      )
+  title = paste("Distribution of", clean_label(var)),
+  x = clean_label(var),
+  y = "Density"
+)
 
     ggsave(filename = filepath, plot = p, width = 10, height = 6, dpi = 300, bg = "white")
 
@@ -733,10 +713,10 @@ likert_plot_files <- purrr::map_chr(likert_vars, function(var){
     geom_text(aes(label = n), vjust = -0.4, size = 4) +
 
     labs(
-      title = paste("Distribution of", var),
-      x = "Likert Score",
-      y = "Employee Count"
-    ) +
+  title = paste("Distribution of", clean_label(var)),
+  x = "Response Level",
+  y = "Employee Count"
+) +
 
     scale_y_continuous(expand = expansion(mult = c(0, 0.12)))
 
@@ -1426,10 +1406,10 @@ cat_plot_files <- purrr::map_chr(cat_vars_current, function(var){
     coord_flip() +
 
     labs(
-      title = paste("Distribution of", var),
-      x = "Category",
-      y = "Employee Count"
-    ) +
+  title = paste("Distribution of", clean_label(var)),
+  x = NULL,
+  y = "Employee Count"
+) +
 
     scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
 
@@ -1615,31 +1595,48 @@ log_model <- glm(
   family = binomial
 )
 
-# Extract coefficients using broom
+# Extract coefficients FIRST (THIS WAS MISSING)
 coef_df <- broom::tidy(log_model) %>%
   filter(term != "(Intercept)") %>%
-  arrange(desc(abs(estimate)))
+  mutate(term = clean_label(term)) %>%
+  arrange(estimate)
 ```
 
 ```{r 10-logistic-preview, fig.width=10, fig.height=7, cache=FALSE}
-coef_df <- coef_df %>%
-  mutate(term_clean = clean_label(term))
+```{r 10-logistic-preview, fig.width=10, fig.height=7, cache=FALSE}
+fig_path <- file.path(FIG_DIR, "logistic_preview.png")
 
 p <- ggplot(coef_df,
             aes(x = estimate, y = reorder(term, estimate), fill = estimate > 0)) +
 
-  geom_col() +
+  geom_col(width = 0.7, alpha = 0.9) +
+
+  scale_fill_manual(
+    values = c("TRUE" = COLORS$primary, "FALSE" = COLORS$accent),
+    guide = "none"
+  ) +
 
   labs(
     title = "Logistic Regression Feature Influence (Preview)",
+    subtitle = "Positive coefficients increase likelihood of turnover; negative coefficients reduce risk",
     x = "Coefficient (Log-Odds)",
     y = NULL
   ) +
 
-  scale_fill_manual(values = c(COLORS$accent, COLORS$primary), guide = "none")
+  theme(
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 11),
+    plot.margin = margin(10, 10, 10, 10)
+  )
 
-ggsave(filename = file.path(FIG_DIR, "logistic_preview.png"),
-       plot = p, width = 10, height = 6, dpi = 300, bg = "white")
+ggsave(
+  filename = fig_path,
+  plot = p,
+  width = 10,
+  height = 6,
+  dpi = 300,
+  bg = "white"
+)
 
 print(p)
 ```
@@ -1647,6 +1644,8 @@ print(p)
 # Feature Importance Overview
 
 This preliminary feature importance analysis provides an early indication of which workforce variables may be most strongly associated with employee turnover intention. While these results are exploratory and derived from a simple screening model, they highlight variables potentially associated with turnover risk. A more rigorous comparison of predictive models is conducted in the subsequent modeling report.
+
+cat("Key drivers of turnover risk include engagement, stress, and job satisfaction, suggesting both psychological and organizational factors play a central role in employee retention.")
 
 # Transition to Predictive Modeling
 
