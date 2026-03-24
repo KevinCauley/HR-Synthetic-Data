@@ -22,61 +22,67 @@ editor_options:
 ---
 
 ```{css, echo=FALSE}
-/* Remove bootstrap container padding */
-.container-fluid {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+/* ===== FIX PAGE WIDTH + REMOVE LEFT GAP ===== */
+.main-container {
+  max-width: 1200px;
+  margin-left: 280px;   /* match TOC width */
+  margin-right: auto;
+  overflow-x: hidden;
 }
 
-/* Sidebar (TOC) */
+/* ===== FIX TOC ===== */
 #TOC {
   position: fixed;
   top: 20px;
-  left: 15px;
+  left: 20px;
   width: 240px;
-  max-height: 90vh;
+  height: 90vh;
   overflow-y: auto;
 }
 
-/* Main Content — Hard Align */
-.main-container {
-  max-width: 1000px;
-  margin-left: 260px !important;
-  margin-right: 40px !important;
+/* ===== REMOVE MASSIVE WHITE SPACE UNDER WIDGETS ===== */
+.html-widget {
+  margin-bottom: 0px !important;
+  padding-bottom: 0px !important;
 }
 
-/* Remove hidden spacing wrappers */
-.section {
-  margin-left: 0 !important;
-  padding-left: 0 !important;
+/* ===== FIX SLICK CAROUSEL HEIGHT ===== */
+.slick-slider,
+.slick-list,
+.slick-track {
+  height: auto !important;
+  max-height: none !important;
 }
 
-/* Remove extra white space below plots */
+/* ===== REMOVE EXTRA GAP BETWEEN SLIDES ===== */
+.slick-slide {
+  padding: 0px !important;
+}
+
+/* ===== REMOVE GAP BELOW IMAGES ===== */
+.slick-slide img {
+  margin: 0 auto !important;
+  display: block;
+}
+
+/* ===== REMOVE FIGURE SPACING ===== */
 .figure {
   margin-bottom: 5px !important;
 }
 
-img {
-  margin-top: 5px;
-  margin-bottom: 5px;
+/* ===== REMOVE EXTRA PARAGRAPH SPACE ===== */
+p {
+  margin-bottom: 10px;
 }
 
-/* slickR cleanup */
-.slick-slide img {
-  margin: auto;
+/* ===== FIX SECTION SPACING ===== */
+.section {
+  margin-bottom: 20px !important;
 }
 
-/* Mobile fallback */
-@media (max-width: 1100px) {
-  #TOC {
-    position: relative;
-    width: 100%;
-  }
-
-  .main-container {
-    margin-left: auto !important;
-    margin-right: auto !important;
-  }
+/* ===== PREVENT GIANT EMPTY BLOCKS ===== */
+div {
+  min-height: 0 !important;
 }
 ```
 
@@ -117,6 +123,8 @@ knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE,
   fig.align = "center",
+  out.width = "100%",
+  fig.retina = 2,
   fig.width = 10,
   fig.height = 6,
   dpi = 300,
@@ -690,7 +698,12 @@ continuous_hist_files <- numeric_long %>%
   })
 
 slickR(continuous_hist_files, slideType = "img", width = "900px") +
-  settings(dots = TRUE, arrows = TRUE)
+  settings(
+  dots = TRUE,
+  arrows = TRUE,
+  infinite = FALSE,
+  adaptiveHeight = TRUE
+)
 ```
 
 ## Likert Scale Variable Distributions
@@ -726,7 +739,12 @@ likert_plot_files <- purrr::map_chr(likert_vars, function(var){
 })
 
 slickR(likert_plot_files, slideType = "img", width = "900px") +
-  settings(dots = TRUE, arrows = TRUE)
+  settings(
+  dots = TRUE,
+  arrows = TRUE,
+  infinite = FALSE,
+  adaptiveHeight = TRUE
+)
 ```
 
 **Interpretation**
@@ -764,7 +782,12 @@ likert_outlier_files <- purrr::map_chr(likert_vars, function(var){
 })
 
 slickR(likert_outlier_files, slideType = "img", width = "900px") +
-  settings(dots = TRUE, arrows = TRUE)
+  settings(
+  dots = TRUE,
+  arrows = TRUE,
+  infinite = FALSE,
+  adaptiveHeight = TRUE
+)
 ```
 
 # Correlation Analysis
@@ -1431,7 +1454,12 @@ cat_plot_files <- purrr::map_chr(cat_vars_current, function(var){
 })
 
 slickR(cat_plot_files, slideType = "img", width = "900px") +
-  settings(dots = TRUE, arrows = TRUE, infinite = FALSE, adaptiveHeight = TRUE)
+  settings(
+  dots = TRUE,
+  arrows = TRUE,
+  infinite = FALSE,
+  adaptiveHeight = TRUE
+)
 ```
 
 ```{r 08-categorical-imbalance-plot, fig.width=12, fig.height=8, echo=TRUE}
