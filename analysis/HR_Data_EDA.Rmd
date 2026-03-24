@@ -22,6 +22,63 @@ editor_options:
 ---
 
 ```{css, echo=FALSE}
+/* ===== FIX RIGHT EDGE CLIPPING (SHOW BUTTONS / ARROWS) ===== */
+.main-container {
+  padding-right: 40px !important;  /* give breathing room on right */
+}
+
+/* ===== PREVENT CONTENT OVERFLOW CUT-OFF ===== */
+pre, .sourceCode {
+  overflow-x: auto !important;
+}
+
+/* ===== FIX SHOW/HIDE BUTTON VISIBILITY ===== */
+.showhide {
+  position: relative !important;
+  right: 0 !important;
+  margin-right: 10px !important;
+}
+
+/* ===== FIX DATA TABLE (DATASET PREVIEW) ===== */
+table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Constrain super-wide tables */
+.datatables,
+.dataTables_wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* ===== FIX CAROUSEL ARROWS ===== */
+.slick-prev,
+.slick-next {
+  z-index: 999 !important;
+}
+
+.slick-prev {
+  left: -10px !important;
+}
+
+.slick-next {
+  right: -10px !important;
+}
+
+/* ===== LIMIT MASSIVE OUTPUT HEIGHT (DATA PREVIEW BLOCKS) ===== */
+pre code {
+  max-height: 400px;
+  overflow-y: auto;
+  display: block;
+}
+
+/* ===== CLEAN SMALL VISUAL BUFFER ===== */
+.html-widget {
+  margin-right: 10px !important;
+}
+
 /* ===== CORE PAGE RESET ===== */
 body {
   font-size: 16px;
@@ -278,6 +335,7 @@ required_packages <- c(
   "readxl",
   "here",
   "broom",
+  "DT",
   "knitr",
   "kableExtra",
   "janitor",
@@ -314,6 +372,7 @@ library(tidyverse)
 library(readxl)
 library(here)
 library(broom)
+library(DT)
 library(knitr)
 library(kableExtra)
 library(janitor)
@@ -618,9 +677,14 @@ make_pretty_html_table(employee_attrition_meta,    "7. Attrition")
 We begin by reviewing the first few entries of the dataset.
 
 ```{r 02-dataset-preview, echo=TRUE}
-head(hr_df) %>%
-  knitr::kable() %>%
-  kableExtra::kable_styling()
+DT::datatable(
+  head(hr_df, 100),
+  options = list(
+    scrollX = TRUE,
+    pageLength = 10,
+    autoWidth = TRUE
+  )
+)
 ```
 
 ### Dataset Structure
