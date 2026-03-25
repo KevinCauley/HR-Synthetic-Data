@@ -22,82 +22,34 @@ editor_options:
 ---
 
 ```{css, echo=FALSE}
-/* ===== FIX RIGHT EDGE CLIPPING (SHOW BUTTONS / ARROWS) ===== */
-.main-container {
-  width: calc(100vw - 300px) !important;
-  max-width: 1200px !important;   /* <-- THIS FIXES EVERYTHING */
-  margin-left: 270px !important;
-  margin-right: auto !important;
-  padding-right: 20px !important;
+/* ===== PAGE / TYPOGRAPHY ===== */
+html, body {
+  height: 100%;
 }
 
-/* ===== PREVENT CONTENT OVERFLOW CUT-OFF ===== */
-pre, .sourceCode {
-  overflow-x: auto !important;
-}
-
-/* ===== FIX SHOW/HIDE BUTTON VISIBILITY ===== */
-.showhide {
-  position: relative !important;
-  right: 0 !important;
-  margin-right: 10px !important;
-}
-
-/* Constrain super-wide tables */
-.datatables,
-.dataTables_wrapper {
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-/* ===== FIX CAROUSEL ARROWS ===== */
-.slick-prev,
-.slick-next {
-  z-index: 999 !important;
-}
-
-.slick-prev {
-  left: -10px !important;
-}
-
-.slick-next {
-  right: -10px !important;
-}
-
-/* ===== LIMIT MASSIVE OUTPUT HEIGHT (DATA PREVIEW BLOCKS) ===== */
-pre code {
-  max-height: 400px;
-  overflow-y: auto;
-  display: block;
-}
-
-/* ===== CLEAN SMALL VISUAL BUFFER ===== */
-.html-widget {
-  margin-right: 10px !important;
-}
-
-/* ===== CORE PAGE RESET ===== */
 body {
   font-size: 16px;
   line-height: 1.6;
   overflow-x: hidden;
 }
 
-/* ===== REMOVE BOOTSTRAP CONSTRAINTS ===== */
+/* ===== MAIN LAYOUT ===== */
 .main-container {
-  max-width: 100% !important;
-  width: 100% !important;
-  margin: 0 !important;
-  padding-left: 280px !important;  /* space for TOC */
-  padding-right: 20px !important;
+  max-width: 1180px !important;
+  margin-left: 285px !important;
+  margin-right: 24px !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  overflow-x: hidden !important;
 }
 
-/* ===== TOC (LEFT SIDEBAR) ===== */
+/* ===== TOC ===== */
 #TOC {
   position: fixed;
   top: 16px;
   left: 16px;
   width: 240px;
+  max-width: 240px;
   height: calc(100vh - 32px);
   overflow-y: auto;
   background: #f8f9fa;
@@ -107,19 +59,7 @@ body {
   z-index: 1000;
 }
 
-/* ===== REMOVE ALL GRID / COLUMN BEHAVIOR ===== */
-.row {
-  margin: 0 !important;
-}
-
-.col-sm-4,
-.col-sm-8 {
-  width: 100% !important;
-  max-width: 100% !important;
-  padding: 0 !important;
-}
-
-/* ===== SECTION ALIGNMENT ===== */
+/* ===== SECTION SPACING ===== */
 .section,
 .section.level1,
 .section.level2,
@@ -128,9 +68,8 @@ body {
   padding-left: 0 !important;
 }
 
-/* ===== HEADINGS ===== */
 h1 {
-  margin-top: 10px;
+  margin-top: 8px;
   margin-bottom: 12px;
 }
 
@@ -146,58 +85,97 @@ h3 {
   margin-bottom: 8px !important;
 }
 
-/* ===== TEXT / TABLES ===== */
 p {
   margin-bottom: 12px;
 }
 
+/* ===== TABLES ===== */
 .table {
   margin-left: 0 !important;
   margin-right: auto !important;
 }
 
+table {
+  display: table !important;
+  width: auto !important;
+  max-width: 100% !important;
+  font-size: 16px !important;
+}
+
+table th,
+table td {
+  padding: 8px 12px !important;
+  font-size: 15px !important;
+}
+
+table th {
+  font-weight: 600;
+}
+
+/* ===== DT TABLES ONLY ===== */
+.dataTables_wrapper {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+}
+
+.dataTables_scrollBody {
+  max-height: 380px !important;
+}
+
 /* ===== CODE BLOCKS ===== */
-pre {
-  overflow-x: auto;
+pre,
+.sourceCode {
+  overflow-x: auto !important;
   max-width: 100%;
   margin-bottom: 6px;
 }
 
-.showhide {
-  margin-top: -4px !important;
-  margin-bottom: 6px !important;
+pre code {
+  max-height: 360px;
+  overflow-y: auto;
+  display: block;
 }
 
-/* ===== FIGURE / IMAGE FIXES ===== */
+.showhide {
+  position: relative !important;
+  right: auto !important;
+  margin-top: -4px !important;
+  margin-bottom: 6px !important;
+  margin-right: 0 !important;
+}
+
+/* ===== STATIC FIGURES ===== */
 .figure,
 div.figure {
   margin-top: 6px !important;
   margin-bottom: 6px !important;
 }
 
+/* IMPORTANT: do NOT force all images to width:100% */
 img {
   display: block;
-  max-width: 100%;
-  height: auto;
+  max-width: 100% !important;
+  width: auto !important;
+  height: auto !important;
   margin-left: 0 !important;
+  margin-right: auto !important;
+  border-radius: 4px;
 }
 
-/* ===== HTMLWIDGET / SLICK FIX ===== */
+/* ===== HTMLWIDGET / SLICK ===== */
 .html-widget,
-.html-widget-static-bound,
-.slickR,
+.html-widget-static-bound {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 .slick-slider,
 .slick-list,
 .slick-track {
   height: auto !important;
   max-height: none !important;
   min-height: 0 !important;
-}
-
-.html-widget,
-.html-widget-static-bound {
-  margin: 0 !important;
-  padding: 0 !important;
+  max-width: 100% !important;
 }
 
 .slick-slider {
@@ -221,20 +199,30 @@ img {
 .slick-slide img {
   display: block;
   margin: 0 auto !important;
-  max-width: 100%;
+  max-width: 100% !important;
+  width: auto !important;
   height: auto !important;
-  max-height: 460px !important;
+  max-height: 340px !important;
+}
+
+.slick-prev,
+.slick-next {
+  z-index: 999 !important;
+}
+
+.slick-prev {
+  left: -8px !important;
+}
+
+.slick-next {
+  right: -8px !important;
 }
 
 .slick-dots {
   position: relative !important;
   bottom: 0 !important;
   margin-top: 6px !important;
-}
-
-/* ===== FORCE CONTENT TO FILL SPACE ===== */
-.main-container > * {
-  max-width: 100% !important;
+  margin-bottom: 0 !important;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -242,105 +230,16 @@ img {
   #TOC {
     position: relative;
     width: 100%;
+    max-width: none;
     height: auto;
     margin-bottom: 16px;
   }
 
   .main-container {
-    padding-left: 16px !important;
-    padding-right: 16px !important;
+    max-width: none !important;
+    margin-left: 16px !important;
+    margin-right: 16px !important;
   }
-}
-
-/* ===== CONTROL DT TABLE HEIGHT ===== */
-.dataTables_wrapper {
-  max-width: 100% !important;
-}
-
-.dataTables_scrollBody {
-  max-height: 400px !important;
-}
-
-/* ===== FIX SHOW CODE BUTTON POSITION ===== */
-.showhide {
-  position: relative !important;
-  right: auto !important;
-  margin-right: 0 !important;
-}
-
-/* ===== FORCE PAGE HEIGHT ALIGNMENT ===== */
-html, body {
-  height: 100%;
-}
-
-body {
-  display: flex;
-  flex-direction: column;
-}
-
-.main-container {
-  flex: 1;
-}
-
-/* ===== ALIGN TOC HEIGHT WITH CONTENT ===== */
-#TOC {
-  bottom: 16px;
-}
-
-/* ===== CONTROL IMAGE HEIGHT ===== */
-img {
-  max-height: 500px !important;
-  object-fit: contain;
-}
-
-/* ===== TIBBLE (KNITR TABLE) SCALING ===== */
-table {
-  display: table !important;
-  width: auto !important;
-  max-width: 100% !important;
-  font-size: 16px !important;   /* increase readability */
-}
-
-/* Increase spacing + readability */
-table th,
-table td {
-  padding: 8px 12px !important;
-  font-size: 15px !important;
-}
-
-/* Bold headers more */
-table th {
-  font-weight: 600;
-}
-
-/* ===== HARD LIMIT ALL PLOTS ===== */
-img,
-.plotly,
-.html-widget,
-.ggplot,
-.figure {
-  max-width: 100% !important;
-  width: 100% !important;
-  height: auto !important;
-}
-
-/* ===== PREVENT ANY OVERFLOW ===== */
-.main-container {
-  overflow-x: hidden !important;
-}
-
-/* ===== FIX SLICK/CAROUSEL WIDTH ===== */
-.slick-slider,
-.slick-list,
-.slick-track {
-  max-width: 100% !important;
-}
-
-/* ===== REMOVE SCROLLBARS FROM PLOTS ===== */
-.html-widget,
-.slickR,
-.figure {
-  overflow: hidden !important;
 }
 ```
 
@@ -381,10 +280,10 @@ knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE,
   fig.align = "center",
-  out.width = "85%",      
+  out.width = "82%",
   fig.retina = 2,
-  fig.width = 7,          
-  fig.height = 4.5,       
+  fig.width = 7,
+  fig.height = 4.5,
   dpi = 300,
   cache = FALSE
 )
@@ -767,10 +666,12 @@ We begin by reviewing the first few entries of the dataset.
 ```{r 02-dataset-preview, echo=TRUE}
 DT::datatable(
   head(hr_df, 100),
+  rownames = FALSE,
   options = list(
     scrollX = TRUE,
     pageLength = 10,
-    autoWidth = TRUE
+    autoWidth = TRUE,
+    dom = "tip"
   )
 )
 ```
@@ -780,7 +681,22 @@ DT::datatable(
 This view helps confirm data types and overall structure before preprocessing and modeling.
 
 ```{r 02-dataset-structure, echo=TRUE}
-dplyr::glimpse(hr_df, width = 80)
+structure_df <- tibble(
+  Variable = names(hr_df),
+  Class = purrr::map_chr(hr_df, ~ class(.x)[1]),
+  Missing_Values = purrr::map_int(hr_df, ~ sum(is.na(.x)))
+)
+
+knitr::kable(
+  structure_df,
+  format = "html",
+  caption = "Dataset Structure"
+) %>%
+  kableExtra::kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "left"
+  )
 ```
 
 ### Dataset Summary Statistics
@@ -796,7 +712,21 @@ hr_df %>%
 Before performing exploratory analysis, we verify whether any missing values exist in the dataset. Missing values can distort statistical inference and predictive modeling if not addressed appropriately.
 
 ```{r 02-missing-data-check, echo=TRUE}
-sum(is.na(hr_df))
+missing_summary <- tibble(
+  Metric = "Total Missing Values",
+  Value = sum(is.na(hr_df))
+)
+
+knitr::kable(
+  missing_summary,
+  format = "html",
+  caption = "Missing Data Summary"
+) %>%
+  kableExtra::kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "left"
+  )
 ```
 
 # Data Preparation
@@ -946,8 +876,8 @@ continuous_hist_files <- numeric_long %>%
     ggsave(
       filename = filepath,
       plot = p,
-      width = 8,
-      height = 4.5,
+      width = 7.2,
+      height = 3.8,
       dpi = 300,
       bg = "white"
     )
@@ -1001,8 +931,8 @@ likert_plot_files <- purrr::map_chr(likert_vars, function(var){
     ggsave(
       filename = filepath,
       plot = p,
-      width = 8,
-      height = 4.5,
+      width = 7.2,
+      height = 3.8,
       dpi = 300,
       bg = "white"
     )
@@ -1162,8 +1092,8 @@ p <- ggcorrplot(
 ggsave(
   filename = fig_path,
   plot = p,
-  width = 8.5,
-  height = 7,
+  width = 7.2,
+  height = 4.2,
   dpi = 300,
   bg = "white"
 )
@@ -1201,8 +1131,8 @@ p <- ggplot(top_corr_df, aes(x = reorder(Pair, Correlation), y = Correlation, fi
 ggsave(
   filename = file.path(FIG_DIR, "top_correlations.png"),
   plot = p,
-  width = 8,
-  height = 4.5,
+  width = 7.2,
+  height = 4.2,
   dpi = 300,
   bg = "white"
 )
@@ -1233,8 +1163,8 @@ p <- GGally::ggpairs(
 ggsave(
   filename = file.path(FIG_DIR, "pairwise_relationships.png"),
   plot = p,
-  width = 8,
-  height = 4.5,
+  width = 7.2,
+  height = 4.2,
   dpi = 300,
   bg = "white"
 )
@@ -1322,8 +1252,8 @@ p <- ggplot(target_balance,
 ggsave(
   filename = file.path(FIG_DIR, "target_class_balance.png"),
   plot = p,
-  width = 8,
-  height = 4.5,
+  width = 7.2,
+  height = 4.2,
   dpi = 300,
   bg = "white"
 )
@@ -1355,8 +1285,8 @@ p <- hr_df %>%
 ggsave(
   filename = filepath,
   plot = p,
-  width = 8,
-  height = 4.5,
+  width = 7.2,
+  height = 4.2,
   dpi = 300,
   bg = "white"
 )
@@ -1391,9 +1321,6 @@ vif_df <- data.frame(
   Variable = names(vif_results),
   VIF = vif_results
 )
-
-# Print
-print(vif_results)
 ```
 
 ```{r 07-vif-numeric-plot, echo=TRUE}
@@ -1440,7 +1367,14 @@ p <- ggplot(vif_df,
     plot.margin = margin(6, 10, 6, 10)
   )
 
-ggsave(fig_path, p, width = 8, height = 4.5, dpi = 300, bg = "white")
+ggsave(
+  fig_path, 
+  p, 
+  width = 7.2, 
+  height = 4.2, 
+  dpi = 300, 
+  bg = "white"
+)
 
 knitr::include_graphics(fig_path)
 ```
@@ -1522,7 +1456,14 @@ p <- ggplot(vif_df_cat, aes(x = reorder(Variable, -VIF), y = VIF, fill = VIF_Lev
     plot.margin = margin(6, 10, 6, 10)
   )
 
-ggsave(fig_path, p, width = 8, height = 4.5, dpi = 300, bg = "white")
+ggsave(
+  fig_path, 
+  p, 
+  width = 7.2, 
+  height = 4.2, 
+  dpi = 300, 
+  bg = "white"
+)
 
 knitr::include_graphics(fig_path)
 ```
@@ -1620,7 +1561,14 @@ p <- vif_df_cat_updated %>%
     plot.margin = margin(6, 10, 6, 10)
   )
 
-ggsave(fig_path, p, width = 8, height = 4.5, dpi = 300, bg = "white")
+ggsave(
+  fig_path, 
+  p, 
+  width = 7.2, 
+  height = 4.2,
+  dpi = 300, 
+  bg = "white"
+)
 
 knitr::include_graphics(fig_path)
 ```
@@ -1680,7 +1628,14 @@ p <- ggplot(skew_df, aes(x = Skewness, y = Variable, fill = Skew_Type)) +
     plot.margin = margin(6, 10, 6, 10)
   )
 
-ggsave(fig_path, p, width = 8, height = 4.5, dpi = 300, bg = "white")
+ggsave(
+  fig_path, 
+  p, 
+  width = 7.2, 
+  height = 4.2, 
+  dpi = 300, 
+  bg = "white"
+)
 
 knitr::include_graphics(fig_path)
 ```
@@ -1735,8 +1690,8 @@ cat_plot_files <- purrr::map_chr(cat_vars_current, function(var){
   ggsave(
     filename = filepath,
     plot = p,
-    width = 8,
-    height = 4.5,
+    width = 7.2,
+    height = 4.2,
     dpi = 300,
     bg = "white"
   )
@@ -1814,8 +1769,8 @@ p <- cat_imbalance_df %>%
 ggsave(
   filename = file.path(FIG_DIR, "categorical_imbalance.png"),
   plot = p,
-  width = 8,
-  height = 4.5,
+  width = 7.2,
+  height = 4.2,
   dpi = 300,
   bg = "white"
 )
@@ -1970,7 +1925,14 @@ p <- ggplot(
     plot.margin = margin(8, 10, 8, 10)
   )
 
-ggsave(fig_path, p, width = 8, height = 4.5, dpi = 300, bg = "white")
+ggsave(
+  fig_path, 
+  p, 
+  width = 7.2, 
+  height = 4.2, 
+  dpi = 300, 
+  bg = "white"
+)
 
 knitr::include_graphics(fig_path)
 ```
