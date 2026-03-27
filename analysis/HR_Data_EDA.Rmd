@@ -241,6 +241,15 @@ img {
     margin-right: 16px !important;
   }
 }
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+.main-container {
+  flex: 1;
+}
 ```
 
 ```{r 00-setup, include=FALSE}
@@ -702,9 +711,22 @@ knitr::kable(
 ### Dataset Summary Statistics
 
 ```{r 02-numeric-summary, echo=TRUE}
-hr_df %>%
+numeric_summary <- hr_df %>%
   select(where(is.numeric)) %>%
-  psych::describe()
+  psych::describe() %>%
+  as.data.frame() %>%
+  rownames_to_column("Variable")
+
+knitr::kable(
+  numeric_summary,
+  format = "html",
+  caption = "Numeric Variable Summary Statistics"
+) %>%
+  kableExtra::kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "left"
+  )
 ```
 
 ### Missing Data Check
@@ -888,7 +910,7 @@ continuous_hist_files <- numeric_long %>%
 slickR(
   obj = continuous_hist_files,
   slideType = "img",
-  width = "100%"
+  width = "92%"
 ) +
   settings(
     dots = TRUE,
@@ -943,7 +965,7 @@ likert_plot_files <- purrr::map_chr(likert_vars, function(var){
 slickR(
   obj = likert_plot_files,
   slideType = "img",
-  width = "100%"
+  width = "92%"
 ) +
   settings(
     dots = TRUE,
@@ -1000,8 +1022,8 @@ likert_outlier_files <- purrr::map_chr(likert_vars, function(var){
   ggsave(
     filename = filepath,
     plot = p,
-    width = 8,
-    height = 4.5,
+    width = 7.2,
+    height = 3.8,
     dpi = 300,
     bg = "white"
   )
@@ -1012,7 +1034,7 @@ likert_outlier_files <- purrr::map_chr(likert_vars, function(var){
 slickR(
   obj = likert_outlier_files,
   slideType = "img",
-  width = "100%"
+  width = "92%"
 ) +
   settings(
     dots = TRUE,
@@ -1086,7 +1108,7 @@ p <- ggcorrplot(
   theme(
   axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
   axis.text.y = element_text(size = 7),
-  plot.margin = margin(6, 6, 6, 6)
+  plot.margin = margin(4, 4, 4, 4)
 )
 
 ggsave(
@@ -1245,9 +1267,10 @@ p <- ggplot(target_balance,
   ) +
 
   theme(
-    legend.position = "none",
-    strip.text = element_text(face = "bold")
-  )
+  legend.position = "none",
+  strip.text = element_text(face = "bold"),
+  plot.margin = margin(4, 6, 4, 6)
+)
 
 ggsave(
   filename = file.path(FIG_DIR, "target_class_balance.png"),
@@ -1363,9 +1386,9 @@ p <- ggplot(vif_df,
   ) +
 
   theme(
-    axis.text.y = element_text(size = 9),
-    plot.margin = margin(6, 10, 6, 10)
-  )
+  axis.text.y = element_text(size = 8.5),
+  plot.margin = margin(4, 6, 4, 6)
+)
 
 ggsave(
   fig_path, 
@@ -1452,15 +1475,15 @@ p <- ggplot(vif_df_cat, aes(x = reorder(Variable, -VIF), y = VIF, fill = VIF_Lev
   ) +
 
   theme(
-    axis.text.y = element_text(size = 8.5),
-    plot.margin = margin(6, 10, 6, 10)
-  )
+  axis.text.y = element_text(size = 8),
+  plot.margin = margin(4, 6, 4, 6)
+)
 
 ggsave(
   fig_path, 
   p, 
-  width = 7.2, 
-  height = 4.2, 
+  width = 7.0, 
+  height = 3.9, 
   dpi = 300, 
   bg = "white"
 )
@@ -1557,9 +1580,9 @@ p <- vif_df_cat_updated %>%
   ) +
 
   theme(
-    axis.text.y = element_text(size = 9),
-    plot.margin = margin(6, 10, 6, 10)
-  )
+  axis.text.y = element_text(size = 8.5),
+  plot.margin = margin(4, 6, 4, 6)
+)
 
 ggsave(
   fig_path, 
@@ -1702,7 +1725,7 @@ cat_plot_files <- purrr::map_chr(cat_vars_current, function(var){
 slickR(
   obj = cat_plot_files,
   slideType = "img",
-  width = "100%"
+  width = "92%"
 ) +
   settings(
     dots = TRUE,
