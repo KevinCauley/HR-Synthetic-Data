@@ -16,239 +16,75 @@ output:
     df_print: paged
 
 number_sections: true
-
-editor_options:
-  chunk_output_type: console
 ---
 
 ```{css, echo=FALSE}
-/* ===== PAGE / TYPOGRAPHY ===== */
-html, body {
-  height: 100%;
-}
-
-body {
-  font-size: 16px;
-  line-height: 1.6;
-  overflow-x: hidden;
-}
-
-/* ===== MAIN LAYOUT ===== */
+/* ===== LAYOUT ===== */
 .main-container {
-  max-width: 1180px !important;
-  margin-left: 285px !important;
-  margin-right: 24px !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  overflow-x: hidden !important;
+  max-width: 1100px;
+  margin: auto;
 }
 
-/* ===== TOC ===== */
-#TOC {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  width: 240px;
-  max-width: 240px;
-  height: calc(100vh - 32px);
-  overflow-y: auto;
-  background: #f8f9fa;
-  padding: 14px;
-  border: 1px solid #d9dde3;
-  border-radius: 8px;
-  z-index: 1000;
-}
-
-/* ===== SECTION SPACING ===== */
-.section,
-.section.level1,
-.section.level2,
-.section.level3 {
-  margin-left: 0 !important;
-  padding-left: 0 !important;
-}
-
-h1 {
-  margin-top: 8px;
-  margin-bottom: 12px;
-}
-
-h2 {
-  margin-top: 28px !important;
-  margin-bottom: 10px !important;
-  border-bottom: 2px solid #E5E7E9;
-  padding-bottom: 6px;
-}
-
-h3 {
-  margin-top: 18px !important;
-  margin-bottom: 8px !important;
-}
-
-p {
-  margin-bottom: 12px;
-}
-
-/* ===== TABLES ===== */
-.table {
-  margin-left: 0 !important;
-  margin-right: auto !important;
-}
-
-table {
-  display: table !important;
-  width: auto !important;
-  max-width: 100% !important;
-  font-size: 16px !important;
-}
-
-table th,
-table td {
-  padding: 8px 12px !important;
-  font-size: 15px !important;
-}
-
-table th {
-  font-weight: 600;
-}
-
-/* ===== DT TABLES ONLY ===== */
-.dataTables_wrapper {
+/* ===== CODE ===== */
+pre, code {
   max-width: 100% !important;
   overflow-x: auto !important;
+  font-size: 12px !important;
 }
 
-.dataTables_scrollBody {
-  max-height: 380px !important;
+.code-folding-btn {
+  float: left !important;
+  margin-bottom: 8px;
 }
 
-/* ===== CODE BLOCKS ===== */
-pre,
-.sourceCode {
-  overflow-x: auto !important;
+/* ===== OUTPUT ===== */
+.r-output {
   max-width: 100%;
-  margin-bottom: 6px;
+  overflow-x: auto;
 }
 
-pre code {
-  max-height: 360px;
-  overflow-y: auto;
-  display: block;
-}
-
-.showhide {
-  position: relative !important;
-  right: auto !important;
-  margin-top: -4px !important;
-  margin-bottom: 6px !important;
-  margin-right: 0 !important;
-}
-
-/* ===== STATIC FIGURES ===== */
-.figure,
-div.figure {
-  margin-top: 6px !important;
-  margin-bottom: 6px !important;
-}
-
-/* IMPORTANT: do NOT force all images to width:100% */
+/* ===== IMAGES ===== */
 img {
+  max-width: 100% !important;
+  height: auto !important;
   display: block;
-  max-width: 100% !important;
-  width: auto !important;
+  margin: auto;
+}
+
+/* ===== FIX SLICK CAROUSEL ===== */
+.slick-slide img {
+  width: 100% !important;
   height: auto !important;
-  margin-left: 0 !important;
-  margin-right: auto !important;
-  border-radius: 4px;
-}
-
-/* ===== HTMLWIDGET / SLICK ===== */
-.html-widget,
-.html-widget-static-bound {
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.slick-slider,
-.slick-list,
-.slick-track {
-  height: auto !important;
-  max-height: none !important;
-  min-height: 0 !important;
-  max-width: 100% !important;
-}
-
-.slick-slider {
-  margin-top: 4px !important;
-  margin-bottom: 4px !important;
-}
-
-.slick-list {
-  overflow: hidden !important;
 }
 
 .slick-track {
   display: flex !important;
-  align-items: flex-start !important;
+  align-items: center;
 }
 
-.slick-slide {
-  padding: 0 !important;
+/* ===== REMOVE SCROLLBAR BUG ===== */
+.figure {
+  overflow: hidden !important;
 }
 
-.slick-slide img {
-  display: block;
-  margin: 0 auto !important;
-  max-width: 100% !important;
-  width: auto !important;
-  height: auto !important;
-  max-height: 340px !important;
+/* ===== TABLES ===== */
+table {
+  width: 100% !important;
+  font-size: 13px;
 }
 
-.slick-prev,
-.slick-next {
-  z-index: 999 !important;
+/* ===== HTMLWIDGET FIX ===== */
+.html-widget {
+  width: 100% !important;
 }
 
-.slick-prev {
-  left: -8px !important;
+/* ===== SPACING ===== */
+p {
+  margin-bottom: 10px;
 }
 
-.slick-next {
-  right: -8px !important;
-}
-
-.slick-dots {
-  position: relative !important;
-  bottom: 0 !important;
-  margin-top: 6px !important;
-  margin-bottom: 0 !important;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 1150px) {
-  #TOC {
-    position: relative;
-    width: 100%;
-    max-width: none;
-    height: auto;
-    margin-bottom: 16px;
-  }
-
-  .main-container {
-    max-width: none !important;
-    margin-left: 16px !important;
-    margin-right: 16px !important;
-  }
-}
-
-body {
-  display: flex;
-  flex-direction: column;
-}
-
-.main-container {
-  flex: 1;
+.container-fluid {
+  max-width: 1100px;
 }
 ```
 
@@ -265,22 +101,23 @@ library(ggplot2)
 # Lock Root
 here::i_am("analysis/HR_Data_EDA.Rmd")
 
-# Output Path System (Single Source)
-OUTPUT_ROOT <- here("outputs")
-FIG_DIR     <- here("outputs", "figures")
+# Define directories (single source of truth)
+OUTPUT_DIR <- here::here("outputs")
+FIG_DIR    <- file.path(OUTPUT_DIR, "figures")
+PLOT_DIR   <- file.path(OUTPUT_DIR, "plots")
 
-# Global Plot Directory (Base)
-PLOT_DIR <- file.path(OUTPUT_ROOT, "plots")
+# Create directories safely
+dir.create(FIG_DIR, recursive = TRUE, showWarnings = FALSE)
 dir.create(PLOT_DIR, recursive = TRUE, showWarnings = FALSE)
 
-# Plot Directory Helper (Required)
+# Optional helper (clean + safe)
 create_plot_dir <- function(folder){
   path <- file.path(PLOT_DIR, folder)
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
   return(path)
 }
 
-# Initialize a Default
+# Default folder
 plot_dir <- create_plot_dir("global")
 
 # Global Options (we control saving manually)
@@ -289,11 +126,10 @@ knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE,
   fig.align = "center",
-  out.width = "82%",
-  fig.retina = 2,
-  fig.width = 7,
-  fig.height = 4.5,
-  dpi = 300,
+  out.width = "85%",
+  fig.width = 6.5,
+  fig.height = 4,
+  dpi = 120,
   cache = FALSE
 )
 
@@ -310,6 +146,12 @@ theme_set(
       legend.position = "bottom",
       plot.margin = margin(12, 12, 12, 12)
     )
+)
+
+# Tibble Fix
+options(
+  tibble.width = Inf,
+  pillar.width = Inf
 )
 
 # Global Color System
@@ -881,43 +723,31 @@ continuous_hist_files <- numeric_long %>%
         color = "white",
         alpha = 0.9
       ) +
-      geom_density(
-        color = COLORS$accent,
-        linewidth = 1.2
-      ) +
+      geom_density(color = COLORS$accent, linewidth = 1.2) +
       labs(
         title = paste("Distribution of", clean_label(var)),
         x = clean_label(var),
         y = "Density"
       ) +
-      theme(
-        axis.text.x = element_text(angle = 30, hjust = 1),
-        plot.margin = margin(12, 12, 18, 12)
-      )
+      theme(plot.margin = margin(6, 6, 6, 6))
 
-    ggsave(
-      filename = filepath,
-      plot = p,
-      width = 7.2,
-      height = 3.8,
-      dpi = 300,
-      bg = "white"
-    )
+    ggsave(filepath, p, width = 6.5, height = 3.5, dpi = 120, bg = "white")
 
     normalizePath(filepath, winslash = "/", mustWork = FALSE)
   })
 
-slickR(
-  obj = continuous_hist_files,
-  slideType = "img",
-  width = "92%"
-) +
-  settings(
+htmltools::div(
+  style = "margin-bottom:30px;",
+  slickR(
+    obj = continuous_hist_files,
+    slideType = "img"
+  ) + settings(
     dots = TRUE,
     arrows = TRUE,
     infinite = FALSE,
     adaptiveHeight = TRUE
   )
+)
 ```
 
 ## Likert Scale Variable Distributions
@@ -944,35 +774,25 @@ likert_plot_files <- purrr::map_chr(likert_vars, function(var){
       x = "Response Level",
       y = "Employee Count"
     ) +
-    scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-    theme(
-      axis.text.x = element_text(size = 11),
-      plot.margin = margin(12, 12, 18, 12)
-    )
+    theme(plot.margin = margin(6, 6, 6, 6))
 
-    ggsave(
-      filename = filepath,
-      plot = p,
-      width = 7.2,
-      height = 3.8,
-      dpi = 300,
-      bg = "white"
-    )
+  ggsave(filepath, p, width = 6.5, height = 3.5, dpi = 120, bg = "white")
 
-    normalizePath(filepath, winslash = "/", mustWork = FALSE)
+  normalizePath(filepath, winslash = "/", mustWork = FALSE)
 })
 
-slickR(
-  obj = likert_plot_files,
-  slideType = "img",
-  width = "92%"
-) +
-  settings(
+htmltools::div(
+  style = "margin-bottom:30px;",
+  slickR(
+    obj = likert_plot_files,
+    slideType = "img"
+  ) + settings(
     dots = TRUE,
     arrows = TRUE,
     infinite = FALSE,
     adaptiveHeight = TRUE
   )
+)
 ```
 
 **Interpretation**
@@ -996,18 +816,8 @@ likert_outlier_files <- purrr::map_chr(likert_vars, function(var){
   filepath <- file.path(plot_dir, paste0("outlier_", var, ".png"))
 
   p <- ggplot(hr_df, aes(x = "", y = .data[[var]])) +
-    geom_boxplot(
-      fill = COLORS$primary,
-      alpha = 0.7,
-      width = 0.3,
-      outlier.shape = NA
-    ) +
-    geom_jitter(
-      width = 0.08,
-      alpha = 0.25,
-      size = 1.2,
-      color = "black"
-    ) +
+    geom_boxplot(fill = COLORS$primary, alpha = 0.7, width = 0.3, outlier.shape = NA) +
+    geom_jitter(width = 0.08, alpha = 0.25, size = 1.2) +
     labs(
       title = paste("Outlier Distribution:", clean_label(var)),
       x = NULL,
@@ -1016,32 +826,26 @@ likert_outlier_files <- purrr::map_chr(likert_vars, function(var){
     theme(
       axis.text.x = element_blank(),
       axis.ticks.x = element_blank(),
-      plot.margin = margin(12, 12, 18, 12)
+      plot.margin = margin(6, 6, 6, 6)
     )
 
-  ggsave(
-    filename = filepath,
-    plot = p,
-    width = 7.2,
-    height = 3.8,
-    dpi = 300,
-    bg = "white"
-  )
+  ggsave(filepath, p, width = 6.5, height = 3.5, dpi = 120, bg = "white")
 
   normalizePath(filepath, winslash = "/", mustWork = FALSE)
 })
 
-slickR(
-  obj = likert_outlier_files,
-  slideType = "img",
-  width = "92%"
-) +
-  settings(
+htmltools::div(
+  style = "margin-bottom:30px;",
+  slickR(
+    obj = likert_outlier_files,
+    slideType = "img"
+  ) + settings(
     dots = TRUE,
     arrows = TRUE,
     infinite = FALSE,
     adaptiveHeight = TRUE
   )
+)
 ```
 
 # Correlation Analysis
@@ -1057,45 +861,49 @@ Because hierarchical clustering is used to organize the correlation matrix, we f
 The following visualization displays pairwise correlations between numeric variables. Variables are automatically reordered using hierarchical clustering so that related features appear closer together in the matrix, improving interpretability.
 
 ```{r 05-correlation-matrix, echo=TRUE}
-fig_path <- file.path(FIG_DIR, "correlation_matrix.png")
+selected_vars <- c(
+  "average_salary",
+  "tenure_years",
+  "actual_training_hours",
+  "overtime_hours",
+  "performance_score",
+  "productivity_score",
+  "engagement_level",
+  "organizational_commitment",
+  "role_clarity",
+  "job_satisfaction",
+  "workplace_environment_satisfaction",
+  "work_life_balance_satisfaction",
+  "perceived_organizational_support",
+  "relationship_with_manager",
+  "relationship_with_coworkers",
+  "team_collaboration",
+  "promotion_opportunity",
+  "learning_opportunities",
+  "manager_support_score",
+  "perceived_fairness_score",
+  "trust_in_management",
+  "stress_level",
+  "burnout_score",
+  "workload_pressure",
+  "privacy_concern_score"
+)
 
-numeric_vars <- hr_df %>%
-  select(where(is.numeric)) %>%
-  select(where(~ sd(.x, na.rm = TRUE) > 0)) %>%
-  select(
-    average_salary,
-    tenure_years,
-    actual_training_hours,
-    overtime_hours,
-    performance_score,
-    productivity_score,
-    engagement_level,
-    organizational_commitment,
-    role_clarity,
-    job_satisfaction,
-    workplace_environment_satisfaction,
-    work_life_balance_satisfaction,
-    perceived_organizational_support,
-    relationship_with_manager,
-    relationship_with_coworkers,
-    team_collaboration,
-    promotion_opportunity,
-    learning_opportunities,
-    manager_support_score,
-    perceived_fairness_score,
-    trust_in_management,
-    stress_level,
-    burnout_score,
-    workload_pressure,
-    privacy_concern_score
-  )
+corr_input <- hr_df %>%
+  dplyr::select(dplyr::any_of(selected_vars)) %>%
+  dplyr::select(where(is.numeric)) %>%
+  dplyr::select(where(~ sd(.x, na.rm = TRUE) > 0))
 
-corr_matrix <- cor(numeric_vars, use = "pairwise.complete.obs")
+if (ncol(corr_input) < 2) {
+  stop("Not enough valid variables for correlation matrix")
+}
+
+corr_matrix <- cor(corr_input, use = "pairwise.complete.obs")
 
 colnames(corr_matrix) <- clean_label(colnames(corr_matrix))
 rownames(corr_matrix) <- clean_label(rownames(corr_matrix))
 
-p <- ggcorrplot(
+p <- ggcorrplot::ggcorrplot(
   corr_matrix,
   method = "square",
   type = "lower",
@@ -1106,92 +914,122 @@ p <- ggcorrplot(
 ) +
   labs(title = "Correlation Matrix (Top Variables)") +
   theme(
-  axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
-  axis.text.y = element_text(size = 7),
-  plot.margin = margin(4, 4, 4, 4)
-)
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
+    axis.text.y = element_text(size = 7),
+    plot.margin = margin(4, 4, 4, 4)
+  )
 
-ggsave(
-  filename = fig_path,
-  plot = p,
-  width = 7.2,
-  height = 4.2,
-  dpi = 300,
-  bg = "white"
-)
-
-knitr::include_graphics(fig_path)
-```
-
-## Correlation Strength
-
-```{r 05-strong-correlations, echo=TRUE}
-corr_df <- as.data.frame(as.table(corr_matrix)) %>%
-  rename(Var1 = Var1, Var2 = Var2, Correlation = Freq) %>%
-  filter(as.character(Var1) < as.character(Var2)) %>%
-  mutate(
-    Abs_Correlation = abs(Correlation),
-    Pair = paste(clean_label(Var1), "vs", clean_label(Var2)),
-    Direction = ifelse(Correlation > 0, "Positive", "Negative")
-  ) %>%
-  arrange(desc(Abs_Correlation))
-
-top_corr_df <- corr_df %>%
-  slice_head(n = 20) %>%
-  mutate(Pair = factor(Pair, levels = rev(Pair)))
-
-p <- ggplot(top_corr_df, aes(x = reorder(Pair, Correlation), y = Correlation, fill = Correlation > 0)) +
-  geom_col() +
-  coord_flip() +
-  labs(
-    title = "Top Correlated Variable Pairs",
-    x = NULL,
-    y = "Correlation"
-  ) +
-  scale_fill_manual(values = c(COLORS$accent, COLORS$primary), guide = "none")
-
-ggsave(
-  filename = file.path(FIG_DIR, "top_correlations.png"),
-  plot = p,
-  width = 7.2,
-  height = 4.2,
-  dpi = 300,
-  bg = "white"
-)
-
-knitr::include_graphics(file.path(FIG_DIR, "top_correlations.png"))
+print(p)
 ```
 
 ## Pairwise Relationship Exploration
 
-```{r 05-pairwise-relationships, echo=TRUE}
-sample_vars <- hr_df %>%
-  select(
-    average_salary,
-    tenure_years,
-    engagement_level,
-    job_satisfaction,
-    burnout_score,
-    stress_level
-  )
+```{r 05-pairwise-correlation, echo=TRUE}
 
-p <- GGally::ggpairs(
-  sample_vars,
-  upper = list(continuous = wrap("cor", size = 3)),
-  lower = list(continuous = wrap("points", alpha = 0.3)),
-  diag  = list(continuous = wrap("densityDiag"))
+fig_path <- file.path(FIG_DIR, "pairwise_correlation.png")
+
+pairwise_vars <- c(
+  "engagement_level",
+  "job_satisfaction",
+  "burnout_score",
+  "stress_level",
+  "productivity_score",
+  "organizational_commitment"
 )
 
+corr_input <- hr_df %>%
+  dplyr::select(dplyr::any_of(pairwise_vars)) %>%
+  dplyr::select(where(is.numeric))
+
+corr_input <- corr_input[, colSums(is.na(corr_input)) < nrow(corr_input)]
+corr_input <- corr_input[, apply(corr_input, 2, sd, na.rm = TRUE) > 0]
+
+print("Columns used for correlation:")
+print(names(corr_input))
+
+if (ncol(corr_input) < 2) {
+  stop("Not enough valid numeric variables for correlation")
+}
+
+corr_matrix <- stats::cor(
+  as.matrix(corr_input),
+  use = "pairwise.complete.obs"
+)
+
+colnames(corr_matrix) <- clean_label(colnames(corr_matrix))
+rownames(corr_matrix) <- clean_label(rownames(corr_matrix))
+
+p <- ggcorrplot::ggcorrplot(
+  corr_matrix,
+  method = "square",
+  type = "lower",
+  outline.color = "white",
+  colors = c(COLORS$accent, "white", COLORS$primary),
+  hc.order = TRUE
+) +
+  labs(title = "Key Pairwise Correlations") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+    axis.text.y = element_text(size = 8)
+  )
+
 ggsave(
-  filename = file.path(FIG_DIR, "pairwise_relationships.png"),
+  filename = fig_path,
   plot = p,
-  width = 7.2,
-  height = 4.2,
-  dpi = 300,
+  width = 6.5,
+  height = 4,
+  dpi = 120,
   bg = "white"
 )
 
-knitr::include_graphics(file.path(FIG_DIR, "pairwise_relationships.png"))
+print(p)
+```
+
+```{r 05-pairwise-scatter, echo=TRUE}
+
+fig_path <- file.path(FIG_DIR, "pairwise_scatter.png")
+
+sample_df <- hr_df %>%
+  dplyr::select(
+    engagement_level,
+    job_satisfaction,
+    burnout_score,
+    productivity_score
+  ) %>%
+  dplyr::sample_n(min(300, nrow(.)))
+
+p <- ggplot(sample_df,
+            aes(x = engagement_level, y = job_satisfaction)) +
+
+  geom_point(
+    alpha = 0.4,
+    color = COLORS$primary
+  ) +
+
+  geom_smooth(
+    method = "lm",
+    color = COLORS$accent,
+    se = FALSE
+  ) +
+
+  labs(
+    title = "Engagement vs Job Satisfaction",
+    x = "Engagement Level",
+    y = "Job Satisfaction"
+  ) +
+
+  theme_minimal()
+
+ggsave(
+  filename = fig_path,
+  plot = p,
+  width = 6,
+  height = 4,
+  dpi = 120,
+  bg = "white"
+)
+
+print(p)
 ```
 
 ### Key Correlation Insights
@@ -1230,66 +1068,77 @@ These visualizations help assess whether the outcomes occur with roughly balance
 
 Below we visualize the target categorical outcomes: Turnover Intention, Quiet Quitting, and Monitoring Turnover Risk.
 
+```{r 06-target-class-balance-data, echo=TRUE}
+fig_path <- file.path(FIG_DIR, "target_class_balance.png")
+
+valid_targets <- intersect(cat_target_vars, names(hr_df))
+
+if (length(valid_targets) == 0) {
+  stop("No valid target variables found in dataset")
+}
+
+target_balance <- hr_df %>%
+  dplyr::select(dplyr::all_of(valid_targets)) %>%
+  tidyr::pivot_longer(
+    cols = everything(),
+    names_to = "Variable",
+    values_to = "Value"
+  ) %>%
+  dplyr::count(Variable, Value, name = "n") %>%
+  dplyr::group_by(Variable) %>%
+  dplyr::mutate(Proportion = n / sum(n)) %>%
+  dplyr::ungroup()
+
+print(target_balance)
+```
+
 ### Target Class Balance Comparison
 
-```{r 06-target-class-balance, echo=TRUE}
-target_balance <- hr_df %>%
-  select(all_of(cat_target_vars)) %>%
-  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
-  count(Variable, Value) %>%
-  group_by(Variable) %>%
-  mutate(Proportion = n / sum(n))
-
-p <- ggplot(target_balance,
-       aes(x = Value, y = Proportion, fill = Value)) +
-
+```{r 06-target-class-balance-plot, echo=TRUE}
+p <- ggplot(
+  target_balance,
+  aes(x = Value, y = Proportion, fill = Value)
+) +
   geom_col(width = 0.7) +
-
   geom_text(
     aes(label = scales::percent(Proportion, accuracy = 1)),
-    vjust = -0.3,
-    size = 4
+    vjust = -0.2,
+    size = 3
   ) +
-
-  facet_wrap(~clean_label(Variable)) +
-
+  facet_wrap(~ clean_label(Variable), ncol = 2) +
   scale_y_continuous(
     labels = scales::percent,
-    expand = expansion(mult = c(0, 0.12))
+    limits = c(0, 1),
+    expand = expansion(mult = c(0, 0.1))
   ) +
-
   scale_fill_manual(values = c(COLORS$primary, COLORS$accent)) +
-
   labs(
     title = "Target Class Balance",
     x = NULL,
     y = "Proportion"
   ) +
-
   theme(
-  legend.position = "none",
-  strip.text = element_text(face = "bold"),
-  plot.margin = margin(4, 6, 4, 6)
-)
+    legend.position = "none",
+    strip.text = element_text(face = "bold", size = 10),
+    plot.margin = margin(6, 6, 6, 6)
+  )
 
 ggsave(
-  filename = file.path(FIG_DIR, "target_class_balance.png"),
+  filename = fig_path,
   plot = p,
-  width = 7.2,
-  height = 4.2,
-  dpi = 300,
+  width = 7,
+  height = 5,
+  dpi = 120,
   bg = "white"
 )
 
-knitr::include_graphics(file.path(FIG_DIR, "target_class_balance.png"))
+print(p)
 ```
 
 ### Turnover Intention by Department
 
 ```{r 06-turnover-by-department, echo=TRUE}
-plot_dir <- create_plot_dir("turnover")
-
-filepath <- file.path(plot_dir, "turnover_by_department.png")
+fig_path <- file.path(PLOT_DIR, "turnover_by_department.png")
 
 p <- hr_df %>%
   count(department, turnover_intention) %>%
@@ -1303,18 +1152,19 @@ p <- hr_df %>%
     title = "Turnover Intention by Department",
     x = "Department",
     y = "Proportion"
-  )
+  ) +
+  scale_fill_manual(values = c(COLORS$primary, COLORS$accent))
 
 ggsave(
-  filename = filepath,
+  filename = fig_path,
   plot = p,
-  width = 7.2,
-  height = 4.2,
-  dpi = 300,
+  width = 6.5,
+  height = 3.5,
+  dpi = 120,
   bg = "white"
 )
 
-knitr::include_graphics(filepath)
+print(p)
 ```
 
 # Multicollinearity Assessment
@@ -1386,20 +1236,20 @@ p <- ggplot(vif_df,
   ) +
 
   theme(
-  axis.text.y = element_text(size = 8.5),
-  plot.margin = margin(4, 6, 4, 6)
-)
+    axis.text.y = element_text(size = 8.5),
+    plot.margin = margin(6, 6, 6, 6)
+  )
 
 ggsave(
-  fig_path, 
-  p, 
-  width = 7.2, 
-  height = 4.2, 
-  dpi = 300, 
+  filename = fig_path,
+  plot = p,
+  width = 6.5,
+  height = 3.5,
+  dpi = 120,
   bg = "white"
 )
 
-knitr::include_graphics(fig_path)
+print(p)
 ```
 
 ## VIF for Categorical Predictors
@@ -1475,20 +1325,20 @@ p <- ggplot(vif_df_cat, aes(x = reorder(Variable, -VIF), y = VIF, fill = VIF_Lev
   ) +
 
   theme(
-  axis.text.y = element_text(size = 8),
-  plot.margin = margin(4, 6, 4, 6)
-)
+    axis.text.y = element_text(size = 8),
+    plot.margin = margin(6, 6, 6, 6)
+  )
 
 ggsave(
-  fig_path, 
-  p, 
-  width = 7.0, 
-  height = 3.9, 
-  dpi = 300, 
+  filename = fig_path,
+  plot = p,
+  width = 6.5,
+  height = 3.5,
+  dpi = 120,
   bg = "white"
 )
 
-knitr::include_graphics(fig_path)
+print(p)
 ```
 
 ## Addressing Age Group Multicollinearity
@@ -1580,52 +1430,66 @@ p <- vif_df_cat_updated %>%
   ) +
 
   theme(
-  axis.text.y = element_text(size = 8.5),
-  plot.margin = margin(4, 6, 4, 6)
-)
+    axis.text.y = element_text(size = 8.5),
+    plot.margin = margin(4, 6, 4, 6)
+  )
 
 ggsave(
-  fig_path, 
-  p, 
-  width = 7.2, 
-  height = 4.2,
-  dpi = 300, 
+  filename = fig_path,
+  plot = p,
+  width = 6.5,
+  height = 3.5,
+  dpi = 120,
   bg = "white"
 )
 
-knitr::include_graphics(fig_path)
+print(p)
 ```
 
 # Variable Distribution Imbalance
 
-Given that the data is informed by real-world statistics, surveys, and scholarly literature, some degree of imbalance is expected.
+Understanding distribution imbalance is important for predictive modeling because skewed variables and dominant categories can influence model performance, stability, and interpretation.  
 
-```{r 08-numeric-skewness-calculation-plot, echo=TRUE}
+In workforce analytics, imbalance is expected due to real-world behavioral patterns—such as extreme overtime, absenteeism, or mental health indicators occurring in a smaller subset of employees.
 
-# Compute skewness for numeric variables
+## Numeric Variable Skewness
+
+```{r 08-numeric-skewness-plot, echo=TRUE}
+
+fig_path <- file.path(FIG_DIR, "skewness.png")
+
+# 🔥 SAFE BUILD
 skew_df <- hr_df %>%
-  select(where(is.numeric)) %>%
-  summarise(across(everything(), ~ e1071::skewness(.x, na.rm = TRUE))) %>%
-  pivot_longer(
+  dplyr::select(where(is.numeric)) %>%
+  dplyr::select(where(~ sum(!is.na(.)) > 0)) %>%  # remove all-NA columns
+  dplyr::summarise(
+    dplyr::across(
+      everything(),
+      ~ e1071::skewness(.x, na.rm = TRUE)
+    )
+  ) %>%
+  tidyr::pivot_longer(
     cols = everything(),
     names_to = "Variable",
     values_to = "Skewness"
   ) %>%
-  mutate(
+  dplyr::mutate(
     Variable = clean_label(Variable),
-    Skew_Type = case_when(
+    Skew_Type = dplyr::case_when(
       Skewness < -1 ~ "Highly Left-Skewed",
-      Skewness >= -1 & Skewness < -0.5 ~ "Moderately Left-Skewed",
-      Skewness >= -0.5 & Skewness <= 0.5 ~ "Approximately Symmetric",
-      Skewness > 0.5 & Skewness <= 1 ~ "Moderately Right-Skewed",
-      Skewness > 1 ~ "Highly Right-Skewed"
+      Skewness < -0.5 ~ "Moderately Left-Skewed",
+      Skewness <= 0.5 ~ "Approximately Symmetric",
+      Skewness <= 1 ~ "Moderately Right-Skewed",
+      TRUE ~ "Highly Right-Skewed"
     )
-  ) %>%
-  arrange(desc(abs(Skewness)))
+  )
 
-# Plot
-fig_path <- file.path(FIG_DIR, "skewness.png")
+# 🔥 SAFETY CHECK
+if (nrow(skew_df) == 0) {
+  stop("Skewness dataframe is empty")
+}
 
+# 🔥 PLOT
 p <- ggplot(skew_df, aes(x = Skewness, y = Variable, fill = Skew_Type)) +
 
   geom_col(width = 0.65) +
@@ -1648,95 +1512,55 @@ p <- ggplot(skew_df, aes(x = Skewness, y = Variable, fill = Skew_Type)) +
 
   theme(
     axis.text.y = element_text(size = 8.5),
-    plot.margin = margin(6, 10, 6, 10)
+    plot.margin = margin(6, 6, 6, 6)
   )
 
+# Save (ETL)
 ggsave(
-  fig_path, 
-  p, 
-  width = 7.2, 
-  height = 4.2, 
-  dpi = 300, 
+  filename = fig_path,
+  plot = p,
+  width = 6.5,
+  height = 3.5,
+  dpi = 120,
   bg = "white"
 )
 
-knitr::include_graphics(fig_path)
+# Display
+print(p)
 ```
 
-Most workforce variables exhibit moderate skewness, particularly behavioral indicators such as overtime hours, mental health days taken, and absenteeism. These right-skewed patterns are common in organizational datasets where extreme behaviors occur among a smaller subset of employees.
+### Interpretation
 
-## Numeric Variable Imbalance (Most Skewed Variables)
+Most workforce variables exhibit moderate skewness, particularly behavioral indicators such as **overtime hours**, **mental health days taken**, and **absenteeism**.
 
-```{r 08-numeric-imbalance-prep, echo=TRUE}
-# Reuse skew_df instead of recomputing
-numeric_imbalance_df <- skew_df %>%
-  select(Variable, Skewness) %>%
-  arrange(desc(abs(Skewness)))
-```
+These right-skewed distributions are consistent with real-world organizational data, where extreme behaviors tend to occur among a smaller subset of employees.
+
+From a modeling perspective, skewed variables may benefit from **transformation** or **robust modeling techniques**, particularly when using regression-based approaches.
+
+**Key takeaway:** Behavioral workforce metrics tend to be right-skewed, indicating that extreme outcomes are concentrated among a smaller subset of employees rather than evenly distributed.
 
 ## Categorical Class Imbalance
 
-Categorical variables can sometimes exhibit class imbalance, where one category appears much more frequently than others. While some imbalance is expected in real-world workforce data, extreme imbalance may influence modeling performance and interpretation.
+Categorical variables can exhibit imbalance when one category dominates the distribution. While this is common in workforce datasets, it can influence how predictive models learn patterns and evaluate performance.
 
-To assess the distribution of categorical variables, bar charts are generated for each categorical feature. The plots are presented in an interactive carousel for easier exploration.
+The following visualization highlights the most dominant category within each categorical variable.
 
-```{r 08-categorical-distributions-plot, results='asis', echo=TRUE}
-plot_dir <- create_plot_dir("categorical")
-
+```{r 08-define-categorical-vars, echo=FALSE}
+# Define
 cat_vars_current <- hr_df %>%
   select(where(is.factor)) %>%
   names()
 
-cat_plot_files <- purrr::map_chr(cat_vars_current, function(var){
-
-  filepath <- file.path(plot_dir, paste0("cat_", var, ".png"))
-
-  plot_df <- hr_df %>%
-    count(.data[[var]]) %>%
-    rename(label = .data[[var]]) %>%
-    mutate(label = as.character(label))
-
-  p <- ggplot(plot_df, aes(x = n, y = reorder(label, n))) +
-    geom_col(fill = COLORS$secondary, width = 0.7) +
-    geom_text(aes(label = n), hjust = -0.1, size = 3.8) +
-    scale_x_continuous(expand = expansion(mult = c(0, 0.12))) +
-    labs(
-      title = paste("Distribution of", clean_label(var)),
-      x = "Employee Count",
-      y = NULL
-    ) +
-    theme(
-      axis.text.y = element_text(size = 10),
-      plot.margin = margin(12, 12, 18, 12)
-    )
-
-  ggsave(
-    filename = filepath,
-    plot = p,
-    width = 7.2,
-    height = 4.2,
-    dpi = 300,
-    bg = "white"
-  )
-
-  normalizePath(filepath, winslash = "/", mustWork = FALSE)
-})
-
-slickR(
-  obj = cat_plot_files,
-  slideType = "img",
-  width = "92%"
-) +
-  settings(
-    dots = TRUE,
-    arrows = TRUE,
-    infinite = FALSE,
-    adaptiveHeight = TRUE
-  )
+if(length(cat_vars_current) == 0){
+  cat("No categorical variables found.")
+}
 ```
 
-```{r 08-categorical-imbalance-plot, echo=TRUE}
-# Calculate categorical imbalance statistics
+### Dominant Category Proportion
+
+```{r 08-categorical-distributions-plot, echo=TRUE}
+fig_path <- file.path(FIG_DIR, "categorical_imbalance.png")
+
 cat_imbalance_df <- lapply(cat_vars_current, function(var) {
 
   prop <- prop.table(table(hr_df[[var]]))
@@ -1757,7 +1581,6 @@ cat_imbalance_df <- lapply(cat_vars_current, function(var) {
     )
   )
 
-# Create plot
 p <- cat_imbalance_df %>%
   mutate(Variable = forcats::fct_reorder(Variable, Most_Common_Proportion)) %>%
 
@@ -1790,16 +1613,26 @@ p <- cat_imbalance_df %>%
   )
 
 ggsave(
-  filename = file.path(FIG_DIR, "categorical_imbalance.png"),
+  filename = fig_path,
   plot = p,
-  width = 7.2,
-  height = 4.2,
-  dpi = 300,
+  width = 6.5,
+  height = 3.5,
+  dpi = 120,
   bg = "white"
 )
 
-knitr::include_graphics(file.path(FIG_DIR, "categorical_imbalance.png"))
+print(p)
 ```
+
+### Interpretation
+
+Several categorical variables show moderate imbalance, with certain categories representing a large proportion of employees. This is expected in real-world organizational data, where workforce composition is rarely evenly distributed.
+
+From a modeling perspective, class imbalance may influence predictive performance, particularly for classification tasks. As a result, evaluation metrics beyond accuracy—such as precision, recall, and F1-score—may be more appropriate in later modeling stages.
+
+Additionally, techniques such as class weighting or resampling may be considered if imbalance significantly impacts model performance.
+
+**Key takeaway:** Categorical imbalance reflects realistic workforce composition but should be accounted for when evaluating classification model performance.
 
 # Modeling Implications
 
@@ -1872,7 +1705,7 @@ knitr::kable(
   eda_summary,
   format = "html",
   caption = "Summary of Exploratory Diagnostics and Modeling Implications"
-) %>%
+) |>
   kableExtra::kable_styling(
     bootstrap_options = c("striped","hover","condensed"),
     full_width = FALSE,
@@ -1945,26 +1778,26 @@ p <- ggplot(
   theme(
     axis.text.x = element_text(size = 10),
     axis.text.y = element_text(size = 11),
-    plot.margin = margin(8, 10, 8, 10)
+    plot.margin = margin(6, 6, 6, 6)
   )
 
 ggsave(
-  fig_path, 
-  p, 
-  width = 7.2, 
-  height = 4.2, 
-  dpi = 300, 
+  filename = fig_path,
+  plot = p,
+  width = 6.5,
+  height = 3.5,
+  dpi = 120,
   bg = "white"
 )
 
-knitr::include_graphics(fig_path)
+print(p)
 ```
 
 # Feature Importance Overview
 
 This preliminary feature importance analysis provides an early indication of which workforce variables may be most strongly associated with employee turnover intention. While these results are exploratory and derived from a simple screening model, they highlight variables potentially associated with turnover risk. A more rigorous comparison of predictive models is conducted in the subsequent modeling report.
 
-cat("Key drivers of turnover risk include engagement, stress, and job satisfaction, suggesting both psychological and organizational factors play a central role in employee retention.")
+Key drivers of turnover risk include engagement, stress, and job satisfaction, suggesting both psychological and organizational factors play a central role in employee retention.
 
 # Transition to Predictive Modeling
 
