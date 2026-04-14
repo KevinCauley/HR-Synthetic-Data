@@ -1,9 +1,18 @@
-.Rproj.user
-.Rhistory
+# ---------- R / RStudio ----------
+.Rproj.user/
 .Rhistory
 .RData
-.Rproj.user
 *.Rproj
-analysis/HR_Data_EDA_cache/
+
+# ---------- Knitr / RMarkdown ----------
+analysis/*.html
+analysis/*_files/
+analysis/*_cache/
+
+# ---------- Existing Project Ignores ----------
 outputs/plots/
 outputs/figures/
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db

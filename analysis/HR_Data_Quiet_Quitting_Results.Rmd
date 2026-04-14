@@ -1,91 +1,133 @@
 ---
-title: "HR Predictive Analytics Project – Quiet Quitting"
+title: "Workforce Analytics Using Synthetic HR Data: Modeling and Predicting Quiet Quitting Intention"
 author: "Kevin Allen Cauley"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
+
 output:
   html_document:
+    always_allow_html: true
+    self_contained: false
+    theme: flatly
+    highlight: tango
     code_folding: hide
     toc: true
     toc_float: true
     toc_depth: 3
-    number_sections: true
-    theme: flatly
-    highlight: tango
     df_print: paged
+    css: "assets/styles.css"
+    output_file: HR_Data_Quiet_Quitting_Results.html
+    output_dir: ../docs
+
+number_sections: true
 ---
 
 ```{r 00-setup, include=FALSE}
-# Set working directory to the project root
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+# Function Helpers
+source(here::here("analysis", "helper.R"))
+
+# Reproducibility
+set.seed(123)
+
+# Ensure all paths resolve from project root
+library(rprojroot)
+
+knitr::opts_knit$set(
+  root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# Output Directory
+plot_dir <- here::here("docs", "figures", "quiet")
+dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Global chunk options
 knitr::opts_chunk$set(
-  echo = TRUE,
+  echo = FALSE,
   warning = FALSE,
   message = FALSE,
-  fig.path = "figures/",
   fig.align = "center",
-  cache = TRUE
+  out.width = "100%",
+  fig.retina = 2,
+  fig.width = 8,
+  fig.height = 5,
+  dpi = 300,
+  cache = FALSE,
+  fig.path = "IGNORE/"
+)
+```
+
+```{r 00-load-packages, include=FALSE}
+required_packages <- c(
+  "car","cowplot","caret","corrplot","discrim","dplyr",
+  "e1071","fastDummies","forcats","gbm","GGally",
+  "ggcorrplot","ggplot2","ggthemes","glmnet","grid",
+  "gridExtra","iml","kableExtra","keras3","keras",
+  "knitr","mgcv","naivebayes","naniar","patchwork",
+  "pheatmap","plotly","psych","randomForest","ranger",
+  "RColorBrewer","readxl","reshape2","skimr","tensorflow",
+  "themis","tidymodels","tidyverse","vip","viridis","xgboost"
 )
 
-# Load previous session
-if (file.exists("outputs/my_environment.RData")) {
-  load("outputs/my_environment.RData")
+missing_packages <- required_packages[
+  !required_packages %in% rownames(installed.packages())
+]
+
+if (length(missing_packages) > 0) {
+  stop(
+    paste0(
+      "Missing required packages: ",
+      paste(missing_packages, collapse = ", ")
+    )
+  )
 }
+
+invisible(lapply(required_packages, library, character.only = TRUE))
 ```
 
-```{r 00-setup-packages, include=FALSE}
-# Load packages
-library(car)
-library(cowplot)
-library(caret)
-library(corrplot)
-library(discrim)
-library(dplyr)
-library(e1071)
-library(fastDummies)
-library(forcats)
-library(gbm)
-library(GGally)
-library(ggcorrplot)
-library(ggplot2)
-library(ggthemes)
-library(glmnet)
-library(grid)
-library(gridExtra)
-library(iml)
-library(kableExtra)
-library(keras3)
-library(keras)
-library(knitr)
-library(mgcv)
-library(naivebayes)
-library(naniar)
-library(patchwork)
-library(pheatmap)
-library(plotly)
-library(psych)
-library(randomForest)
-library(ranger)
-library(RColorBrewer)
-library(readxl)
-library(reshape2)
-library(skimr)
-library(tensorflow)
-library(themis)
-library(tidymodels)
-library(tidyverse)
-library(vip)
-library(viridis)
-library(xgboost)
+```{r 00-load-data}
+# Load
+hr_df <- readRDS(here::here("data", "processed", "hr_dataset_clean.rds"))
+
+# Validate First
+required_cols <- c("quiet_quitting")
+
+missing_cols <- setdiff(required_cols, names(hr_df))
+
+if (length(missing_cols) > 0) {
+  stop(
+    paste0(
+      "Missing required columns: ",
+      paste(missing_cols, collapse = ", ")
+    )
+  )
+}
+
+# Then Mutate
+hr_df <- hr_df %>%
+  mutate(quiet_quitting = as.factor(quiet_quitting))
 ```
 
+<div class="main-container">
+
+<div class="hero-section">
+  <h1>Quiet Quitting Modeling</h1>
+  <p class="hero-subtitle">
+    This analysis examines factors associated with reduced discretionary effort, helping identify early signs of disengagement before they translate into turnover.
+  </p>
+</div>
+
+<div class="nav-row">
+  <a href="HR_Data_Turnover_Intention_Results.html" class="btn-clean">← Back</a>
+  <a href="index.html" class="btn-clean">Home</a>
+  <a href="HR_Data_Monitoring_Turnover_Risk_Results.html" class="btn-clean">Next →</a>
+</div>
+
+<hr>
 
 ## Predictive Modeling on Quiet Quitting
 
 The goal of this modeling section is to predict **Quiet Quitting** using a set of behavioral, demographic, and engagement-related predictors.
 
-We will evaluate a range of classification models using multiple **resampling strategies** (No Sampling, Up-Sampling, Down-Sampling, and SMOTE). Models will be evaluated using six classification metrics:
+We will evaluate a range of classification models using multiple **resampling strategies** (No Sampling, Up Sampling, Down Sampling, and SMOTE). Models will be evaluated using six classification metrics:
 
 -   Accuracy
 -   Precision
@@ -104,18 +146,18 @@ hr_df <- hr_df %>%
   mutate(quiet_quitting = as.factor(quiet_quitting))
 
 # Set Seed
-set.seed(42)
+set.seed(123)
 
 # 80/20 train/test split with stratification
-quiet_split <- initial_split(hr_df, prop = 0.8, strata = Quiet_Quitting)
+quiet_split <- initial_split(hr_df, prop = 0.8, strata = quiet_quitting)
 quiet_train_data <- training(quiet_split)
 quiet_test_data  <- testing(quiet_split)
 
 # 10-Fold Cross Validation
-quiet_folds <- vfold_cv(quiet_train_data, v = 10, strata = Quiet_Quitting)
+quiet_folds <- vfold_cv(quiet_train_data, v = 10, strata = quiet_quitting)
 
-# Shared Pre-processing (no resampling)
-base_recipe <- recipe(Quiet_Quitting ~ ., data = quiet_train_data) %>%
+# Shared Pre-processing (No Sampling)
+base_recipe <- recipe(quiet_quitting ~ ., data = quiet_train_data) %>%
   step_dummy(all_nominal_predictors()) %>%
   step_zv(all_predictors()) %>%
   step_normalize(all_numeric_predictors())
@@ -133,7 +175,7 @@ all_metrics <- metric_set(accuracy, precision, recall, f_meas, yardstick::spec, 
 
 ## Quiet Quitting with Logistic Regression
 
-### Logistic Regression - No Resampling
+### Logistic Regression - No Sampling
 
 ```{r 04-logit-none-workflow, message=FALSE}
 # Workflow with Base Recipe
@@ -147,14 +189,14 @@ fit_logit_none <- fit(workflow_logit_none, data = quiet_train_data)
 # Predict on test data
 logit_preds_none <- predict(fit_logit_none, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(fit_logit_none, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### Logistic Regression - No Resampling - Performance Metrics
+### Logistic Regression - No Sampling - Performance Metrics
 
 ```{r 04-logit-none-metrics, echo=TRUE}
 # Metrics
-logit_none_metrics <- all_metrics(logit_preds_none, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+logit_none_metrics <- all_metrics(logit_preds_none, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 logit_none_metrics %>%
@@ -168,7 +210,7 @@ logit_none_metrics %>%
             hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Performance Metrics – LR (No Resampling)",
+    title = "Performance Metrics – LR (No Sampling)",
     x = "Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -185,7 +227,7 @@ library(yardstick)
 library(forcats)
 
 # Confusion matrix to dataframe
-cm_logit_none <- conf_mat(logit_preds_none, truth = Quiet_Quitting, estimate = .pred_class)
+cm_logit_none <- conf_mat(logit_preds_none, truth = quiet_quitting, estimate = .pred_class)
 cm_df <- as.data.frame(cm_logit_none$table)
 
 # Ensure proper order for plotting
@@ -199,7 +241,7 @@ ggplot(cm_df, aes(x = Prediction, y = Truth, fill = Freq)) +
   scale_fill_gradient(low = "#e6f2ff", high = "#1A5276", name = "Frequency") +
   scale_y_discrete(limits = rev) +
   labs(
-    title = "Confusion Matrix – LR (No Resampling)",
+    title = "Confusion Matrix – LR (No Sampling)",
     x = "Predicted Class",
     y = "Actual Class"
   ) +
@@ -215,11 +257,11 @@ ggplot(cm_df, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-logit-none-roc-curve, echo=TRUE}
 # Generate ROC curve
-roc_curve(logit_preds_none, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(logit_preds_none, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
-    title = "ROC Curve – LR (No Resampling)",
+    title = "ROC Curve – LR (No Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "False Positive Rate (1 - Specificity)",
     y = "True Positive Rate (Sensitivity)"
@@ -248,7 +290,7 @@ ggplot(vip_logit_none, aes(x = Importance, y = Variable)) +
   geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Top Features – LR (No Resampling)",
+    title = "Top Features – LR (No Sampling)",
     x = "Importance Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -264,14 +306,14 @@ ggplot(vip_logit_none, aes(x = Importance, y = Variable)) +
 ```{r 04-logit-smote-workflow, message=FALSE}
 # SMOTE recipe
 recipe_logit_smote <- base_recipe %>%
-  step_smote(Quiet_Quitting)
+  step_smote(quiet_quitting)
 
 workflow_logit_smote <- workflow() %>%
   add_model(logit_model) %>%
   add_recipe(recipe_logit_smote)
 
 # 10-Fold CV
-set.seed(42)
+set.seed(123)
 logit_cv_smote <- fit_resamples(
   workflow_logit_smote,
   resamples = quiet_folds,
@@ -283,14 +325,14 @@ fit_logit_smote <- fit(workflow_logit_smote, data = quiet_train_data)
 
 logit_preds_smote <- predict(fit_logit_smote, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(fit_logit_smote, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
 ### Logistic Regression – SMOTE - Performance Metrics
 
 ```{r 04-logit-smote-finalfit, message=FALSE}
 # Metrics
-logit_smote_metrics <- all_metrics(logit_preds_smote, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+logit_smote_metrics <- all_metrics(logit_preds_smote, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 logit_smote_metrics %>%
@@ -317,7 +359,7 @@ logit_smote_metrics %>%
 
 ```{r 04-logit-smote-confmat, echo=TRUE}
 # Create confusion matrix
-cm_logit_smote <- conf_mat(logit_preds_smote, truth = Quiet_Quitting, estimate = .pred_class)
+cm_logit_smote <- conf_mat(logit_preds_smote, truth = quiet_quitting, estimate = .pred_class)
 cm_df_smote <- as.data.frame(cm_logit_smote$table)
 
 # Order axes
@@ -347,7 +389,7 @@ ggplot(cm_df_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-logit-smote-roc, echo=TRUE}
 # ROC Curve
-roc_curve(logit_preds_smote, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(logit_preds_smote, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -389,12 +431,12 @@ fit_logit_smote %>%
   )
 ```
 
-### Logistic Regression - Upsampling
+### Logistic Regression - Up Sampling
 
 ```{r 04-logit-upsample-workflow, message=FALSE}
-# Upsampling Recipe
+# Up Sampling Recipe
 recipe_logit_upsample <- base_recipe %>%
-  step_upsample(Quiet_Quitting)
+  step_upsample(quiet_quitting)
 
 # Workflow 
 workflow_logit_upsample <- workflow() %>%
@@ -407,14 +449,14 @@ fit_logit_upsample <- fit(workflow_logit_upsample, data = quiet_train_data)
 # Predict
 logit_preds_upsample <- predict(fit_logit_upsample, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(fit_logit_upsample, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### Logistic Regression - Upsampling - Performance Metrics
+### Logistic Regression - Up Sampling - Performance Metrics
 
 ```{r 04-logit-upsample-metrics, echo=TRUE}
 # Metrics
-logit_upsample_metrics <- all_metrics(logit_preds_upsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+logit_upsample_metrics <- all_metrics(logit_preds_upsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 logit_upsample_metrics %>%
@@ -428,7 +470,7 @@ logit_upsample_metrics %>%
             hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Performance Metrics – LR (Upsampling)",
+    title = "Performance Metrics – LR (Up Sampling)",
     x = "Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -441,7 +483,7 @@ logit_upsample_metrics %>%
 
 ```{r 04-logit-upsample-confmat, echo=TRUE}
 # Confusion matrix data prep
-cm_logit_upsample <- conf_mat(logit_preds_upsample, truth = Quiet_Quitting, estimate = .pred_class)
+cm_logit_upsample <- conf_mat(logit_preds_upsample, truth = quiet_quitting, estimate = .pred_class)
 cm_df_upsample <- as.data.frame(cm_logit_upsample$table)
 
 # Set factor levels to match layout: Yes on top, No bottom; No left, Yes right
@@ -455,7 +497,7 @@ ggplot(cm_df_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
   scale_fill_gradient(low = "#e6f2ff", high = "#1A5276", name = "Frequency") +
   scale_y_discrete(limits = rev) +
   labs(
-    title = "Confusion Matrix – LR (Upsampling)",
+    title = "Confusion Matrix – LR (Up Sampling)",
     x = "Predicted Class",
     y = "Actual Class"
   ) +
@@ -471,11 +513,11 @@ ggplot(cm_df_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-logit-upsample-roc-curve, echo=TRUE}
 # Roc
-roc_curve(logit_preds_upsample, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(logit_preds_upsample, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
-    title = "ROC Curve – LR (Upsampling)",
+    title = "ROC Curve – LR (Up Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "False Positive Rate (1 - Specificity)",
     y = "True Positive Rate (Sensitivity)"
@@ -502,7 +544,7 @@ fit_logit_upsample %>%
   geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Top Features – LR (Upsampling)",
+    title = "Top Features – LR (Up Sampling)",
     x = "Importance Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -513,12 +555,12 @@ fit_logit_upsample %>%
   )
 ```
 
-### Logistic Regression - Downsampling
+### Logistic Regression - Down Sampling
 
 ```{r 04-logit-downsample-workflow, message=FALSE}
-# Downsampling Recipe
+# Down Sampling Recipe
 recipe_logit_downsample <- base_recipe %>%
-  step_downsample(Quiet_Quitting)
+  step_downsample(quiet_quitting)
 
 # Workflow 
 workflow_logit_downsample <- workflow() %>%
@@ -531,14 +573,14 @@ fit_logit_downsample <- fit(workflow_logit_downsample, data = quiet_train_data)
 # Predict on test data
 logit_preds_downsample <- predict(fit_logit_downsample, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(fit_logit_downsample, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### Logistic Regression - Downsampling - Performance Metrics
+### Logistic Regression - Down Sampling - Performance Metrics
 
 ```{r 04-logit-downsample-metrics, echo=TRUE}
 # Metrics
-logit_downsample_metrics <- all_metrics(logit_preds_downsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+logit_downsample_metrics <- all_metrics(logit_preds_downsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 logit_downsample_metrics %>%
@@ -552,7 +594,7 @@ logit_downsample_metrics %>%
             hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Performance Metrics – LR (Downsampling)",
+    title = "Performance Metrics – LR (Down Sampling)",
     x = "Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -564,7 +606,7 @@ logit_downsample_metrics %>%
 ```
 
 ```{r 04-logit-downsample-confmat, echo=TRUE}
-cm_logit_down <- conf_mat(logit_preds_downsample, truth = Quiet_Quitting, estimate = .pred_class)
+cm_logit_down <- conf_mat(logit_preds_downsample, truth = quiet_quitting, estimate = .pred_class)
 cm_df_down <- as.data.frame(cm_logit_down$table)
 
 cm_df_down$Truth <- factor(cm_df_down$Truth, levels = c("Yes", "No"))
@@ -576,7 +618,7 @@ ggplot(cm_df_down, aes(x = Prediction, y = Truth, fill = Freq)) +
   scale_fill_gradient(low = "#e6f2ff", high = "#1A5276", name = "Frequency") +
   scale_y_discrete(limits = rev) +
   labs(
-    title = "Confusion Matrix – LR (Downsampling)",
+    title = "Confusion Matrix – LR (Down Sampling)",
     x = "Predicted Class",
     y = "Actual Class"
   ) +
@@ -591,11 +633,11 @@ ggplot(cm_df_down, aes(x = Prediction, y = Truth, fill = Freq)) +
 ```
 
 ```{r 04-logit-downsample-roc-curve, echo=TRUE}
-roc_curve(logit_preds_downsample, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(logit_preds_downsample, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
-    title = "ROC Curve – LR (Downsampling)",
+    title = "ROC Curve – LR (Down Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "False Positive Rate (1 - Specificity)",
     y = "True Positive Rate (Sensitivity)"
@@ -621,7 +663,7 @@ fit_logit_downsample %>%
   geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Top Features – LR (Downsampling)",
+    title = "Top Features – LR (Down Sampling)",
     x = "Importance Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -683,17 +725,17 @@ ggplot(logit_results_highlight, aes(x = Resample, y = Score, fill = Metric)) +
 
 ### Executive Summary for Logistic Regression (Quiet Quitting)
 
-Logistic Regression provided a consistent and interpretable benchmark across all resampling strategies. It excelled under *No Resampling*, producing the best recall and F1 score — making it a strong candidate for early detection of quiet quitters. While more advanced models may outperform it in specific areas, Logistic Regression’s transparency makes it ideal for communicating insights to stakeholders.
+Logistic Regression provided a consistent and interpretable benchmark across all resampling strategies. It excelled under *No Sampling*, producing the best recall and F1 score — making it a strong candidate for early detection of quiet quitters. While more advanced models may outperform it in specific areas, Logistic Regression’s transparency makes it ideal for communicating insights to stakeholders.
 
-- **No Resampling** achieved the **highest recall (0.924)** and **F1 score (0.854)**, indicating strong performance in capturing most disengaged employees — but at the cost of **low specificity (0.116)**, which may result in many false positives.
+- **No Sampling** achieved the **highest recall (0.924)** and **F1 score (0.854)**, indicating strong performance in capturing most disengaged employees — but at the cost of **low specificity (0.116)**, which may result in many false positives.
 
-- **SMOTE** and **Upsampling** produced identical results, with a solid **precision (0.800)** and **F1 score (0.707)**. These strategies strike a better balance between over- and under-identification, making them suitable when precision matters more.
+- **SMOTE** and **Up Sampling** produced identical results, with a solid **precision (0.800)** and **F1 score (0.707)**. These strategies strike a better balance between over- and under-identification, making them suitable when precision matters more.
 
-- **Downsampling** performed the weakest, with a drop in **recall (0.449)** and **F1 score (0.561)**, despite its relatively better **ROC AUC (0.503)** and **specificity (0.442)**. This makes it more conservative but less useful for broad detection efforts.
+- **Down Sampling** performed the weakest, with a drop in **recall (0.449)** and **F1 score (0.561)**, despite its relatively better **ROC AUC (0.503)** and **specificity (0.442)**. This makes it more conservative but less useful for broad detection efforts.
 
 ## Quiet Quitting with Random Forest
 
-### Random Forest - No Resampling
+### Random Forest - No Sampling
 
 ```{r 04-rf-no-resampling-workflow, message=FALSE}
 # Define Random Forest model
@@ -710,7 +752,7 @@ workflow_rf_none <- workflow() %>%
   add_recipe(recipe_rf_none)
 
 # Tune the RF model with cross-validation
-set.seed(42)
+set.seed(123)
 rf_tuned <- tune_grid(
   workflow_rf_none,
   resamples = quiet_folds,
@@ -730,14 +772,14 @@ rf_fit_none <- fit(final_rf_workflow, data = quiet_train_data)
 # Predict on test data
 rf_preds_none <- predict(rf_fit_none, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(rf_fit_none, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### Random Forest - No Resampling - Performance Metrics
+### Random Forest - No Sampling - Performance Metrics
 
 ```{r 04-rf-no-resampling-metrics, echo=TRUE}
 # Metrics
-rf_none_metrics <- all_metrics(rf_preds_none, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+rf_none_metrics <- all_metrics(rf_preds_none, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 rf_none_metrics %>%
@@ -751,7 +793,7 @@ rf_none_metrics %>%
             hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Performance Metrics – RF (No Resampling)",
+    title = "Performance Metrics – RF (No Sampling)",
     x = "Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -764,7 +806,7 @@ rf_none_metrics %>%
 ```
 
 ```{r 04-rf-no-resampling-confmat, echo=TRUE}
-rf_cm_none <- conf_mat(rf_preds_none, truth = Quiet_Quitting, estimate = .pred_class)
+rf_cm_none <- conf_mat(rf_preds_none, truth = quiet_quitting, estimate = .pred_class)
 rf_cm_df_none <- as.data.frame(rf_cm_none$table)
 
 rf_cm_df_none$Truth <- factor(rf_cm_df_none$Truth, levels = c("Yes", "No"))
@@ -776,7 +818,7 @@ ggplot(rf_cm_df_none, aes(x = Prediction, y = Truth, fill = Freq)) +
   scale_fill_gradient(low = "#D5F5E3", high = "#145A32", name = "Frequency") +
   scale_y_discrete(limits = rev) +
   labs(
-    title = "Confusion Matrix – RF (No Resampling)",
+    title = "Confusion Matrix – RF (No Sampling)",
     x = "Predicted Class",
     y = "Actual Class"
   ) +
@@ -792,11 +834,11 @@ ggplot(rf_cm_df_none, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-rf-no-resampling-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(rf_preds_none, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(rf_preds_none, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray70") +
   labs(
-    title = "ROC Curve – RF (No Resampling)",
+    title = "ROC Curve – RF (No Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "False Positive Rate (1 - Specificity)",
     y = "True Positive Rate (Sensitivity)"
@@ -823,7 +865,7 @@ rf_fit_none %>%
   geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Top Features – RF (No Resampling)",
+    title = "Top Features – RF (No Sampling)",
     x = "Importance Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -840,7 +882,7 @@ rf_fit_none %>%
 ```{r 04-rf-smote-workflow, message=FALSE}
 # Create Recipe from Base
 recipe_rf_smote <- base_recipe %>%
-  step_smote(Quiet_Quitting)
+  step_smote(quiet_quitting)
 
 # Workflow with Random Forest
 workflow_rf_smote <- workflow() %>%
@@ -848,7 +890,7 @@ workflow_rf_smote <- workflow() %>%
   add_recipe(recipe_rf_smote)
 
 # Tune the RF model with cross-validation
-set.seed(42)
+set.seed(123)
 rf_tuned_smote <- tune_grid(
   workflow_rf_smote,
   resamples = quiet_folds,
@@ -868,14 +910,14 @@ rf_fit_smote <- fit(final_rf_workflow_smote, data = quiet_train_data)
 # Predict on test data
 rf_preds_smote <- predict(rf_fit_smote, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(rf_fit_smote, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
 ### Random Forest - SMOTE - Performance Metrics
 
 ```{r 04-rf-smote-metrics, echo=TRUE}
 # Metrics
-rf_smote_metrics <- all_metrics(rf_preds_smote, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+rf_smote_metrics <- all_metrics(rf_preds_smote, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 rf_smote_metrics %>%
@@ -903,7 +945,7 @@ rf_smote_metrics %>%
 
 ```{r 04-rf-smote-confmat, echo=TRUE}
 # Confusion Matrix
-rf_cm_smote <- conf_mat(rf_preds_smote, truth = Quiet_Quitting, estimate = .pred_class)
+rf_cm_smote <- conf_mat(rf_preds_smote, truth = quiet_quitting, estimate = .pred_class)
 rf_cm_df_smote <- as.data.frame(rf_cm_smote$table)
 
 rf_cm_df_smote$Truth <- factor(rf_cm_df_smote$Truth, levels = c("Yes", "No"))
@@ -932,7 +974,7 @@ ggplot(rf_cm_df_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-rf-smote-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(rf_preds_smote, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(rf_preds_smote, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray70") +
   labs(
@@ -974,12 +1016,12 @@ rf_fit_smote %>%
   )
 ```
 
-### Random Forest - Upsampling
+### Random Forest - Up Sampling
 
 ```{r 04-rf-upsample-workflow, message=FALSE}
 # Create Recipe from Base
 recipe_rf_upsample <- base_recipe %>%
-  step_upsample(Quiet_Quitting)
+  step_upsample(quiet_quitting)
 
 # Workflow with Random Forest
 workflow_rf_upsample <- workflow() %>%
@@ -987,7 +1029,7 @@ workflow_rf_upsample <- workflow() %>%
   add_recipe(recipe_rf_upsample)
 
 # Tune the RF model with cross-validation
-set.seed(42)
+set.seed(123)
 rf_tuned_upsample <- tune_grid(
   workflow_rf_upsample,
   resamples = quiet_folds,
@@ -1007,14 +1049,14 @@ rf_fit_upsample <- fit(final_rf_workflow_upsample, data = quiet_train_data)
 # Predict on test data
 rf_preds_upsample <- predict(rf_fit_upsample, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(rf_fit_upsample, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### Random Forest - Upsampling - Performance Metrics
+### Random Forest - Up Sampling - Performance Metrics
 
 ```{r 04-rf-upsample-metrics, echo=TRUE}
 # Metrics
-rf_upsample_metrics <- all_metrics(rf_preds_upsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+rf_upsample_metrics <- all_metrics(rf_preds_upsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 rf_upsample_metrics %>%
@@ -1028,7 +1070,7 @@ rf_upsample_metrics %>%
             hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Performance Metrics – RF (Upsampling)",
+    title = "Performance Metrics – RF (Up Sampling)",
     x = "Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -1042,7 +1084,7 @@ rf_upsample_metrics %>%
 
 ```{r 04-rf-upsample-confmat, echo=TRUE}
 # Confusion Matrix
-rf_cm_up <- conf_mat(rf_preds_upsample, truth = Quiet_Quitting, estimate = .pred_class)
+rf_cm_up <- conf_mat(rf_preds_upsample, truth = quiet_quitting, estimate = .pred_class)
 rf_cm_df_up <- as.data.frame(rf_cm_up$table)
 
 rf_cm_df_up$Truth <- factor(rf_cm_df_up$Truth, levels = c("Yes", "No"))
@@ -1054,7 +1096,7 @@ ggplot(rf_cm_df_up, aes(x = Prediction, y = Truth, fill = Freq)) +
   scale_fill_gradient(low = "#D5F5E3", high = "#145A32", name = "Frequency") +
   scale_y_discrete(limits = rev) +
   labs(
-    title = "Confusion Matrix – RF (Upsampling)",
+    title = "Confusion Matrix – RF (Up Sampling)",
     x = "Predicted Class",
     y = "Actual Class"
   ) +
@@ -1071,11 +1113,11 @@ ggplot(rf_cm_df_up, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-rf-upsample-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(rf_preds_upsample, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(rf_preds_upsample, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray70") +
   labs(
-    title = "ROC Curve – RF (Upsampling)",
+    title = "ROC Curve – RF (Up Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "False Positive Rate (1 - Specificity)",
     y = "True Positive Rate (Sensitivity)"
@@ -1103,7 +1145,7 @@ rf_fit_upsample %>%
   geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Top Features – RF (Upsampling)",
+    title = "Top Features – RF (Up Sampling)",
     x = "Importance Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -1115,12 +1157,12 @@ rf_fit_upsample %>%
 
 ```
 
-### Random Forest - Downsampling
+### Random Forest - Down Sampling
 
 ```{r 04-rf-downsample-workflow, message=FALSE}
 # Create Recipe from Base
 recipe_rf_downsample <- base_recipe %>%
-  step_downsample(Quiet_Quitting)
+  step_downsample(quiet_quitting)
 
 # Workflow with Random Forest
 workflow_rf_downsample <- workflow() %>%
@@ -1128,7 +1170,7 @@ workflow_rf_downsample <- workflow() %>%
   add_recipe(recipe_rf_downsample)
 
 # Tune the RF model with cross-validation
-set.seed(42)
+set.seed(123)
 rf_tuned_downsample <- tune_grid(
   workflow_rf_downsample,
   resamples = quiet_folds,
@@ -1148,14 +1190,14 @@ rf_fit_downsample <- fit(final_rf_workflow_downsample, data = quiet_train_data)
 # Predict on test data
 rf_preds_downsample <- predict(rf_fit_downsample, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(rf_fit_downsample, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### Random Forest - Downsampling - Performance Metrics
+### Random Forest - Down Sampling - Performance Metrics
 
 ```{r 04-rf-downsample-metrics, echo=TRUE}
 # Metrics
-rf_downsample_metrics <- all_metrics(rf_preds_downsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+rf_downsample_metrics <- all_metrics(rf_preds_downsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 rf_downsample_metrics %>%
@@ -1169,7 +1211,7 @@ rf_downsample_metrics %>%
             hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Performance Metrics – RF (Downsampling)",
+    title = "Performance Metrics – RF (Down Sampling)",
     x = "Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -1183,7 +1225,7 @@ rf_downsample_metrics %>%
 
 ```{r 04-rf-downsample-confmat, echo=TRUE}
 # Confusion Matrix
-rf_cm_down <- conf_mat(rf_preds_downsample, truth = Quiet_Quitting, estimate = .pred_class)
+rf_cm_down <- conf_mat(rf_preds_downsample, truth = quiet_quitting, estimate = .pred_class)
 rf_cm_df_down <- as.data.frame(rf_cm_down$table)
 
 rf_cm_df_down$Truth <- factor(rf_cm_df_down$Truth, levels = c("Yes", "No"))
@@ -1195,7 +1237,7 @@ ggplot(rf_cm_df_down, aes(x = Prediction, y = Truth, fill = Freq)) +
   scale_fill_gradient(low = "#D5F5E3", high = "#145A32", name = "Frequency") +
   scale_y_discrete(limits = rev) +
   labs(
-    title = "Confusion Matrix – RF (Downsampling)",
+    title = "Confusion Matrix – RF (Down Sampling)",
     x = "Predicted Class",
     y = "Actual Class"
   ) +
@@ -1212,11 +1254,11 @@ ggplot(rf_cm_df_down, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-rf-downsample-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(rf_preds_downsample, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(rf_preds_downsample, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray70") +
   labs(
-    title = "ROC Curve – RF (Downsampling)",
+    title = "ROC Curve – RF (Down Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "False Positive Rate (1 - Specificity)",
     y = "True Positive Rate (Sensitivity)"
@@ -1244,7 +1286,7 @@ rf_fit_downsample %>%
   geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Top Features – RF (Downsampling)",
+    title = "Top Features – RF (Down Sampling)",
     x = "Importance Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -1304,9 +1346,9 @@ ggplot(rf_results_highlight, aes(x = Resample, y = Score, fill = Metric)) +
 
 Random Forest models delivered strong results in detecting quiet quitting behavior. Particularly effective at maximizing recall and F1 scores, RF models were among the most successful at capturing disengaged employees. However, trade-offs emerged depending on the resampling strategy applied:
 
-- **No Resampling** achieved perfect **recall (1.000)** and the highest **F1 score (0.880)** across all variations, making it excellent for identifying almost every quiet quitter. It also held strong on **precision (0.786)** and **accuracy (0.786)**. However, **specificity was 0.000**, meaning the model flagged every case as positive, yielding no true negatives.
+- **No Sampling** achieved perfect **recall (1.000)** and the highest **F1 score (0.880)** across all variations, making it excellent for identifying almost every quiet quitter. It also held strong on **precision (0.786)** and **accuracy (0.786)**. However, **specificity was 0.000**, meaning the model flagged every case as positive, yielding no true negatives.
 
-- **SMOTE** mirrored the results of no resampling, with identical **recall, F1 score, precision**, and **accuracy**. However, **ROC AUC** dropped slightly to **0.459**, and **specificity remained at 0.000**, again indicating no true negatives.
+- **SMOTE** mirrored the results of No Sampling, with identical **recall, F1 score, precision**, and **accuracy**. However, **ROC AUC** dropped slightly to **0.459**, and **specificity remained at 0.000**, again indicating no true negatives.
 
 - **Up Sampling** provided a more **balanced approach**. It slightly reduced **recall (0.987)** and **F1 (0.876)** but improved **ROC AUC (0.533)** and **specificity (0.023)**. This makes it better suited for scenarios where minimizing false positives is important without sacrificing much sensitivity.
 
@@ -1314,7 +1356,7 @@ Random Forest models delivered strong results in detecting quiet quitting behavi
 
 ## Quiet Quitting with XGBoost
 
-### XGBoost - No Resampling
+### XGBoost - No Sampling
 
 ```{r 04-xgb-no-resampling-workflow, message=FALSE}
 # Define XGBoost model
@@ -1330,7 +1372,7 @@ xgb_model <- boost_tree(
   set_engine("xgboost") %>%
   set_mode("classification")
 
-# Recipe with no resampling
+# Recipe with No Sampling
 recipe_xgb_none <- base_recipe
 
 # Combine into Workflow
@@ -1339,7 +1381,7 @@ workflow_xgb_none <- workflow() %>%
   add_recipe(recipe_xgb_none)
 
 # Tune the XGBoost model with cross-validation
-set.seed(42)
+set.seed(123)
 xgb_tuned <- tune_grid(
   workflow_xgb_none,
   resamples = quiet_folds,
@@ -1359,14 +1401,14 @@ xgb_fit_none <- fit(final_xgb_workflow, data = quiet_train_data)
 # Predict on test data
 xgb_preds_none <- predict(xgb_fit_none, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(xgb_fit_none, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### XGBoost - No Resampling - Performance Metrics
+### XGBoost - No Sampling - Performance Metrics
 
 ```{r 04-xgb-no-resampling-metrics, echo=TRUE}
 # Metrics
-xgb_none_metrics <- all_metrics(xgb_preds_none, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+xgb_none_metrics <- all_metrics(xgb_preds_none, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 xgb_none_metrics %>%
@@ -1380,7 +1422,7 @@ xgb_none_metrics %>%
             hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Performance Metrics – XGB (No Resampling)",
+    title = "Performance Metrics – XGB (No Sampling)",
     x = "Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -1393,7 +1435,7 @@ xgb_none_metrics %>%
 
 ```{r 04-xgb-no-resampling-confmat, echo=TRUE}
 # Confusion Matrix
-xgb_cm_none <- conf_mat(xgb_preds_none, truth = Quiet_Quitting, estimate = .pred_class)
+xgb_cm_none <- conf_mat(xgb_preds_none, truth = quiet_quitting, estimate = .pred_class)
 xgb_cm_df_none <- as.data.frame(xgb_cm_none$table)
 
 xgb_cm_df_none$Truth <- factor(xgb_cm_df_none$Truth, levels = c("Yes", "No"))
@@ -1405,7 +1447,7 @@ ggplot(xgb_cm_df_none, aes(x = Prediction, y = Truth, fill = Freq)) +
   scale_fill_gradient(low = "#FDEDEC", high = "#922B21", name = "Frequency") +
   scale_y_discrete(limits = rev) +
   labs(
-    title = "Confusion Matrix – XGB (No Resampling)",
+    title = "Confusion Matrix – XGB (No Sampling)",
     x = "Predicted Class",
     y = "Actual Class"
   ) +
@@ -1422,11 +1464,11 @@ ggplot(xgb_cm_df_none, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-xgb-no-resampling-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(xgb_preds_none, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(xgb_preds_none, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray70") +
   labs(
-    title = "ROC Curve – XGB (No Resampling)",
+    title = "ROC Curve – XGB (No Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "False Positive Rate (1 - Specificity)",
     y = "True Positive Rate (Sensitivity)"
@@ -1454,7 +1496,7 @@ xgb_fit_none %>%
   geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Top Features – XGB (No Resampling)",
+    title = "Top Features – XGB (No Sampling)",
     x = "Importance Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -1471,7 +1513,7 @@ xgb_fit_none %>%
 ```{r 04-xgb-smote-workflow, message=FALSE}
 # Create SMOTE Recipe
 recipe_xgb_smote <- base_recipe %>%
-  step_smote(Quiet_Quitting)
+  step_smote(quiet_quitting)
 
 # Build XGBoost Workflow with SMOTE
 workflow_xgb_smote <- workflow() %>%
@@ -1479,7 +1521,7 @@ workflow_xgb_smote <- workflow() %>%
   add_recipe(recipe_xgb_smote)
 
 # Tune Hyperparameters with Cross-Validation
-set.seed(42)
+set.seed(123)
 xgb_tuned_smote <- tune_grid(
   workflow_xgb_smote,
   resamples = quiet_folds,
@@ -1499,14 +1541,14 @@ xgb_fit_smote <- fit(final_xgb_workflow_smote, data = quiet_train_data)
 # Predict on Test Data
 xgb_preds_smote <- predict(xgb_fit_smote, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(xgb_fit_smote, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
 ### XGBoost - SMOTE - Peformance Metrics
 
 ```{r 04-xgb-smote-metrics, echo=TRUE}
 # Metrics
-xgb_smote_metrics <- all_metrics(xgb_preds_smote, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+xgb_smote_metrics <- all_metrics(xgb_preds_smote, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 xgb_smote_metrics %>%
@@ -1534,7 +1576,7 @@ xgb_smote_metrics %>%
 
 ```{r 04-xgb-smote-confmat, echo=TRUE}
 # Confusion Matrix
-cm_xgb_smote <- conf_mat(xgb_preds_smote, truth = Quiet_Quitting, estimate = .pred_class)
+cm_xgb_smote <- conf_mat(xgb_preds_smote, truth = quiet_quitting, estimate = .pred_class)
 cm_df_xgb_smote <- as.data.frame(cm_xgb_smote$table)
 
 cm_df_xgb_smote$Truth <- factor(cm_df_xgb_smote$Truth, levels = c("Yes", "No"))
@@ -1563,7 +1605,7 @@ ggplot(cm_df_xgb_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-xgb-smote-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(xgb_preds_smote, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(xgb_preds_smote, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -1608,12 +1650,12 @@ ggplot(vip_xgb_smote, aes(x = Importance, y = Variable)) +
 
 ```
 
-### XGBoost - Upsampling
+### XGBoost - Up Sampling
 
 ```{r 04-xgb-upsample-workflow, message=FALSE}
 # Create Recipe from Base
 recipe_xgb_upsample <- base_recipe %>%
-  step_upsample(Quiet_Quitting)
+  step_upsample(quiet_quitting)
 
 # Workflow with XGBoost
 workflow_xgb_upsample <- workflow() %>%
@@ -1621,7 +1663,7 @@ workflow_xgb_upsample <- workflow() %>%
   add_recipe(recipe_xgb_upsample)
 
 # Tune the XGBoost model with cross-validation
-set.seed(42)
+set.seed(123)
 xgb_tuned_upsample <- tune_grid(
   workflow_xgb_upsample,
   resamples = quiet_folds,
@@ -1641,14 +1683,14 @@ xgb_fit_upsample <- fit(final_xgb_workflow_upsample, data = quiet_train_data)
 # Predict on test data
 xgb_preds_upsample <- predict(xgb_fit_upsample, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(xgb_fit_upsample, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### XGBoost - Upsampling - Performance Metrics
+### XGBoost - Up Sampling - Performance Metrics
 
 ```{r 04-xgb-upsample-metrics, message=FALSE}
 # Metrics
-xgb_upsample_metrics <- all_metrics(xgb_preds_upsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+xgb_upsample_metrics <- all_metrics(xgb_preds_upsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 xgb_upsample_metrics %>%
@@ -1663,7 +1705,7 @@ xgb_upsample_metrics %>%
             hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Performance Metrics – XGB (Upsampling)",
+    title = "Performance Metrics – XGB (Up Sampling)",
     x = "Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -1676,7 +1718,7 @@ xgb_upsample_metrics %>%
 
 ```{r 04-xgb-upsample-confmat, echo=TRUE}
 # Confusion Matrix
-cm_xgb_upsample <- conf_mat(xgb_preds_upsample, truth = Quiet_Quitting, estimate = .pred_class)
+cm_xgb_upsample <- conf_mat(xgb_preds_upsample, truth = quiet_quitting, estimate = .pred_class)
 cm_df_xgb_upsample <- as.data.frame(cm_xgb_upsample$table)
 
 cm_df_xgb_upsample$Truth <- factor(cm_df_xgb_upsample$Truth, levels = c("Yes", "No"))
@@ -1688,7 +1730,7 @@ ggplot(cm_df_xgb_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
   scale_fill_gradient(low = "#fde0dc", high = "#c0392b", name = "Frequency") +
   scale_y_discrete(limits = rev) +
   labs(
-    title = "Confusion Matrix – XGB (Upsampling)",
+    title = "Confusion Matrix – XGB (Up Sampling)",
     x = "Predicted Class",
     y = "Actual Class"
   ) +
@@ -1705,11 +1747,11 @@ ggplot(cm_df_xgb_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-xgb-upsample-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(xgb_preds_upsample, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(xgb_preds_upsample, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
-    title = "ROC Curve – XGB (Upsampling)",
+    title = "ROC Curve – XGB (Up Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "False Positive Rate (1 - Specificity)",
     y = "True Positive Rate (Sensitivity)"
@@ -1731,7 +1773,7 @@ baked_train <- prep(recipe_xgb_upsample, training = quiet_train_data) %>%
   bake(new_data = NULL)
 
 # Step 2: Get feature names from preprocessed data (after dummy variables)
-feature_names <- colnames(baked_train %>% select(-Quiet_Quitting))
+feature_names <- colnames(baked_train %>% select(-quiet_quitting))
 
 # Step 3: Extract booster
 xgb_booster_upsample <- extract_fit_engine(xgb_fit_upsample)
@@ -1745,7 +1787,7 @@ vip::vip(
   aesthetics = list(fill = "#C0392B")
 ) +
   labs(
-    title = "Top Features – XGB (Upsampling)",
+    title = "Top Features – XGB (Up Sampling)",
     x = "Importance Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -1757,12 +1799,12 @@ vip::vip(
 
 ```
 
-### XGBoost - Downsampling
+### XGBoost - Down Sampling
 
 ```{r 04-xgb-downsample-workflow, message=FALSE}
 # Create Recipe from Base
 recipe_xgb_downsample <- base_recipe %>%
-  step_downsample(Quiet_Quitting)
+  step_downsample(quiet_quitting)
 
 # Workflow with XGBoost
 workflow_xgb_downsample <- workflow() %>%
@@ -1770,7 +1812,7 @@ workflow_xgb_downsample <- workflow() %>%
   add_recipe(recipe_xgb_downsample)
 
 # Tune the RF model with cross-validation
-set.seed(42)
+set.seed(123)
 xgb_tuned_downsample <- tune_grid(
   workflow_xgb_downsample,
   resamples = quiet_folds,
@@ -1790,14 +1832,14 @@ xgb_fit_downsample <- fit(final_xgb_workflow_downsample, data = quiet_train_data
 # Predict on test data
 xgb_preds_downsample <- predict(xgb_fit_downsample, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(xgb_fit_downsample, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### XGBoost - Downsampling - Performance Metrics
+### XGBoost - Down Sampling - Performance Metrics
 
 ```{r 04-xgb-downsample-metrics, echo=TRUE}
 # Metrics
-xgb_downsample_metrics <- all_metrics(xgb_preds_downsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+xgb_downsample_metrics <- all_metrics(xgb_preds_downsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Print
 xgb_downsample_metrics %>%
@@ -1811,7 +1853,7 @@ xgb_downsample_metrics %>%
             hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Performance Metrics – XGB (Downsampling)",
+    title = "Performance Metrics – XGB (Down Sampling)",
     x = "Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -1825,7 +1867,7 @@ xgb_downsample_metrics %>%
 
 ```{r 04-xgb-down-sample-confmat, echo=TRUE}
 # Confusion Matrix
-cm_xgb_down <- conf_mat(xgb_preds_downsample, truth = Quiet_Quitting, estimate = .pred_class)
+cm_xgb_down <- conf_mat(xgb_preds_downsample, truth = quiet_quitting, estimate = .pred_class)
 cm_df_xgb_down <- as.data.frame(cm_xgb_down$table)
 
 cm_df_xgb_down$Truth <- factor(cm_df_xgb_down$Truth, levels = c("Yes", "No"))
@@ -1837,7 +1879,7 @@ ggplot(cm_df_xgb_down, aes(x = Prediction, y = Truth, fill = Freq)) +
   scale_fill_gradient(low = "#fde0dc", high = "#c0392b", name = "Frequency") +
   scale_y_discrete(limits = rev) +
   labs(
-    title = "Confusion Matrix – XGB (Downsampling)",
+    title = "Confusion Matrix – XGB (Down Sampling)",
     x = "Predicted Class",
     y = "Actual Class"
   ) +
@@ -1854,11 +1896,11 @@ ggplot(cm_df_xgb_down, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-xgb-downsample-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(xgb_preds_downsample, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(xgb_preds_downsample, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
-    title = "ROC Curve – XGB (Downsampling)",
+    title = "ROC Curve – XGB (Down Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "False Positive Rate (1 - Specificity)",
     y = "True Positive Rate (Sensitivity)"
@@ -1886,7 +1928,7 @@ xgb_fit_downsample %>%
   geom_text(aes(label = round(Importance, 1)), hjust = -0.1, color = "black", size = 3.5) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Top Features – XGB (Downsampling)",
+    title = "Top Features – XGB (Down Sampling)",
     x = "Importance Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -1903,13 +1945,13 @@ xgb_fit_downsample %>%
 ```{r 04-xgb-results-table, results='asis', echo=TRUE}
 # Combine metrics and label with model names
 xgb_results_table <- bind_rows(
-  all_metrics(xgb_preds_none, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes) %>%
-    mutate(model = "XGB - No Resampling"),
-  all_metrics(xgb_preds_smote, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes) %>%
+  all_metrics(xgb_preds_none, truth = quiet_quitting, estimate = .pred_class, .pred_Yes) %>%
+    mutate(model = "XGB - No Sampling"),
+  all_metrics(xgb_preds_smote, truth = quiet_quitting, estimate = .pred_class, .pred_Yes) %>%
     mutate(model = "XGB - SMOTE"),
-  all_metrics(xgb_preds_upsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes) %>%
+  all_metrics(xgb_preds_upsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes) %>%
     mutate(model = "XGB - Up Sampling"),
-  all_metrics(xgb_preds_downsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes) %>%
+  all_metrics(xgb_preds_downsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes) %>%
     mutate(model = "XGB - Down Sampling")
 )
 
@@ -1918,7 +1960,7 @@ xgb_results_long <- xgb_results_table %>%
   filter(.metric %in% c("accuracy", "precision", "recall", "f_meas", "spec", "roc_auc")) %>%
   mutate(
     Resample = case_when(
-      str_detect(model, "No Resampling") ~ "No Sampling",
+      str_detect(model, "No Sampling") ~ "No Sampling",
       str_detect(model, "SMOTE") ~ "SMOTE",
       str_detect(model, "Up Sampling") ~ "Up Sampling",
       str_detect(model, "Down Sampling") ~ "Down Sampling",
@@ -1972,11 +2014,11 @@ ggplot(xgb_results_highlight, aes(x = Resample, y = .estimate, fill = Metric)) +
 
 ### Executive Summary for XGBoost (Quiet Quitting)
 
-XGBoost demonstrated strong performance for quiet quitting detection, especially under **No Resampling** and **SMOTE**. It consistently delivered high recall and F1 scores — ideal for catching subtle disengagement — but struggled with specificity across all strategies.
+XGBoost demonstrated strong performance for quiet quitting detection, especially under **No Sampling** and **SMOTE**. It consistently delivered high recall and F1 scores — ideal for catching subtle disengagement — but struggled with specificity across all strategies.
 
-- **No Resampling** achieved perfect recall (1.000), top F1 score (0.880), and strong accuracy (0.786), making it highly effective at flagging quiet quitters but with no true negatives (specificity = 0.000).
+- **No Sampling** achieved perfect recall (1.000), top F1 score (0.880), and strong accuracy (0.786), making it highly effective at flagging quiet quitters but with no true negatives (specificity = 0.000).
 
-- **SMOTE** closely mirrored No Resampling, with slightly lower recall (0.975) and F1 (0.870), while still lacking specificity (0.023).
+- **SMOTE** closely mirrored No Sampling, with slightly lower recall (0.975) and F1 (0.870), while still lacking specificity (0.023).
 
 - **Up Sampling** offered a better trade-off: moderate recall (0.684), solid F1 (0.722), and improved specificity (0.233), making it more balanced.
 
@@ -1984,7 +2026,7 @@ XGBoost demonstrated strong performance for quiet quitting detection, especially
 
 ## Quiet Quitting with Naive Bayes
 
-### Naive Bayes - No Resampling
+### Naive Bayes - No Sampling
 
 ```{r 04-nb-model, message=FALSE}
 # Define Naive Bayes Model
@@ -1998,7 +2040,7 @@ workflow_nb_none <- workflow() %>%
   add_recipe(base_recipe)
 
 # 10-Fold Cross-Validation on Training Data
-set.seed(42)
+set.seed(123)
 nb_cv_results <- fit_resamples(
   workflow_nb_none,
   resamples = quiet_folds,
@@ -2011,14 +2053,14 @@ nb_fit_none <- fit(workflow_nb_none, data = quiet_train_data)
 # Predict on Test Data
 nb_preds_none <- predict(nb_fit_none, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(nb_fit_none, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### Naive Bayes - No Resampling - Performance Metrics
+### Naive Bayes - No Sampling - Performance Metrics
 
 ```{r 04-nb-metrics, echo=TRUE}
 # Metrics
-nb_none_metrics <- all_metrics(nb_preds_none, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+nb_none_metrics <- all_metrics(nb_preds_none, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Plot
 nb_none_metrics %>%
@@ -2031,7 +2073,7 @@ nb_none_metrics %>%
   geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Performance Metrics – NB (No Resampling)",
+    title = "Performance Metrics – NB (No Sampling)",
     x = "Score", y = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -2043,7 +2085,7 @@ nb_none_metrics %>%
 
 ```{r 04-nb-matrix-none, echo=TRUE}
 # Confusion Matrix
-cm_nb_none <- conf_mat(nb_preds_none, truth = Quiet_Quitting, estimate = .pred_class)
+cm_nb_none <- conf_mat(nb_preds_none, truth = quiet_quitting, estimate = .pred_class)
 cm_df_nb_none <- as.data.frame(cm_nb_none$table)
 cm_df_nb_none$Truth <- factor(cm_df_nb_none$Truth, levels = c("Yes", "No"))
 cm_df_nb_none$Prediction <- factor(cm_df_nb_none$Prediction, levels = c("No", "Yes"))
@@ -2053,7 +2095,7 @@ ggplot(cm_df_nb_none, aes(x = Prediction, y = Truth, fill = Freq)) +
   geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
   scale_fill_gradient(low = "#FFF9C4", high = "#F4D03F", name = "Frequency") +
   scale_y_discrete(limits = rev) +
-  labs(title = "Confusion Matrix – NB (No Resampling)",
+  labs(title = "Confusion Matrix – NB (No Sampling)",
        x = "Predicted Class", y = "Actual Class") +
   theme_minimal(base_size = 13) +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
@@ -2066,10 +2108,10 @@ ggplot(cm_df_nb_none, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-nb-roc-curve-none, echo=TRUE}
 # Roc
-roc_curve(nb_preds_none, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(nb_preds_none, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
-  labs(title = "ROC Curve – NB (No Resampling)",
+  labs(title = "ROC Curve – NB (No Sampling)",
        subtitle = "Model performance on predicting Quiet Quitting",
        x = "False Positive Rate (1 - Specificity)",
        y = "True Positive Rate (Sensitivity)") +
@@ -2084,17 +2126,17 @@ roc_curve(nb_preds_none, truth = Quiet_Quitting, .pred_Yes) %>%
 ### Naive Bayes - Smote
 
 ```{r 04-nb-smote, message=FALSE}
-# Create Upsampling Recipe
+# Create Up Sampling Recipe
 recipe_nb_smote <- base_recipe %>%
-  step_smote(Quiet_Quitting)
+  step_smote(quiet_quitting)
 
-# Build Workflow with Upsampling
+# Build Workflow with Up Sampling
 workflow_nb_smote <- workflow() %>%
   add_model(nb_model) %>%
   add_recipe(recipe_nb_smote)
 
 # 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 nb_cv_smote <- fit_resamples(
   workflow_nb_smote,
   resamples = quiet_folds,
@@ -2107,14 +2149,14 @@ nb_fit_smote <- fit(workflow_nb_smote, data = quiet_train_data)
 # Predict on Test Set
 nb_preds_smote <- predict(nb_fit_smote, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(nb_fit_smote, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
 ### Naive Bayes - SMOTE - Performance Metrics
 
 ```{r 04-nb-smote-metrics, echo=TRUE}
 # Metrics
-nb_smote_metrics <- all_metrics(nb_preds_smote, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+nb_smote_metrics <- all_metrics(nb_preds_smote, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Print
 nb_smote_metrics %>%
@@ -2137,7 +2179,7 @@ nb_smote_metrics %>%
 
 ```{r 04-nb-smote-matrix, echo=TRUE}
 # Confusion Matrix
-cm_nb_smote <- conf_mat(nb_preds_smote, truth = Quiet_Quitting, estimate = .pred_class)
+cm_nb_smote <- conf_mat(nb_preds_smote, truth = quiet_quitting, estimate = .pred_class)
 cm_df_nb_smote <- as.data.frame(cm_nb_smote$table)
 cm_df_nb_smote$Truth <- factor(cm_df_nb_smote$Truth, levels = c("Yes", "No"))
 cm_df_nb_smote$Prediction <- factor(cm_df_nb_smote$Prediction, levels = c("No", "Yes"))
@@ -2160,7 +2202,7 @@ ggplot(cm_df_nb_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-nb-roc-curve-smote, echo=TRUE}
 # Roc
-roc_curve(nb_preds_smote, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(nb_preds_smote, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(title = "ROC Curve – NB (SMOTE)",
@@ -2175,20 +2217,20 @@ roc_curve(nb_preds_smote, truth = Quiet_Quitting, .pred_Yes) %>%
 
 ```
 
-### Naive Bayes - Upsampling
+### Naive Bayes - Up Sampling
 
 ```{r 04-nb-upsample}
-# Create Upsampling Recipe
+# Create Up Sampling Recipe
 recipe_nb_upsample <- base_recipe %>%
-  step_upsample(Quiet_Quitting)
+  step_upsample(quiet_quitting)
 
-# Build Workflow with Upsampling
+# Build Workflow with Up Sampling
 workflow_nb_upsample <- workflow() %>%
   add_model(nb_model) %>%
   add_recipe(recipe_nb_upsample)
 
 # 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 nb_cv_upsample <- fit_resamples(
   workflow_nb_upsample,
   resamples = quiet_folds,
@@ -2201,14 +2243,14 @@ nb_fit_upsample <- fit(workflow_nb_upsample, data = quiet_train_data)
 # Predict on Test Set
 nb_preds_upsample <- predict(nb_fit_upsample, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(nb_fit_upsample, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### Naive Bayes - Upsampling - Performance Metrics
+### Naive Bayes - Up Sampling - Performance Metrics
 
 ```{r 04-nb-upsample-metrics, echo=TRUE}
 # Metrics
-nb_upsample_metrics <- all_metrics(nb_preds_upsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+nb_upsample_metrics <- all_metrics(nb_preds_upsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Print
 nb_upsample_metrics %>%
@@ -2220,7 +2262,7 @@ nb_upsample_metrics %>%
   geom_col(fill = "#F4D03F", width = 0.6) +
   geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
-  labs(title = "Performance Metrics – NB (Upsampling)",
+  labs(title = "Performance Metrics – NB (Up Sampling)",
        x = "Score", y = NULL) +
   theme_minimal(base_size = 13) +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
@@ -2231,7 +2273,7 @@ nb_upsample_metrics %>%
 
 ```{r 04-nb-matrix, echo=TRUE}
 # Confusion Matrix
-cm_nb_upsample <- conf_mat(nb_preds_upsample, truth = Quiet_Quitting, estimate = .pred_class)
+cm_nb_upsample <- conf_mat(nb_preds_upsample, truth = quiet_quitting, estimate = .pred_class)
 cm_df_nb_upsample <- as.data.frame(cm_nb_upsample$table)
 cm_df_nb_upsample$Truth <- factor(cm_df_nb_upsample$Truth, levels = c("Yes", "No"))
 cm_df_nb_upsample$Prediction <- factor(cm_df_nb_upsample$Prediction, levels = c("No", "Yes"))
@@ -2241,7 +2283,7 @@ ggplot(cm_df_nb_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
   geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
   scale_fill_gradient(low = "#FFF9C4", high = "#F4D03F", name = "Frequency") +
   scale_y_discrete(limits = rev) +
-  labs(title = "Confusion Matrix – NB (Upsampling)",
+  labs(title = "Confusion Matrix – NB (Up Sampling)",
        x = "Predicted Class", y = "Actual Class") +
   theme_minimal(base_size = 13) +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
@@ -2254,10 +2296,10 @@ ggplot(cm_df_nb_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-nb-roc-curve-upsample, echo=TRUE}
 # Roc
-roc_curve(nb_preds_upsample, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(nb_preds_upsample, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
-  labs(title = "ROC Curve – NB (Upsampling)",
+  labs(title = "ROC Curve – NB (Up Sampling)",
        subtitle = "Model performance on predicting Quiet Quitting",
        x = "False Positive Rate (1 - Specificity)",
        y = "True Positive Rate (Sensitivity)") +
@@ -2269,20 +2311,20 @@ roc_curve(nb_preds_upsample, truth = Quiet_Quitting, .pred_Yes) %>%
 
 ```
 
-### Naive Bayes - Downsampling
+### Naive Bayes - Down Sampling
 
 ```{r 04-nb-down-sample, message=FALSE}
-# Create Downsampling Recipe
+# Create Down Sampling Recipe
 recipe_nb_downsample <- base_recipe %>%
-  step_downsample(Quiet_Quitting)
+  step_downsample(quiet_quitting)
 
-# Build Workflow with Downsampling
+# Build Workflow with Down Sampling
 workflow_nb_downsample <- workflow() %>%
   add_model(nb_model) %>%
   add_recipe(recipe_nb_downsample)
 
 # 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 nb_cv_downsample <- fit_resamples(
   workflow_nb_downsample,
   resamples = quiet_folds,
@@ -2295,14 +2337,14 @@ nb_fit_downsample <- fit(workflow_nb_downsample, data = quiet_train_data)
 # Predict on Test Set
 nb_preds_downsample <- predict(nb_fit_downsample, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(nb_fit_downsample, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### Naive Bayes - Downsampling - Performance Metrics
+### Naive Bayes - Down Sampling - Performance Metrics
 
 ```{r 04-nb-down-sample-metrics, echo=TRUE}
 # Metrics
-nb_downsample_metrics <- all_metrics(nb_preds_downsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+nb_downsample_metrics <- all_metrics(nb_preds_downsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Print
 nb_downsample_metrics %>%
@@ -2314,7 +2356,7 @@ nb_downsample_metrics %>%
   geom_col(fill = "#F4D03F", width = 0.6) +
   geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
-  labs(title = "Performance Metrics – NB (Downsampling)",
+  labs(title = "Performance Metrics – NB (Down Sampling)",
        x = "Score", y = NULL) +
   theme_minimal(base_size = 13) +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
@@ -2325,7 +2367,7 @@ nb_downsample_metrics %>%
 
 ```{r 04-nb-down-sample-matrix, echo=TRUE}
 # Confusion Marix
-cm_nb_downsample <- conf_mat(nb_preds_downsample, truth = Quiet_Quitting, estimate = .pred_class)
+cm_nb_downsample <- conf_mat(nb_preds_downsample, truth = quiet_quitting, estimate = .pred_class)
 cm_df_nb_downsample <- as.data.frame(cm_nb_downsample$table)
 cm_df_nb_downsample$Truth <- factor(cm_df_nb_downsample$Truth, levels = c("Yes", "No"))
 cm_df_nb_downsample$Prediction <- factor(cm_df_nb_downsample$Prediction, levels = c("No", "Yes"))
@@ -2335,7 +2377,7 @@ ggplot(cm_df_nb_downsample, aes(x = Prediction, y = Truth, fill = Freq)) +
   geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
   scale_fill_gradient(low = "#FFF9C4", high = "#F4D03F", name = "Frequency") +
   scale_y_discrete(limits = rev) +
-  labs(title = "Confusion Matrix – NB (Downsampling)",
+  labs(title = "Confusion Matrix – NB (Down Sampling)",
        x = "Predicted Class", y = "Actual Class") +
   theme_minimal(base_size = 13) +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
@@ -2348,10 +2390,10 @@ ggplot(cm_df_nb_downsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-nb-down-sample-roc-curve, echo=TRUE}
 # Roc
-roc_curve(nb_preds_downsample, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(nb_preds_downsample, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
-  labs(title = "ROC Curve – NB (Downsampling)",
+  labs(title = "ROC Curve – NB (Down Sampling)",
        subtitle = "Model performance on predicting Quiet Quitting",
        x = "False Positive Rate (1 - Specificity)",
        y = "True Positive Rate (Sensitivity)") +
@@ -2415,9 +2457,9 @@ ggplot(nb_results_highlight, aes(x = Resample, y = Score, fill = Metric)) +
 
 ### Executive Summary for Naive Bayes (Quiet Quitting)
 
-Naive Bayes was a lightweight and efficient model with surprisingly competitive performance across multiple resampling strategies. It particularly excelled with **no resampling**, achieving perfect recall and strong F1 score, making it well-suited for identifying at-risk employees.
+Naive Bayes was a lightweight and efficient model with surprisingly competitive performance across multiple resampling strategies. It particularly excelled with **No Sampling**, achieving perfect recall and strong F1 score, making it well-suited for identifying at-risk employees.
 
-- **No Resampling** was the top performer across key metrics — recall (1.000), F1 score (0.880), and accuracy (0.786) — but suffered from **0.000 specificity**, indicating over-prediction of the positive class.
+- **No Sampling** was the top performer across key metrics — recall (1.000), F1 score (0.880), and accuracy (0.786) — but suffered from **0.000 specificity**, indicating over-prediction of the positive class.
 - **Up Sampling** offered the most balanced trade-off, improving specificity (0.279) and maintaining a high F1 score (0.785), making it ideal for general-purpose use.
 - **Down Sampling** produced reasonable balance, with ROC AUC (0.562), F1 (0.703), and recall (0.658), though it didn't lead in any metric.
 - **SMOTE** performed modestly across all metrics — decent precision (0.785), but lower F1 (0.681) and recall (0.601) — offering mild improvements in specificity (0.395) and ROC AUC (0.518).
@@ -2438,7 +2480,7 @@ workflow_svm_none <- workflow() %>%
   add_recipe(base_recipe)
 
 # Tuning
-set.seed(42)
+set.seed(123)
 
 svm_tuned <- tune_grid(
   workflow_svm_none,
@@ -2456,14 +2498,14 @@ svm_fit_none <- fit(final_svm_workflow, data = quiet_train_data)
 # Predict
 svm_preds_none <- predict(svm_fit_none, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(svm_fit_none, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
 ### Support Vector Machines - No Sampling - Performance Metrics
 
 ```{r 04-svm-no-sampling-metrics, echo=TRUE}
 # Metrics
-svm_none_metrics <- all_metrics(svm_preds_none, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+svm_none_metrics <- all_metrics(svm_preds_none, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Print
 svm_none_metrics %>%
@@ -2474,13 +2516,13 @@ svm_none_metrics %>%
   geom_col(fill = "#884EA0", width = 0.6) +
   geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "black", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
-  labs(title = "Performance Metrics – SVM (No Resampling)", x = "Score", y = NULL) +
+  labs(title = "Performance Metrics – SVM (No Sampling)", x = "Score", y = NULL) +
   theme_minimal(base_size = 13)
 ```
 
 ```{r 04-svm-matrix-no-sampling, echo=TRUE}
 # Confusion Matrix
-cm_svm_none <- conf_mat(svm_preds_none, truth = Quiet_Quitting, estimate = .pred_class)
+cm_svm_none <- conf_mat(svm_preds_none, truth = quiet_quitting, estimate = .pred_class)
 cm_df_svm_none <- as.data.frame(cm_svm_none$table)
 cm_df_svm_none$Truth <- factor(cm_df_svm_none$Truth, levels = c("Yes", "No"))
 cm_df_svm_none$Prediction <- factor(cm_df_svm_none$Prediction, levels = c("No", "Yes"))
@@ -2490,18 +2532,18 @@ ggplot(cm_df_svm_none, aes(x = Prediction, y = Truth, fill = Freq)) +
   geom_text(aes(label = Freq), fontface = "bold", size = 5) +
   scale_fill_gradient(low = "#f2e6f9", high = "#5B2C6F") +
   scale_y_discrete(limits = rev) +
-  labs(title = "Confusion Matrix – SVM (No Resampling)", x = "Predicted", y = "Actual") +
+  labs(title = "Confusion Matrix – SVM (No Sampling)", x = "Predicted", y = "Actual") +
   theme_minimal()
 
 ```
 
 ```{r 04-svm-roc-curve-no-sampling, echo=TRUE}
 # ROC Curve
-roc_curve(svm_preds_none, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(svm_preds_none, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray50") +
   labs(
-    title = "ROC Curve – SVM (No Resampling)",
+    title = "ROC Curve – SVM (No Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "1 - Specificity",
     y = "Sensitivity"
@@ -2525,7 +2567,7 @@ svm_model <- svm_linear(cost = tune()) %>%
 
 # Create SMOTE Recipe
 recipe_svm_smote <- base_recipe %>%
-  step_smote(Quiet_Quitting)
+  step_smote(quiet_quitting)
 
 # Build Workflow
 workflow_svm_smote <- workflow() %>%
@@ -2533,7 +2575,7 @@ workflow_svm_smote <- workflow() %>%
   add_recipe(recipe_svm_smote)
 
 # Tune with 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 svm_tuned_smote <- tune_grid(
   workflow_svm_smote,
   resamples = quiet_folds,
@@ -2553,14 +2595,14 @@ svm_fit_smote <- fit(final_svm_workflow_smote, data = quiet_train_data)
 # Predict on Test Data
 svm_preds_smote <- predict(svm_fit_smote, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(svm_fit_smote, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
 ### Support Vector Machines - Smote - Performance Metrics
 
 ```{r 04-svm-smote-metrics, echo=TRUE}
 # Metrics
-svm_smote_metrics <- all_metrics(svm_preds_smote, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+svm_smote_metrics <- all_metrics(svm_preds_smote, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Print
 svm_smote_metrics %>%
@@ -2585,7 +2627,7 @@ svm_smote_metrics %>%
 
 ```{r 04-svm-matrix-smote, echo=TRUE}
 # Confusion Matrix
-cm_svm_smote <- conf_mat(svm_preds_smote, truth = Quiet_Quitting, estimate = .pred_class)
+cm_svm_smote <- conf_mat(svm_preds_smote, truth = quiet_quitting, estimate = .pred_class)
 cm_df_svm_smote <- as.data.frame(cm_svm_smote$table)
 
 cm_df_svm_smote$Truth <- factor(cm_df_svm_smote$Truth, levels = c("Yes", "No"))
@@ -2612,7 +2654,7 @@ ggplot(cm_df_svm_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-svm-roc-curve-smote, echo=TRUE}
 # ROC Curve
-roc_curve(svm_preds_smote, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(svm_preds_smote, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -2631,7 +2673,7 @@ roc_curve(svm_preds_smote, truth = Quiet_Quitting, .pred_Yes) %>%
 
 ```
 
-### Support Vector Machines - Upsampling
+### Support Vector Machines - Up Sampling
 
 ```{r 04-svm-upsampling, message=FALSE}
 # Define the SVM Model
@@ -2641,7 +2683,7 @@ svm_model <- svm_linear(cost = tune()) %>%
 
 # Create SMOTE Recipe
 recipe_svm_upsample <- base_recipe %>%
-  step_upsample(Quiet_Quitting)
+  step_upsample(quiet_quitting)
 
 # Build Workflow
 workflow_svm_upsample <- workflow() %>%
@@ -2649,7 +2691,7 @@ workflow_svm_upsample <- workflow() %>%
   add_recipe(recipe_svm_upsample)
 
 # Tune with 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 svm_tuned_upsample <- tune_grid(
   workflow_svm_upsample,
   resamples = quiet_folds,
@@ -2669,14 +2711,14 @@ svm_fit_upsample <- fit(final_svm_workflow_upsample, data = quiet_train_data)
 # Predict on Test Data
 svm_preds_upsample <- predict(svm_fit_upsample, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(svm_fit_upsample, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### Support Vector Machines - Upsampling - Performance Metrics
+### Support Vector Machines - Up Sampling - Performance Metrics
 
 ```{r 04-svm-upsample-metrics, echo=TRUE}
 # Metrics
-svm_upsample_metrics <- all_metrics(svm_preds_upsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+svm_upsample_metrics <- all_metrics(svm_preds_upsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Print
 svm_upsample_metrics %>%
@@ -2689,7 +2731,7 @@ svm_upsample_metrics %>%
   geom_col(fill = "#6C3483", width = 0.6) +
   geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "white", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
-  labs(title = "Performance Metrics – SVM (Upsampling)", x = "Score", y = NULL) +
+  labs(title = "Performance Metrics – SVM (Up Sampling)", x = "Score", y = NULL) +
   theme_minimal(base_size = 13) +
   theme(
     plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
@@ -2701,7 +2743,7 @@ svm_upsample_metrics %>%
 
 ```{r 04-svm-matrix-upsample, echo=TRUE}
 # Confusion Matrix
-cm_svm_upsample <- conf_mat(svm_preds_upsample, truth = Quiet_Quitting, estimate = .pred_class)
+cm_svm_upsample <- conf_mat(svm_preds_upsample, truth = quiet_quitting, estimate = .pred_class)
 cm_df_svm_upsample <- as.data.frame(cm_svm_upsample$table)
 
 cm_df_svm_upsample$Truth <- factor(cm_df_svm_upsample$Truth, levels = c("Yes", "No"))
@@ -2713,7 +2755,7 @@ ggplot(cm_df_svm_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
   scale_fill_gradient(low = "#E8DAEF", high = "#6C3483", name = "Frequency") +
   scale_y_discrete(limits = rev) +
   labs(
-    title = "Confusion Matrix – SVM (Upsampling)",
+    title = "Confusion Matrix – SVM (Up Sampling)",
     x = "Predicted Class", y = "Actual Class"
   ) +
   theme_minimal(base_size = 13) +
@@ -2728,11 +2770,11 @@ ggplot(cm_df_svm_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-svm-roc-curve-upsample, echo=TRUE}
 # ROC Curve
-roc_curve(svm_preds_upsample, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(svm_preds_upsample, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
-    title = "ROC Curve – SVM (Upsampling)",
+    title = "ROC Curve – SVM (Up Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "False Positive Rate (1 - Specificity)",
     y = "True Positive Rate (Sensitivity)"
@@ -2747,7 +2789,7 @@ roc_curve(svm_preds_upsample, truth = Quiet_Quitting, .pred_Yes) %>%
 
 ```
 
-### Support Vector Machines - Downsampling
+### Support Vector Machines - Down Sampling
 
 ```{r 04-svm-downsampling, message=FALSE}
 # Define the SVM Model
@@ -2757,7 +2799,7 @@ svm_model <- svm_linear(cost = tune()) %>%
 
 # Create SMOTE Recipe
 recipe_svm_downsample <- base_recipe %>%
-  step_downsample(Quiet_Quitting)
+  step_downsample(quiet_quitting)
 
 # Build Workflow
 workflow_svm_downsample <- workflow() %>%
@@ -2765,7 +2807,7 @@ workflow_svm_downsample <- workflow() %>%
   add_recipe(recipe_svm_downsample)
 
 # Tune with 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 svm_tuned_downsample <- tune_grid(
   workflow_svm_downsample,
   resamples = quiet_folds,
@@ -2785,14 +2827,14 @@ svm_fit_downsample <- fit(final_svm_workflow_downsample, data = quiet_train_data
 # Predict on Test Data
 svm_preds_downsample <- predict(svm_fit_downsample, new_data = quiet_test_data, type = "prob") %>%
   bind_cols(predict(svm_fit_downsample, new_data = quiet_test_data)) %>%
-  bind_cols(quiet_test_data %>% select(Quiet_Quitting))
+  bind_cols(quiet_test_data %>% select(quiet_quitting))
 ```
 
-### Support Vector Machines - Upsampling - Performance Metrics
+### Support Vector Machines - Up Sampling - Performance Metrics
 
 ```{r 04-svm-downsampling-metrics, echo=TRUE}
 # Metrics
-svm_downsample_metrics <- all_metrics(svm_preds_downsample, truth = Quiet_Quitting, estimate = .pred_class, .pred_Yes)
+svm_downsample_metrics <- all_metrics(svm_preds_downsample, truth = quiet_quitting, estimate = .pred_class, .pred_Yes)
 
 # Print
 svm_downsample_metrics %>%
@@ -2805,7 +2847,7 @@ svm_downsample_metrics %>%
   geom_col(fill = "#6C3483", width = 0.6) +
   geom_text(aes(label = sprintf("%.3f", .estimate)), hjust = -0.1, color = "white", size = 4.2, fontface = "bold") +
   scale_x_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.15))) +
-  labs(title = "Performance Metrics – SVM (Downsampling)", x = "Score", y = NULL) +
+  labs(title = "Performance Metrics – SVM (Down Sampling)", x = "Score", y = NULL) +
   theme_minimal(base_size = 13) +
   theme(
     plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
@@ -2817,7 +2859,7 @@ svm_downsample_metrics %>%
 
 ```{r 04-svm-matrix-downsample, echo=TRUE}
 # Confusion Matrix
-cm_svm_downsample <- conf_mat(svm_preds_downsample, truth = Quiet_Quitting, estimate = .pred_class)
+cm_svm_downsample <- conf_mat(svm_preds_downsample, truth = quiet_quitting, estimate = .pred_class)
 cm_df_svm_downsample <- as.data.frame(cm_svm_downsample$table)
 
 cm_df_svm_downsample$Truth <- factor(cm_df_svm_downsample$Truth, levels = c("Yes", "No"))
@@ -2829,7 +2871,7 @@ ggplot(cm_df_svm_downsample, aes(x = Prediction, y = Truth, fill = Freq)) +
   scale_fill_gradient(low = "#E8DAEF", high = "#6C3483", name = "Frequency") +
   scale_y_discrete(limits = rev) +
   labs(
-    title = "Confusion Matrix – SVM (Downsampling)",
+    title = "Confusion Matrix – SVM (Down Sampling)",
     x = "Predicted Class", y = "Actual Class"
   ) +
   theme_minimal(base_size = 13) +
@@ -2844,11 +2886,11 @@ ggplot(cm_df_svm_downsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-svm-roc-curve-downsample, echo=TRUE}
 # ROC Curve
-roc_curve(svm_preds_downsample, truth = Quiet_Quitting, .pred_Yes) %>%
+roc_curve(svm_preds_downsample, truth = quiet_quitting, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
-    title = "ROC Curve – SVM (Downsampling)",
+    title = "ROC Curve – SVM (Down Sampling)",
     subtitle = "Model performance on predicting Quiet Quitting",
     x = "False Positive Rate (1 - Specificity)",
     y = "True Positive Rate (Sensitivity)"
@@ -2916,13 +2958,13 @@ ggplot(svm_results_highlight, aes(x = Resample, y = Score, fill = Metric)) +
 
 Support Vector Machines (SVM) offered competitive performance in predicting quiet quitting, especially when paired with resampling techniques. While not the top overall performer, SVM models provided reliable results with good balance between sensitivity and specificity.
 
-- **No Resampling** showed perfect recall (1.000) and top F1 score (0.880), but failed completely on specificity (0.000), over-predicting the positive class.
+- **No Sampling** showed perfect recall (1.000) and top F1 score (0.880), but failed completely on specificity (0.000), over-predicting the positive class.
 
 - **SMOTE** delivered high precision (0.857) and solid F1 (0.755), though with moderate recall (0.625) — useful for minimizing false positives.
 
-- **Upsampling** closely followed SMOTE with F1 score (0.754) and recall (0.663), while slightly improving accuracy (0.603).
+- **Up Sampling** closely followed SMOTE with F1 score (0.754) and recall (0.663), while slightly improving accuracy (0.603).
 
-- **Downsampling** had the most balanced class recognition, achieving the highest ROC AUC (0.533) and specificity (0.651), making it the best option where balanced classification is critical.
+- **Down Sampling** had the most balanced class recognition, achieving the highest ROC AUC (0.533) and specificity (0.651), making it the best option where balanced classification is critical.
 
 ## Quiet Quitting - Master Performance Comparison Table
 
@@ -2931,7 +2973,7 @@ model_colors <- c(
   "Logistic" = "#4B9CD3",
   "Random Forest" = "#3FA34D",
   "XGBoost" = "#E87461",
-  "Naive Bayes" = "#FFD700",
+  "Naive Bayes" = "#F4D03F",
   "SVM" = "#9370DB"
 )
 
@@ -3020,25 +3062,25 @@ get_importance <- function(fit_obj, model_label, resample_label) {
 model_importance_all <- bind_rows(
   get_importance(fit_logit_none, "Logistic", "No Sampling"),
   get_importance(fit_logit_smote, "Logistic", "SMOTE"),
-  get_importance(fit_logit_upsample, "Logistic", "Upsampling"),
-  get_importance(fit_logit_downsample, "Logistic", "Downsampling"),
+  get_importance(fit_logit_upsample, "Logistic", "Up Sampling"),
+  get_importance(fit_logit_downsample, "Logistic", "Down Sampling"),
   
   get_importance(rf_fit_none, "Random Forest", "No Sampling"),
   get_importance(rf_fit_smote, "Random Forest", "SMOTE"),
-  get_importance(rf_fit_upsample, "Random Forest", "Upsampling"),
-  get_importance(rf_fit_downsample, "Random Forest", "Downsampling"),
+  get_importance(rf_fit_upsample, "Random Forest", "Up Sampling"),
+  get_importance(rf_fit_downsample, "Random Forest", "Down Sampling"),
   
   get_importance(xgb_fit_none, "XGBoost", "No Sampling"),
   get_importance(xgb_fit_smote, "XGBoost", "SMOTE"),
-  get_importance(xgb_fit_upsample, "XGBoost", "Upsampling"),
-  get_importance(xgb_fit_downsample, "XGBoost", "Downsampling")
+  get_importance(xgb_fit_upsample, "XGBoost", "Up Sampling"),
+  get_importance(xgb_fit_downsample, "XGBoost", "Down Sampling")
 )
 
 # Top 5 VIPs per Model + Resampling combo, scaled
 top_vars <- model_importance_all %>%
   filter(!is.na(Importance)) %>%
   mutate(
-    Resample = factor(Resample, levels = c("No Sampling", "SMOTE", "Upsampling", "Downsampling")),
+    Resample = factor(Resample, levels = c("No Sampling", "SMOTE", "Up Sampling", "Down Sampling")),
     Model = factor(Model, levels = c("Logistic", "Random Forest", "XGBoost"))
   ) %>%
   group_by(Model, Resample) %>%
@@ -3113,21 +3155,21 @@ top5_model_scores <- tibble::tribble(
   "SVM (No Sampling)", "Specificity", 0.000,
   "SVM (No Sampling)", "ROC AUC", 0.457,
 
-  # XGBoost (Downsampling)
-  "XGBoost (Downsampling)", "Accuracy", 0.493,
-  "XGBoost (Downsampling)", "Precision", 0.447,
-  "XGBoost (Downsampling)", "Recall", 0.457,
-  "XGBoost (Downsampling)", "F1 Score", 0.452,
-  "XGBoost (Downsampling)", "Specificity", 0.523,
-  "XGBoost (Downsampling)", "ROC AUC", 0.495,
+  # XGBoost (Down Sampling)
+  "XGBoost (Down Sampling)", "Accuracy", 0.493,
+  "XGBoost (Down Sampling)", "Precision", 0.447,
+  "XGBoost (Down Sampling)", "Recall", 0.457,
+  "XGBoost (Down Sampling)", "F1 Score", 0.452,
+  "XGBoost (Down Sampling)", "Specificity", 0.523,
+  "XGBoost (Down Sampling)", "ROC AUC", 0.495,
 
-  # Random Forest (Downsampling)
-  "Random Forest (Downsampling)", "Accuracy", 0.552,
-  "Random Forest (Downsampling)", "Precision", 0.556,
-  "Random Forest (Downsampling)", "Recall", 0.478,
-  "Random Forest (Downsampling)", "F1 Score", 0.463,
-  "Random Forest (Downsampling)", "Specificity", 0.927,
-  "Random Forest (Downsampling)", "ROC AUC", 0.512,
+  # Random Forest (Down Sampling)
+  "Random Forest (Down Sampling)", "Accuracy", 0.552,
+  "Random Forest (Down Sampling)", "Precision", 0.556,
+  "Random Forest (Down Sampling)", "Recall", 0.478,
+  "Random Forest (Down Sampling)", "F1 Score", 0.463,
+  "Random Forest (Down Sampling)", "Specificity", 0.927,
+  "Random Forest (Down Sampling)", "ROC AUC", 0.512,
 
   # Logistic (SMOTE)
   "Logistic (SMOTE)", "Accuracy", 0.532,
@@ -3142,8 +3184,8 @@ top5_model_scores <- tibble::tribble(
 model_colors <- c(
   "Naive Bayes (No Sampling)" = "#F4D03F",
   "SVM (No Sampling)" = "#9370DB",
-  "Random Forest (Downsampling)" = "#3FA34D",
-  "XGBoost (Downsampling)" = "#E87461",
+  "Random Forest (Down Sampling)" = "#3FA34D",
+  "XGBoost (Down Sampling)" = "#E87461",
   "Logistic (SMOTE)" = "#4B9CD3"
 )
 
@@ -3204,7 +3246,7 @@ SVM matched Naive Bayes in nearly every metric, including **perfect recall** and
 
 ---
 
-**3. Random Forest (Downsampling)** – Best Specificity and Conservative Detection
+**3. Random Forest (Down Sampling)** – Best Specificity and Conservative Detection
 
 - **Accuracy**: 0.552  
 - **Precision**: 0.556  
@@ -3230,7 +3272,7 @@ This model provided **stable, interpretable performance** across all metrics. It
 
 ---
 
-**5. XGBoost (Downsampling)** – Most Consistent Across All Metrics
+**5. XGBoost (Down Sampling)** – Most Consistent Across All Metrics
 
 - **Accuracy**: 0.493  
 - **Precision**: 0.447  
@@ -3242,19 +3284,9 @@ This model provided **stable, interpretable performance** across all metrics. It
 XGBoost didn’t lead in any category but stood out for **balanced, consistent scores** across all metrics. It’s best for teams who prefer **reliability over extremes**, particularly when building robust monitoring systems.
 
 
-<div style="display: flex; justify-content: space-between; margin-top: 20px; margin-bottom: 30px;">
-  <a href="HR_Data_Turnover_Intention_Results.html" style="background-color: #4B9CD3; color: white; padding: 10px 20px; 
-     text-align: center; text-decoration: none; font-size: 16px; border-radius: 8px;">
-    🔗 Back to Turnover Intention Results
-  </a>
-
-  <a href="HR_Data_Monitoring_Turnover_Risk_Results.html" style="background-color: #E74C3C; color: white; padding: 10px 20px; 
-     text-align: center; text-decoration: none; font-size: 16px; border-radius: 8px;">
-    🔗 View Monitoring Turnover Risk Results
-  </a>
+<div class="page-nav">
+  <a href="HR_Data_Turnover_Intention_Results.html" class="btn-clean">← Back</a>
+  <a href="HR_Data_Monitoring_Turnover_Risk_Results.html" class="btn-clean">Next →</a>
 </div>
 
-```{r 00-image-save, include=FALSE}
-# Save the current R session to restore later
-save.image(file = "outputs/my_environment.RData")
-```
+</div>

@@ -1,86 +1,127 @@
 ---
-title: "HR Predictive Analytics Project – Monitoring Turnover Risk"
+title: "Workforce Analytics Using Synthetic HR Data: Modeling and Predicting Work Related Monitoring Turnover Risk"
 author: "Kevin Allen Cauley"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
+
 output:
   html_document:
+    always_allow_html: true
+    self_contained: false
+    theme: flatly
+    highlight: tango
     code_folding: hide
     toc: true
     toc_float: true
     toc_depth: 3
-    number_sections: true
-    theme: flatly
-    highlight: tango
     df_print: paged
+    css: "assets/styles.css"
+    output_file: HR_Data_Monitoring_Turnover_Risk_Results.html
+    output_dir: ../docs
+
+number_sections: true
 ---
 
 ```{r 00-setup, include=FALSE}
-# Set working directory to the project root
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+# Function Helpers
+source(here::here("analysis", "helpers.R"))
+
+# Reproducibility
+set.seed(123)
+
+# Ensure all paths resolve from project root
+library(rprojroot)
+
+knitr::opts_knit$set(
+  root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# Output Directory
+plot_dir <- here::here("docs", "figures", "monitoring")
+dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Global chunk options
 knitr::opts_chunk$set(
-  echo = TRUE,
+  echo = FALSE,
   warning = FALSE,
   message = FALSE,
-  fig.path = "figures/",
   fig.align = "center",
-  cache = TRUE
+  out.width = "100%",
+  fig.retina = 2,
+  fig.width = 8,
+  fig.height = 5,
+  dpi = 300,
+  cache = FALSE,
+  fig.path = "IGNORE/"
+)
+```
+
+```{r 00-load-packages, include=FALSE}
+required_packages <- c(
+  "car","cowplot","caret","corrplot","discrim","dplyr",
+  "e1071","fastDummies","forcats","gbm","GGally",
+  "ggcorrplot","ggplot2","ggthemes","glmnet","grid",
+  "gridExtra","gt","iml","kableExtra","keras3","keras",
+  "knitr","mgcv","naivebayes","naniar","patchwork",
+  "pheatmap","plotly","psych","randomForest","ranger",
+  "RColorBrewer","readxl","reshape2","skimr","tensorflow",
+  "themis","tidymodels","tidyverse","vip","viridis","xgboost","xfun"
 )
 
-# Load previous session
-if (file.exists("outputs/my_environment.RData")) {
-  load("outputs/my_environment.RData")
+missing_packages <- required_packages[
+  !required_packages %in% rownames(installed.packages())
+]
+
+if (length(missing_packages) > 0) {
+  stop(
+    paste0(
+      "Missing required packages: ",
+      paste(missing_packages, collapse = ", ")
+    )
+  )
 }
+
+invisible(lapply(required_packages, library, character.only = TRUE))
 ```
 
-```{r 00-setup-packages, include=FALSE}
-# Load packages
-library(car)
-library(cowplot)
-library(caret)
-library(corrplot)
-library(discrim)
-library(dplyr)
-library(e1071)
-library(fastDummies)
-library(forcats)
-library(gbm)
-library(GGally)
-library(ggcorrplot)
-library(ggplot2)
-library(ggthemes)
-library(glmnet)
-library(grid)
-library(gridExtra)
-library(gt)
-library(iml)
-library(kableExtra)
-library(keras3)
-library(keras)
-library(knitr)
-library(mgcv)
-library(naivebayes)
-library(naniar)
-library(patchwork)
-library(pheatmap)
-library(plotly)
-library(psych)
-library(randomForest)
-library(ranger)
-library(RColorBrewer)
-library(readxl)
-library(reshape2)
-library(skimr)
-library(tensorflow)
-library(themis)
-library(tidymodels)
-library(tidyverse)
-library(vip)
-library(viridis)
-library(xgboost)
-library(xfun)
+```{r 00-load-data}
+# Load
+hr_df <- readRDS(here::here("data", "processed", "hr_dataset_clean.rds"))
+
+# Validate First
+required_cols <- c("monitoring_turnover_risk")
+
+missing_cols <- setdiff(required_cols, names(hr_df))
+
+if (length(missing_cols) > 0) {
+  stop(
+    paste0(
+      "Missing required columns: ",
+      paste(missing_cols, collapse = ", ")
+    )
+  )
+}
+
+# Then Mutate
+hr_df <- hr_df %>%
+  mutate(monitoring_turnover_risk = as.factor(monitoring_turnover_risk))
 ```
+
+<div class="main-container">
+
+<div class="hero-section">
+  <h1>Monitoring and Turnover Risk</h1>
+  <p class="hero-subtitle">
+    This analysis evaluates how workplace monitoring and surveillance factors influence employee behavior, trust, and turnover risk.
+  </p>
+</div>
+
+<div class="nav-row">
+  <a href="HR_Data_Quiet_Quitting_Results.html" class="btn-clean">← Back</a>
+  <a href="index.html" class="btn-clean">Home</a>
+  <a href="HR_Data_Insights_Gleaned.html" class="btn-clean">Next →</a>
+</div>
+
+<hr>
 
 ## Predictive Modeling on Monitoring Turnover Risk
 
@@ -105,18 +146,18 @@ hr_df <- hr_df %>%
   mutate(monitoring_turnover_risk = as.factor(monitoring_turnover_risk))
 
 # Set Seed
-set.seed(42)
+set.seed(123)
 
 # 80/20 train/test split with stratification
-mtr_split <- initial_split(hr_df, prop = 0.8, strata = Monitoring_Turnover_Risk)
+mtr_split <- initial_split(hr_df, prop = 0.8, strata = monitoring_turnover_risk)
 mtr_train_data <- training(mtr_split)
 mtr_test_data  <- testing(mtr_split)
 
 # 10-Fold Cross Validation
-mtr_folds <- vfold_cv(mtr_train_data, v = 10, strata = Monitoring_Turnover_Risk)
+mtr_folds <- vfold_cv(mtr_train_data, v = 10, strata = monitoring_turnover_risk)
 
 # Shared Pre-processing (no resampling)
-base_recipe <- recipe(Monitoring_Turnover_Risk ~ ., data = mtr_train_data) %>%
+base_recipe <- recipe(monitoring_turnover_risk ~ ., data = mtr_train_data) %>%
   step_dummy(all_nominal_predictors()) %>%
   step_zv(all_predictors()) %>%
   step_normalize(all_numeric_predictors())
@@ -148,14 +189,14 @@ fit_logit_none <- fit(workflow_logit_none, data = mtr_train_data)
 # Predict on test data
 logit_preds_none <- predict(fit_logit_none, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(fit_logit_none, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Logistic Regression - No Resampling - Performance Metrics
 
 ```{r 04-logit-none-metrics, echo=TRUE}
 # Metrics
-logit_none_metrics <- all_metrics(logit_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+logit_none_metrics <- all_metrics(logit_preds_none, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 logit_none_metrics %>%
@@ -186,7 +227,7 @@ library(yardstick)
 library(forcats)
 
 # Confusion matrix to dataframe
-cm_logit_none <- conf_mat(logit_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_logit_none <- conf_mat(logit_preds_none, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df <- as.data.frame(cm_logit_none$table)
 
 # Ensure proper order for plotting
@@ -216,7 +257,7 @@ ggplot(cm_df, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-logit-none-roc-curve, echo=TRUE}
 # Generate ROC curve
-roc_curve(logit_preds_none, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(logit_preds_none, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -265,14 +306,14 @@ ggplot(vip_logit_none, aes(x = Importance, y = Variable)) +
 ```{r 04-logit-smote-workflow, message=FALSE}
 # SMOTE recipe
 recipe_logit_smote <- base_recipe %>%
-  step_smote(Monitoring_Turnover_Risk)
+  step_smote(monitoring_turnover_risk)
 
 workflow_logit_smote <- workflow() %>%
   add_model(logit_model) %>%
   add_recipe(recipe_logit_smote)
 
 # 10-Fold CV
-set.seed(42)
+set.seed(123)
 logit_cv_smote <- fit_resamples(
   workflow_logit_smote,
   resamples = mtr_folds,
@@ -284,14 +325,14 @@ fit_logit_smote <- fit(workflow_logit_smote, data = mtr_train_data)
 
 logit_preds_smote <- predict(fit_logit_smote, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(fit_logit_smote, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Logistic Regression – SMOTE - Performance Metrics
 
 ```{r 04-logit-smote-finalfit, message=FALSE}
 # Metrics
-logit_smote_metrics <- all_metrics(logit_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+logit_smote_metrics <- all_metrics(logit_preds_smote, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 logit_smote_metrics %>%
@@ -318,7 +359,7 @@ logit_smote_metrics %>%
 
 ```{r 04-logit-smote-confmat, echo=TRUE}
 # Create confusion matrix
-cm_logit_smote <- conf_mat(logit_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_logit_smote <- conf_mat(logit_preds_smote, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_smote <- as.data.frame(cm_logit_smote$table)
 
 # Order axes
@@ -348,7 +389,7 @@ ggplot(cm_df_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-logit-smote-roc, echo=TRUE}
 # ROC Curve
-roc_curve(logit_preds_smote, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(logit_preds_smote, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -395,7 +436,7 @@ fit_logit_smote %>%
 ```{r 04-logit-upsample-workflow, message=FALSE}
 # Upsampling Recipe
 recipe_logit_upsample <- base_recipe %>%
-  step_upsample(Monitoring_Turnover_Risk)
+  step_upsample(monitoring_turnover_risk)
 
 # Workflow 
 workflow_logit_upsample <- workflow() %>%
@@ -408,14 +449,14 @@ fit_logit_upsample <- fit(workflow_logit_upsample, data = mtr_train_data)
 # Predict
 logit_preds_upsample <- predict(fit_logit_upsample, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(fit_logit_upsample, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Logistic Regression - Upsampling - Performance Metrics
 
 ```{r 04-logit-upsample-metrics, echo=TRUE}
 # Metrics
-logit_upsample_metrics <- all_metrics(logit_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+logit_upsample_metrics <- all_metrics(logit_preds_upsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 logit_upsample_metrics %>%
@@ -442,7 +483,7 @@ logit_upsample_metrics %>%
 
 ```{r 04-logit-upsample-confmat, echo=TRUE}
 # Confusion matrix data prep
-cm_logit_upsample <- conf_mat(logit_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_logit_upsample <- conf_mat(logit_preds_upsample, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_upsample <- as.data.frame(cm_logit_upsample$table)
 
 # Set factor levels to match layout: Yes on top, No bottom; No left, Yes right
@@ -472,7 +513,7 @@ ggplot(cm_df_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-logit-upsample-roc-curve, echo=TRUE}
 # Roc
-roc_curve(logit_preds_upsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(logit_preds_upsample, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -519,7 +560,7 @@ fit_logit_upsample %>%
 ```{r 04-logit-downsample-workflow, message=FALSE}
 # Downsampling Recipe
 recipe_logit_downsample <- base_recipe %>%
-  step_downsample(Monitoring_Turnover_Risk)
+  step_downsample(monitoring_turnover_risk)
 
 # Workflow 
 workflow_logit_downsample <- workflow() %>%
@@ -532,14 +573,14 @@ fit_logit_downsample <- fit(workflow_logit_downsample, data = mtr_train_data)
 # Predict on test data
 logit_preds_downsample <- predict(fit_logit_downsample, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(fit_logit_downsample, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Logistic Regression - Downsampling - Performance Metrics
 
 ```{r 04-logit-downsample-metrics, echo=TRUE}
 # Metrics
-logit_downsample_metrics <- all_metrics(logit_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+logit_downsample_metrics <- all_metrics(logit_preds_downsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 logit_downsample_metrics %>%
@@ -565,7 +606,7 @@ logit_downsample_metrics %>%
 ```
 
 ```{r 04-logit-downsample-confmat, echo=TRUE}
-cm_logit_down <- conf_mat(logit_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_logit_down <- conf_mat(logit_preds_downsample, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_down <- as.data.frame(cm_logit_down$table)
 
 cm_df_down$Truth <- factor(cm_df_down$Truth, levels = c("Yes", "No"))
@@ -592,7 +633,7 @@ ggplot(cm_df_down, aes(x = Prediction, y = Truth, fill = Freq)) +
 ```
 
 ```{r 04-logit-downsample-roc-curve, echo=TRUE}
-roc_curve(logit_preds_downsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(logit_preds_downsample, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -715,7 +756,7 @@ workflow_rf_none <- workflow() %>%
   add_recipe(recipe_rf_none)
 
 # Tune the RF model with cross-validation
-set.seed(42)
+set.seed(123)
 rf_tuned <- tune_grid(
   workflow_rf_none,
   resamples = mtr_folds,
@@ -735,14 +776,14 @@ rf_fit_none <- fit(final_rf_workflow, data = mtr_train_data)
 # Predict on test data
 rf_preds_none <- predict(rf_fit_none, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(rf_fit_none, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Random Forest - No Resampling - Performance Metrics
 
 ```{r 04-rf-no-resampling-metrics, echo=TRUE}
 # Metrics
-rf_none_metrics <- all_metrics(rf_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+rf_none_metrics <- all_metrics(rf_preds_none, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 rf_none_metrics %>%
@@ -769,7 +810,7 @@ rf_none_metrics %>%
 ```
 
 ```{r 04-rf-no-resampling-confmat, echo=TRUE}
-rf_cm_none <- conf_mat(rf_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+rf_cm_none <- conf_mat(rf_preds_none, truth = monitoring_turnover_risk, estimate = .pred_class)
 rf_cm_df_none <- as.data.frame(rf_cm_none$table)
 
 rf_cm_df_none$Truth <- factor(rf_cm_df_none$Truth, levels = c("Yes", "No"))
@@ -797,7 +838,7 @@ ggplot(rf_cm_df_none, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-rf-no-resampling-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(rf_preds_none, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(rf_preds_none, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray70") +
   labs(
@@ -845,7 +886,7 @@ rf_fit_none %>%
 ```{r 04-rf-smote-workflow, message=FALSE}
 # Create Recipe from Base
 recipe_rf_smote <- base_recipe %>%
-  step_smote(Monitoring_Turnover_Risk)
+  step_smote(monitoring_turnover_risk)
 
 # Workflow with Random Forest
 workflow_rf_smote <- workflow() %>%
@@ -853,7 +894,7 @@ workflow_rf_smote <- workflow() %>%
   add_recipe(recipe_rf_smote)
 
 # Tune the RF model with cross-validation
-set.seed(42)
+set.seed(123)
 rf_tuned_smote <- tune_grid(
   workflow_rf_smote,
   resamples = mtr_folds,
@@ -873,14 +914,14 @@ rf_fit_smote <- fit(final_rf_workflow_smote, data = mtr_train_data)
 # Predict on test data
 rf_preds_smote <- predict(rf_fit_smote, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(rf_fit_smote, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Random Forest - SMOTE - Performance Metrics
 
 ```{r 04-rf-smote-metrics, echo=TRUE}
 # Metrics
-rf_smote_metrics <- all_metrics(rf_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+rf_smote_metrics <- all_metrics(rf_preds_smote, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 rf_smote_metrics %>%
@@ -908,7 +949,7 @@ rf_smote_metrics %>%
 
 ```{r 04-rf-smote-confmat, echo=TRUE}
 # Confusion Matrix
-rf_cm_smote <- conf_mat(rf_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+rf_cm_smote <- conf_mat(rf_preds_smote, truth = monitoring_turnover_risk, estimate = .pred_class)
 rf_cm_df_smote <- as.data.frame(rf_cm_smote$table)
 
 rf_cm_df_smote$Truth <- factor(rf_cm_df_smote$Truth, levels = c("Yes", "No"))
@@ -937,7 +978,7 @@ ggplot(rf_cm_df_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-rf-smote-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(rf_preds_smote, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(rf_preds_smote, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray70") +
   labs(
@@ -984,7 +1025,7 @@ rf_fit_smote %>%
 ```{r 04-rf-upsample-workflow, message=FALSE}
 # Create Recipe from Base
 recipe_rf_upsample <- base_recipe %>%
-  step_upsample(Monitoring_Turnover_Risk)
+  step_upsample(monitoring_turnover_risk)
 
 # Workflow with Random Forest
 workflow_rf_upsample <- workflow() %>%
@@ -992,7 +1033,7 @@ workflow_rf_upsample <- workflow() %>%
   add_recipe(recipe_rf_upsample)
 
 # Tune the RF model with cross-validation
-set.seed(42)
+set.seed(123)
 rf_tuned_upsample <- tune_grid(
   workflow_rf_upsample,
   resamples = mtr_folds,
@@ -1012,14 +1053,14 @@ rf_fit_upsample <- fit(final_rf_workflow_upsample, data = mtr_train_data)
 # Predict on test data
 rf_preds_upsample <- predict(rf_fit_upsample, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(rf_fit_upsample, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Random Forest - Upsampling - Performance Metrics
 
 ```{r 04-rf-upsample-metrics, echo=TRUE}
 # Metrics
-rf_upsample_metrics <- all_metrics(rf_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+rf_upsample_metrics <- all_metrics(rf_preds_upsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 rf_upsample_metrics %>%
@@ -1047,7 +1088,7 @@ rf_upsample_metrics %>%
 
 ```{r 04-rf-upsample-confmat, echo=TRUE}
 # Confusion Matrix
-rf_cm_up <- conf_mat(rf_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+rf_cm_up <- conf_mat(rf_preds_upsample, truth = monitoring_turnover_risk, estimate = .pred_class)
 rf_cm_df_up <- as.data.frame(rf_cm_up$table)
 
 rf_cm_df_up$Truth <- factor(rf_cm_df_up$Truth, levels = c("Yes", "No"))
@@ -1076,7 +1117,7 @@ ggplot(rf_cm_df_up, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-rf-upsample-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(rf_preds_upsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(rf_preds_upsample, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray70") +
   labs(
@@ -1125,7 +1166,7 @@ rf_fit_upsample %>%
 ```{r 04-rf-downsample-workflow, message=FALSE}
 # Create Recipe from Base
 recipe_rf_downsample <- base_recipe %>%
-  step_downsample(Monitoring_Turnover_Risk)
+  step_downsample(monitoring_turnover_risk)
 
 # Workflow with Random Forest
 workflow_rf_downsample <- workflow() %>%
@@ -1133,7 +1174,7 @@ workflow_rf_downsample <- workflow() %>%
   add_recipe(recipe_rf_downsample)
 
 # Tune the RF model with cross-validation
-set.seed(42)
+set.seed(123)
 rf_tuned_downsample <- tune_grid(
   workflow_rf_downsample,
   resamples = mtr_folds,
@@ -1153,14 +1194,14 @@ rf_fit_downsample <- fit(final_rf_workflow_downsample, data = mtr_train_data)
 # Predict on test data
 rf_preds_downsample <- predict(rf_fit_downsample, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(rf_fit_downsample, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Random Forest - Downsampling - Performance Metrics
 
 ```{r 04-rf-downsample-metrics, echo=TRUE}
 # Metrics
-rf_downsample_metrics <- all_metrics(rf_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+rf_downsample_metrics <- all_metrics(rf_preds_downsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 rf_downsample_metrics %>%
@@ -1188,7 +1229,7 @@ rf_downsample_metrics %>%
 
 ```{r 04-rf-downsample-confmat, echo=TRUE}
 # Confusion Matrix
-rf_cm_down <- conf_mat(rf_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+rf_cm_down <- conf_mat(rf_preds_downsample, truth = monitoring_turnover_risk, estimate = .pred_class)
 rf_cm_df_down <- as.data.frame(rf_cm_down$table)
 
 rf_cm_df_down$Truth <- factor(rf_cm_df_down$Truth, levels = c("Yes", "No"))
@@ -1217,7 +1258,7 @@ ggplot(rf_cm_df_down, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-rf-downsample-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(rf_preds_downsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(rf_preds_downsample, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray70") +
   labs(
@@ -1346,7 +1387,7 @@ workflow_xgb_none <- workflow() %>%
   add_recipe(recipe_xgb_none)
 
 # Tune the XGBoost model with cross-validation
-set.seed(42)
+set.seed(123)
 xgb_tuned <- tune_grid(
   workflow_xgb_none,
   resamples = mtr_folds,
@@ -1366,14 +1407,14 @@ xgb_fit_none <- fit(final_xgb_workflow, data = mtr_train_data)
 # Predict on test data
 xgb_preds_none <- predict(xgb_fit_none, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(xgb_fit_none, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### XGBoost - No Resampling - Performance Metrics
 
 ```{r 04-xgb-no-resampling-metrics, echo=TRUE}
 # Metrics
-xgb_none_metrics <- all_metrics(xgb_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+xgb_none_metrics <- all_metrics(xgb_preds_none, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 xgb_none_metrics %>%
@@ -1400,7 +1441,7 @@ xgb_none_metrics %>%
 
 ```{r 04-xgb-no-resampling-confmat, echo=TRUE}
 # Confusion Matrix
-xgb_cm_none <- conf_mat(xgb_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+xgb_cm_none <- conf_mat(xgb_preds_none, truth = monitoring_turnover_risk, estimate = .pred_class)
 xgb_cm_df_none <- as.data.frame(xgb_cm_none$table)
 
 xgb_cm_df_none$Truth <- factor(xgb_cm_df_none$Truth, levels = c("Yes", "No"))
@@ -1429,7 +1470,7 @@ ggplot(xgb_cm_df_none, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-xgb-no-resampling-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(xgb_preds_none, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(xgb_preds_none, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray70") +
   labs(
@@ -1478,7 +1519,7 @@ xgb_fit_none %>%
 ```{r 04-xgb-smote-workflow, message=FALSE}
 # Create SMOTE Recipe
 recipe_xgb_smote <- base_recipe %>%
-  step_smote(Monitoring_Turnover_Risk)
+  step_smote(monitoring_turnover_risk)
 
 # Build XGBoost Workflow with SMOTE
 workflow_xgb_smote <- workflow() %>%
@@ -1486,7 +1527,7 @@ workflow_xgb_smote <- workflow() %>%
   add_recipe(recipe_xgb_smote)
 
 # Tune Hyperparameters with Cross-Validation
-set.seed(42)
+set.seed(123)
 xgb_tuned_smote <- tune_grid(
   workflow_xgb_smote,
   resamples = mtr_folds,
@@ -1506,14 +1547,14 @@ xgb_fit_smote <- fit(final_xgb_workflow_smote, data = mtr_train_data)
 # Predict on Test Data
 xgb_preds_smote <- predict(xgb_fit_smote, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(xgb_fit_smote, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### XGBoost - SMOTE - Peformance Metrics
 
 ```{r 04-xgb-smote-metrics, echo=TRUE}
 # Metrics
-xgb_smote_metrics <- all_metrics(xgb_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+xgb_smote_metrics <- all_metrics(xgb_preds_smote, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 xgb_smote_metrics %>%
@@ -1541,7 +1582,7 @@ xgb_smote_metrics %>%
 
 ```{r 04-xgb-smote-confmat, echo=TRUE}
 # Confusion Matrix
-cm_xgb_smote <- conf_mat(xgb_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_xgb_smote <- conf_mat(xgb_preds_smote, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_xgb_smote <- as.data.frame(cm_xgb_smote$table)
 
 cm_df_xgb_smote$Truth <- factor(cm_df_xgb_smote$Truth, levels = c("Yes", "No"))
@@ -1570,7 +1611,7 @@ ggplot(cm_df_xgb_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-xgb-smote-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(xgb_preds_smote, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(xgb_preds_smote, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -1620,7 +1661,7 @@ ggplot(vip_xgb_smote, aes(x = Importance, y = Variable)) +
 ```{r 04-xgb-upsample-workflow, message=FALSE}
 # Create Recipe from Base
 recipe_xgb_upsample <- base_recipe %>%
-  step_upsample(Monitoring_Turnover_Risk)
+  step_upsample(monitoring_turnover_risk)
 
 # Workflow with XGBoost
 workflow_xgb_upsample <- workflow() %>%
@@ -1628,7 +1669,7 @@ workflow_xgb_upsample <- workflow() %>%
   add_recipe(recipe_xgb_upsample)
 
 # Tune the XGBoost model with cross-validation
-set.seed(42)
+set.seed(123)
 xgb_tuned_upsample <- tune_grid(
   workflow_xgb_upsample,
   resamples = mtr_folds,
@@ -1648,14 +1689,14 @@ xgb_fit_upsample <- fit(final_xgb_workflow_upsample, data = mtr_train_data)
 # Predict on test data
 xgb_preds_upsample <- predict(xgb_fit_upsample, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(xgb_fit_upsample, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### XGBoost - Upsampling - Performance Metrics
 
 ```{r 04-xgb-upsample-metrics, message=FALSE}
 # Metrics
-xgb_upsample_metrics <- all_metrics(xgb_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+xgb_upsample_metrics <- all_metrics(xgb_preds_upsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 xgb_upsample_metrics %>%
@@ -1683,7 +1724,7 @@ xgb_upsample_metrics %>%
 
 ```{r 04-xgb-upsample-confmat, echo=TRUE}
 # Confusion Matrix
-cm_xgb_upsample <- conf_mat(xgb_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_xgb_upsample <- conf_mat(xgb_preds_upsample, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_xgb_upsample <- as.data.frame(cm_xgb_upsample$table)
 
 cm_df_xgb_upsample$Truth <- factor(cm_df_xgb_upsample$Truth, levels = c("Yes", "No"))
@@ -1712,7 +1753,7 @@ ggplot(cm_df_xgb_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-xgb-upsample-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(xgb_preds_upsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(xgb_preds_upsample, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -1738,7 +1779,7 @@ baked_train <- prep(recipe_xgb_upsample, training = mtr_train_data) %>%
   bake(new_data = NULL)
 
 # Step 2: Get feature names from preprocessed data (after dummy variables)
-feature_names <- colnames(baked_train %>% select(-Monitoring_Turnover_Risk))
+feature_names <- colnames(baked_train %>% select(-monitoring_turnover_risk))
 
 # Step 3: Extract booster
 xgb_booster_upsample <- extract_fit_engine(xgb_fit_upsample)
@@ -1769,7 +1810,7 @@ vip::vip(
 ```{r 04-xgb-downsample-workflow, message=FALSE}
 # Create Recipe from Base
 recipe_xgb_downsample <- base_recipe %>%
-  step_downsample(Monitoring_Turnover_Risk)
+  step_downsample(monitoring_turnover_risk)
 
 # Workflow with XGBoost
 workflow_xgb_downsample <- workflow() %>%
@@ -1777,7 +1818,7 @@ workflow_xgb_downsample <- workflow() %>%
   add_recipe(recipe_xgb_downsample)
 
 # Tune the RF model with cross-validation
-set.seed(42)
+set.seed(123)
 xgb_tuned_downsample <- tune_grid(
   workflow_xgb_downsample,
   resamples = mtr_folds,
@@ -1797,14 +1838,14 @@ xgb_fit_downsample <- fit(final_xgb_workflow_downsample, data = mtr_train_data)
 # Predict on test data
 xgb_preds_downsample <- predict(xgb_fit_downsample, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(xgb_fit_downsample, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### XGBoost - Downsampling - Performance Metrics
 
 ```{r 04-xgb-downsample-metrics, echo=TRUE}
 # Metrics
-xgb_downsample_metrics <- all_metrics(xgb_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+xgb_downsample_metrics <- all_metrics(xgb_preds_downsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Print
 xgb_downsample_metrics %>%
@@ -1832,7 +1873,7 @@ xgb_downsample_metrics %>%
 
 ```{r 04-xgb-down-sample-confmat, echo=TRUE}
 # Confusion Matrix
-cm_xgb_down <- conf_mat(xgb_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_xgb_down <- conf_mat(xgb_preds_downsample, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_xgb_down <- as.data.frame(cm_xgb_down$table)
 
 cm_df_xgb_down$Truth <- factor(cm_df_xgb_down$Truth, levels = c("Yes", "No"))
@@ -1861,7 +1902,7 @@ ggplot(cm_df_xgb_down, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-xgb-downsample-roc-curve, echo=TRUE}
 # ROC Curve
-roc_curve(xgb_preds_downsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(xgb_preds_downsample, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -1910,13 +1951,13 @@ xgb_fit_downsample %>%
 ```{r 04-xgb-results-table, results='asis', echo=TRUE}
 # Combine metrics and label with model names
 xgb_results_table <- bind_rows(
-  all_metrics(xgb_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes) %>%
+  all_metrics(xgb_preds_none, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes) %>%
     mutate(model = "XGB - No Resampling"),
-  all_metrics(xgb_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes) %>%
+  all_metrics(xgb_preds_smote, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes) %>%
     mutate(model = "XGB - SMOTE"),
-  all_metrics(xgb_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes) %>%
+  all_metrics(xgb_preds_upsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes) %>%
     mutate(model = "XGB - Up Sampling"),
-  all_metrics(xgb_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes) %>%
+  all_metrics(xgb_preds_downsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes) %>%
     mutate(model = "XGB - Down Sampling")
 )
 
@@ -2007,7 +2048,7 @@ workflow_nb_none <- workflow() %>%
   add_recipe(base_recipe)
 
 # 10-Fold Cross-Validation on Training Data
-set.seed(42)
+set.seed(123)
 nb_cv_results <- fit_resamples(
   workflow_nb_none,
   resamples = mtr_folds,
@@ -2020,14 +2061,14 @@ nb_fit_none <- fit(workflow_nb_none, data = mtr_train_data)
 # Predict on Test Data
 nb_preds_none <- predict(nb_fit_none, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(nb_fit_none, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Naive Bayes - No Resampling - Performance Metrics
 
 ```{r 04-nb-metrics, echo=TRUE}
 # Metrics
-nb_none_metrics <- all_metrics(nb_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+nb_none_metrics <- all_metrics(nb_preds_none, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Plot
 nb_none_metrics %>%
@@ -2052,7 +2093,7 @@ nb_none_metrics %>%
 
 ```{r 04-nb-matrix-none, echo=TRUE}
 # Confusion Matrix
-cm_nb_none <- conf_mat(nb_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_nb_none <- conf_mat(nb_preds_none, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_nb_none <- as.data.frame(cm_nb_none$table)
 cm_df_nb_none$Truth <- factor(cm_df_nb_none$Truth, levels = c("Yes", "No"))
 cm_df_nb_none$Prediction <- factor(cm_df_nb_none$Prediction, levels = c("No", "Yes"))
@@ -2075,7 +2116,7 @@ ggplot(cm_df_nb_none, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-nb-roc-curve-none, echo=TRUE}
 # Roc
-roc_curve(nb_preds_none, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(nb_preds_none, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(title = "ROC Curve – NB (No Resampling)",
@@ -2095,7 +2136,7 @@ roc_curve(nb_preds_none, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
 ```{r 04-nb-smote, message=FALSE}
 # Create Upsampling Recipe
 recipe_nb_smote <- base_recipe %>%
-  step_smote(Monitoring_Turnover_Risk)
+  step_smote(monitoring_turnover_risk)
 
 # Build Workflow with Upsampling
 workflow_nb_smote <- workflow() %>%
@@ -2103,7 +2144,7 @@ workflow_nb_smote <- workflow() %>%
   add_recipe(recipe_nb_smote)
 
 # 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 nb_cv_smote <- fit_resamples(
   workflow_nb_smote,
   resamples = mtr_folds,
@@ -2116,14 +2157,14 @@ nb_fit_smote <- fit(workflow_nb_smote, data = mtr_train_data)
 # Predict on Test Set
 nb_preds_smote <- predict(nb_fit_smote, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(nb_fit_smote, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Naive Bayes - SMOTE - Performance Metrics
 
 ```{r 04-nb-smote-metrics, echo=TRUE}
 # Metrics
-nb_smote_metrics <- all_metrics(nb_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+nb_smote_metrics <- all_metrics(nb_preds_smote, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Print
 nb_smote_metrics %>%
@@ -2146,7 +2187,7 @@ nb_smote_metrics %>%
 
 ```{r 04-nb-smote-matrix, echo=TRUE}
 # Confusion Matrix
-cm_nb_smote <- conf_mat(nb_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_nb_smote <- conf_mat(nb_preds_smote, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_nb_smote <- as.data.frame(cm_nb_smote$table)
 cm_df_nb_smote$Truth <- factor(cm_df_nb_smote$Truth, levels = c("Yes", "No"))
 cm_df_nb_smote$Prediction <- factor(cm_df_nb_smote$Prediction, levels = c("No", "Yes"))
@@ -2169,7 +2210,7 @@ ggplot(cm_df_nb_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-nb-roc-curve-smote, echo=TRUE}
 # Roc
-roc_curve(nb_preds_smote, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(nb_preds_smote, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(title = "ROC Curve – NB (SMOTE)",
@@ -2189,7 +2230,7 @@ roc_curve(nb_preds_smote, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
 ```{r 04-nb-upsample}
 # Create Upsampling Recipe
 recipe_nb_upsample <- base_recipe %>%
-  step_upsample(Monitoring_Turnover_Risk)
+  step_upsample(monitoring_turnover_risk)
 
 # Build Workflow with Upsampling
 workflow_nb_upsample <- workflow() %>%
@@ -2197,7 +2238,7 @@ workflow_nb_upsample <- workflow() %>%
   add_recipe(recipe_nb_upsample)
 
 # 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 nb_cv_upsample <- fit_resamples(
   workflow_nb_upsample,
   resamples = mtr_folds,
@@ -2210,14 +2251,14 @@ nb_fit_upsample <- fit(workflow_nb_upsample, data = mtr_train_data)
 # Predict on Test Set
 nb_preds_upsample <- predict(nb_fit_upsample, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(nb_fit_upsample, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Naive Bayes - Upsampling - Performance Metrics
 
 ```{r 04-nb-upsample-metrics, echo=TRUE}
 # Metrics
-nb_upsample_metrics <- all_metrics(nb_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+nb_upsample_metrics <- all_metrics(nb_preds_upsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Print
 nb_upsample_metrics %>%
@@ -2240,7 +2281,7 @@ nb_upsample_metrics %>%
 
 ```{r 04-nb-matrix, echo=TRUE}
 # Confusion Matrix
-cm_nb_upsample <- conf_mat(nb_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_nb_upsample <- conf_mat(nb_preds_upsample, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_nb_upsample <- as.data.frame(cm_nb_upsample$table)
 cm_df_nb_upsample$Truth <- factor(cm_df_nb_upsample$Truth, levels = c("Yes", "No"))
 cm_df_nb_upsample$Prediction <- factor(cm_df_nb_upsample$Prediction, levels = c("No", "Yes"))
@@ -2263,7 +2304,7 @@ ggplot(cm_df_nb_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-nb-roc-curve-upsample, echo=TRUE}
 # Roc
-roc_curve(nb_preds_upsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(nb_preds_upsample, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(title = "ROC Curve – NB (Upsampling)",
@@ -2283,7 +2324,7 @@ roc_curve(nb_preds_upsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
 ```{r 04-nb-down-sample, message=FALSE}
 # Create Downsampling Recipe
 recipe_nb_downsample <- base_recipe %>%
-  step_downsample(Monitoring_Turnover_Risk)
+  step_downsample(monitoring_turnover_risk)
 
 # Build Workflow with Downsampling
 workflow_nb_downsample <- workflow() %>%
@@ -2291,7 +2332,7 @@ workflow_nb_downsample <- workflow() %>%
   add_recipe(recipe_nb_downsample)
 
 # 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 nb_cv_downsample <- fit_resamples(
   workflow_nb_downsample,
   resamples = mtr_folds,
@@ -2304,14 +2345,14 @@ nb_fit_downsample <- fit(workflow_nb_downsample, data = mtr_train_data)
 # Predict on Test Set
 nb_preds_downsample <- predict(nb_fit_downsample, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(nb_fit_downsample, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Naive Bayes - Downsampling - Performance Metrics
 
 ```{r 04-nb-down-sample-metrics, echo=TRUE}
 # Metrics
-nb_downsample_metrics <- all_metrics(nb_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+nb_downsample_metrics <- all_metrics(nb_preds_downsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Print
 nb_downsample_metrics %>%
@@ -2334,7 +2375,7 @@ nb_downsample_metrics %>%
 
 ```{r 04-nb-down-sample-matrix, echo=TRUE}
 # Confusion Marix
-cm_nb_downsample <- conf_mat(nb_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_nb_downsample <- conf_mat(nb_preds_downsample, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_nb_downsample <- as.data.frame(cm_nb_downsample$table)
 cm_df_nb_downsample$Truth <- factor(cm_df_nb_downsample$Truth, levels = c("Yes", "No"))
 cm_df_nb_downsample$Prediction <- factor(cm_df_nb_downsample$Prediction, levels = c("No", "Yes"))
@@ -2357,7 +2398,7 @@ ggplot(cm_df_nb_downsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-nb-down-sample-roc-curve, echo=TRUE}
 # Roc
-roc_curve(nb_preds_downsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(nb_preds_downsample, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(title = "ROC Curve – NB (Downsampling)",
@@ -2452,7 +2493,7 @@ workflow_svm_none <- workflow() %>%
   add_recipe(base_recipe)
 
 # Tuning
-set.seed(42)
+set.seed(123)
 
 svm_tuned <- tune_grid(
   workflow_svm_none,
@@ -2470,14 +2511,14 @@ svm_fit_none <- fit(final_svm_workflow, data = mtr_train_data)
 # Predict
 svm_preds_none <- predict(svm_fit_none, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(svm_fit_none, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Support Vector Machines - No Sampling - Performance Metrics
 
 ```{r 04-svm-no-sampling-metrics, echo=TRUE}
 # Metrics
-svm_none_metrics <- all_metrics(svm_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+svm_none_metrics <- all_metrics(svm_preds_none, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Print
 svm_none_metrics %>%
@@ -2494,7 +2535,7 @@ svm_none_metrics %>%
 
 ```{r 04-svm-matrix-no-sampling, echo=TRUE}
 # Confusion Matrix
-cm_svm_none <- conf_mat(svm_preds_none, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_svm_none <- conf_mat(svm_preds_none, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_svm_none <- as.data.frame(cm_svm_none$table)
 cm_df_svm_none$Truth <- factor(cm_df_svm_none$Truth, levels = c("Yes", "No"))
 cm_df_svm_none$Prediction <- factor(cm_df_svm_none$Prediction, levels = c("No", "Yes"))
@@ -2511,7 +2552,7 @@ ggplot(cm_df_svm_none, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-svm-roc-curve-no-sampling, echo=TRUE}
 # ROC Curve
-roc_curve(svm_preds_none, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(svm_preds_none, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray50") +
   labs(
@@ -2539,7 +2580,7 @@ svm_model <- svm_linear(cost = tune()) %>%
 
 # Create SMOTE Recipe
 recipe_svm_smote <- base_recipe %>%
-  step_smote(Monitoring_Turnover_Risk)
+  step_smote(monitoring_turnover_risk)
 
 # Build Workflow
 workflow_svm_smote <- workflow() %>%
@@ -2547,7 +2588,7 @@ workflow_svm_smote <- workflow() %>%
   add_recipe(recipe_svm_smote)
 
 # Tune with 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 svm_tuned_smote <- tune_grid(
   workflow_svm_smote,
   resamples = mtr_folds,
@@ -2567,14 +2608,14 @@ svm_fit_smote <- fit(final_svm_workflow_smote, data = mtr_train_data)
 # Predict on Test Data
 svm_preds_smote <- predict(svm_fit_smote, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(svm_fit_smote, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Support Vector Machines - Smote - Performance Metrics
 
 ```{r 04-svm-smote-metrics, echo=TRUE}
 # Metrics
-svm_smote_metrics <- all_metrics(svm_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+svm_smote_metrics <- all_metrics(svm_preds_smote, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Print
 svm_smote_metrics %>%
@@ -2599,7 +2640,7 @@ svm_smote_metrics %>%
 
 ```{r 04-svm-matrix-smote, echo=TRUE}
 # Confusion Matrix
-cm_svm_smote <- conf_mat(svm_preds_smote, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_svm_smote <- conf_mat(svm_preds_smote, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_svm_smote <- as.data.frame(cm_svm_smote$table)
 
 cm_df_svm_smote$Truth <- factor(cm_df_svm_smote$Truth, levels = c("Yes", "No"))
@@ -2626,7 +2667,7 @@ ggplot(cm_df_svm_smote, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-svm-roc-curve-smote, echo=TRUE}
 # ROC Curve
-roc_curve(svm_preds_smote, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(svm_preds_smote, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -2655,7 +2696,7 @@ svm_model <- svm_linear(cost = tune()) %>%
 
 # Create SMOTE Recipe
 recipe_svm_upsample <- base_recipe %>%
-  step_upsample(Monitoring_Turnover_Risk)
+  step_upsample(monitoring_turnover_risk)
 
 # Build Workflow
 workflow_svm_upsample <- workflow() %>%
@@ -2663,7 +2704,7 @@ workflow_svm_upsample <- workflow() %>%
   add_recipe(recipe_svm_upsample)
 
 # Tune with 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 svm_tuned_upsample <- tune_grid(
   workflow_svm_upsample,
   resamples = mtr_folds,
@@ -2683,14 +2724,14 @@ svm_fit_upsample <- fit(final_svm_workflow_upsample, data = mtr_train_data)
 # Predict on Test Data
 svm_preds_upsample <- predict(svm_fit_upsample, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(svm_fit_upsample, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Support Vector Machines - Upsampling - Performance Metrics
 
 ```{r 04-svm-upsample-metrics, echo=TRUE}
 # Metrics
-svm_upsample_metrics <- all_metrics(svm_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+svm_upsample_metrics <- all_metrics(svm_preds_upsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Print
 svm_upsample_metrics %>%
@@ -2715,7 +2756,7 @@ svm_upsample_metrics %>%
 
 ```{r 04-svm-matrix-upsample, echo=TRUE}
 # Confusion Matrix
-cm_svm_upsample <- conf_mat(svm_preds_upsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_svm_upsample <- conf_mat(svm_preds_upsample, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_svm_upsample <- as.data.frame(cm_svm_upsample$table)
 
 cm_df_svm_upsample$Truth <- factor(cm_df_svm_upsample$Truth, levels = c("Yes", "No"))
@@ -2742,7 +2783,7 @@ ggplot(cm_df_svm_upsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-svm-roc-curve-upsample, echo=TRUE}
 # ROC Curve
-roc_curve(svm_preds_upsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(svm_preds_upsample, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -2771,7 +2812,7 @@ svm_model <- svm_linear(cost = tune()) %>%
 
 # Create SMOTE Recipe
 recipe_svm_downsample <- base_recipe %>%
-  step_downsample(Monitoring_Turnover_Risk)
+  step_downsample(monitoring_turnover_risk)
 
 # Build Workflow
 workflow_svm_downsample <- workflow() %>%
@@ -2779,7 +2820,7 @@ workflow_svm_downsample <- workflow() %>%
   add_recipe(recipe_svm_downsample)
 
 # Tune with 10-Fold Cross-Validation
-set.seed(42)
+set.seed(123)
 svm_tuned_downsample <- tune_grid(
   workflow_svm_downsample,
   resamples = mtr_folds,
@@ -2799,14 +2840,14 @@ svm_fit_downsample <- fit(final_svm_workflow_downsample, data = mtr_train_data)
 # Predict on Test Data
 svm_preds_downsample <- predict(svm_fit_downsample, new_data = mtr_test_data, type = "prob") %>%
   bind_cols(predict(svm_fit_downsample, new_data = mtr_test_data)) %>%
-  bind_cols(mtr_test_data %>% select(Monitoring_Turnover_Risk))
+  bind_cols(mtr_test_data %>% select(monitoring_turnover_risk))
 ```
 
 ### Support Vector Machines - Upsampling - Performance Metrics
 
 ```{r 04-svm-downsampling-metrics, echo=TRUE}
 # Metrics
-svm_downsample_metrics <- all_metrics(svm_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class, .pred_Yes)
+svm_downsample_metrics <- all_metrics(svm_preds_downsample, truth = monitoring_turnover_risk, estimate = .pred_class, .pred_Yes)
 
 # Print
 svm_downsample_metrics %>%
@@ -2831,7 +2872,7 @@ svm_downsample_metrics %>%
 
 ```{r 04-svm-matrix-downsample, echo=TRUE}
 # Confusion Matrix
-cm_svm_downsample <- conf_mat(svm_preds_downsample, truth = Monitoring_Turnover_Risk, estimate = .pred_class)
+cm_svm_downsample <- conf_mat(svm_preds_downsample, truth = monitoring_turnover_risk, estimate = .pred_class)
 cm_df_svm_downsample <- as.data.frame(cm_svm_downsample$table)
 
 cm_df_svm_downsample$Truth <- factor(cm_df_svm_downsample$Truth, levels = c("Yes", "No"))
@@ -2858,7 +2899,7 @@ ggplot(cm_df_svm_downsample, aes(x = Prediction, y = Truth, fill = Freq)) +
 
 ```{r 04-svm-roc-curve-downsample, echo=TRUE}
 # ROC Curve
-roc_curve(svm_preds_downsample, truth = Monitoring_Turnover_Risk, .pred_Yes) %>%
+roc_curve(svm_preds_downsample, truth = monitoring_turnover_risk, .pred_Yes) %>%
   autoplot() +
   geom_abline(linetype = "dashed", color = "gray60", size = 0.8) +
   labs(
@@ -2948,7 +2989,7 @@ model_colors <- c(
   "Logistic" = "#4B9CD3",
   "Random Forest" = "#3FA34D",
   "XGBoost" = "#E87461",
-  "Naive Bayes" = "#FFD700",
+  "Naive Bayes" = "#F4D03F",
   "SVM" = "#9370DB"
 )
 
@@ -3271,20 +3312,9 @@ Logistic Regression provides a **transparent, interpretable option** with consis
 
 Naive Bayes stood out for its **highest ROC AUC**, offering **stronger probability calibration** despite lower recall. It’s a great option for **risk scoring and ranking**, especially in scenarios where prioritization is key.
 
-
-<div style="display: flex; justify-content: space-between; margin-top: 20px; margin-bottom: 30px;">
-  <a href="HR_Data_Quiet_Quitting_Results.html" style="background-color: #4B9CD3; color: white; padding: 10px 20px; 
-     text-align: center; text-decoration: none; font-size: 16px; border-radius: 8px;">
-    🔗 Back to Quiet Quitting Results
-  </a>
-
-  <a href="HR_Data_EDA.html" style="background-color: #E74C3C; color: white; padding: 10px 20px; 
-     text-align: center; text-decoration: none; font-size: 16px; border-radius: 8px;">
-    🔗 Back to HR EDA
-  </a>
+<div class="page-nav">
+  <a href="HR_Data_Quiet_Quitting_Results.html" class="btn-clean">← Back</a>
+  <a href="HR_Data_Insights_Gleaned.html" class="btn-clean">Next →</a>
 </div>
 
-```{r 00-image-save, include=FALSE}
-# Save the current R session to restore later
-save.image(file = "outputs/my_environment.RData")
-```
+</div>

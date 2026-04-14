@@ -1,0 +1,223 @@
+/* ============================= */
+/* DESIGN TOKENS (CONSISTENCY)   */
+/* ============================= */
+
+:root {
+  --space-sm: 12px;
+  --space-md: 18px;
+  --space-lg: 30px;
+
+  --text-main: #333;
+  --text-muted: #666;
+
+  --shadow-sm: 0 6px 16px rgba(0,0,0,0.15);
+  --shadow-md: 0 10px 22px rgba(0,0,0,0.25);
+
+  --radius-md: 12px;
+  --radius-lg: 14px;
+}
+
+/* ============================= */
+/* BASE                          */
+/* ============================= */
+
+body {
+  background: #f4f7fb;
+  font-family: "Segoe UI", sans-serif;
+  margin: 0;
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================= */
+/* LAYOUT                        */
+/* ============================= */
+
+.main-container {
+  max-width: 1100px;
+  margin: var(--space-lg) auto;
+  background: white;
+  padding: 30px 40px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+/* ================================= */
+/* HERO                              */
+/* ================================= */
+
+.hero-section {
+  text-align: center;
+  padding: 20px 20px;
+  background: linear-gradient(135deg, #EEF5FB, #F8FBFF);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+}
+
+.hero-section h1 {
+  font-size: 30px;
+  margin-bottom: 6px;
+  letter-spacing: -0.3px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.hero-subtitle {
+  font-size: 15px;
+  color: var(--text-muted);
+  max-width: 680px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ============================= */
+/* HEADERS                       */
+/* ============================= */
+
+h2 {
+  margin-top: 35px;
+  border-bottom: 2px solid #eef2f7;
+  padding-bottom: 6px;
+  font-size: 22px;
+}
+
+h4 {
+  font-size: 17px;
+}
+
+/* ============================= */
+/* TEXT                          */
+/* ============================= */
+
+.section-intro {
+  margin: var(--space-md) 0;
+  line-height: 1.7;
+  color: #444;
+}
+
+p {
+  margin-bottom: var(--space-sm);
+  line-height: 1.65;
+}
+
+/* ============================= */
+/* CARD                          */
+/* ============================= */
+
+.card {
+  background: white;
+  padding: 22px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+}
+
+/* ============================= */
+/* TAKEAWAY BOX                  */
+/* ============================= */
+
+.takeaway-box {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  margin: var(--space-md) 0;
+  font-size: 14px;
+  background: linear-gradient(135deg, #eef6ff, #e3f0ff);
+}
+
+/* ============================= */
+/* DIVIDER                       */
+/* ============================= */
+
+.section-divider {
+  margin: var(--space-lg) 0;
+  border: none;
+  border-top: 1px solid #e0e6ed;
+}
+
+/* ============================= */
+/* TOC                           */
+/* ============================= */
+
+.tocify {
+  background: white !important;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+  padding: 10px;
+  left: 0 !important;
+}
+
+.tocify .list-group-item {
+  border: none;
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.tocify .list-group-item.active {
+  background: #2E86C1;
+  color: white;
+  border-radius: 6px;
+}
+
+.tocify .list-group-item:hover {
+  background: #f0f6ff;
+  border-radius: 6px;
+}
+
+/* ============================= */
+/* FULL WIDTH FIX                */
+/* ============================= */
+
+body .container,
+body .container-fluid {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ============================= */
+/* CTA BUTTONS                   */
+/* ============================= */
+
+.cta-btn {
+  display:inline-block;
+  padding:12px 30px;
+  border-radius:999px;
+  font-weight:600;
+  font-size:15px;
+  color:white;
+  text-decoration:none;
+  border:2px solid rgba(0,0,0,0.12);
+  box-shadow: var(--shadow-sm);
+  transition:all 0.25s ease;
+}
+
+.cta-btn:hover {
+  transform:translateY(-2px) scale(1.03);
+  box-shadow: var(--shadow-md);
+}
+
+/* PRIMARY (GREEN - MODELING) */
+.cta-primary {
+  background:linear-gradient(135deg, #2A9D8F, #52B788);
+  box-shadow:0 6px 16px rgba(42, 157, 143, 0.35);
+}
+
+.cta-primary:hover {
+  box-shadow:0 10px 22px rgba(42, 157, 143, 0.45);
+}
+
+/* NEXT */
+.cta-next {
+  background:linear-gradient(135deg, #FF7675, #922B21);
+}
+
+/* BACK */
+.cta-back {
+  background:linear-gradient(135deg, #74B9FF, #2E86C1);
+}

@@ -5,115 +5,251 @@ date: "`r format(Sys.Date(), '%B %d, %Y')`"
 
 output:
   html_document:
+    always_allow_html: true
     self_contained: false
-    theme: flatly
+    theme: null
     toc: false
+    toc_float: false
+    number_sections: false
+    output_file: Index.html
+    css: "assets/styles.css"
 ---
 
-# Project Overview
+```{=html}
+<div class="main-container">
 
-This project demonstrates how **synthetic HR datasets can support modern workforce analytics and predictive modeling workflows**.
-
-The dataset was constructed using research-informed workforce variables covering:
-
-- employee demographics
-- workplace monitoring
-- job satisfaction
-- employee wellbeing
-- performance metrics
-- privacy perceptions
-- attrition indicators
-
-The goal is to evaluate whether **synthetic data can support realistic exploratory analysis and predictive modeling** for workforce outcomes.
-
-The dataset contains:
-
-- **1,000 employees**
-- **73 variables**
-- multiple behavioral and organizational constructs
-
----
-
-# Analytical Workflow
-
-The project follows a structured analytics pipeline:
-
-Synthetic Data Generation (Python)
-            ↓
-Exploratory Data Analysis (R)
-            ↓
-Predictive Modeling
-            ↓
-Model Comparison
-            ↓
-Insights and Recommendations
-
----
-
-## Reports
-
-### Exploratory Data Analysis
-
-This report examines dataset structure, distributions, correlations, skewness, and multicollinearity diagnostics.
-
-<div style="margin-top:20px;">
-<a href="hr_data_eda.html"
-style="background:#4B9CD3;color:white;padding:12px 20px;border-radius:8px;text-decoration:none;display:inline-block;">
-View Exploratory Data Analysis
-</a>
+<div class="hero-section">
+  <h1>Workforce Analytics Using Synthetic HR Data</h1>
+  <p class="hero-subtitle">
+    An end-to-end HR analytics pipeline leveraging synthetic data to model employee behavior, predict turnover risk, and generate actionable workforce insights.
+  </p>
 </div>
 
----
+<hr class="section-divider">
 
-### Modeling
+<h2>🔍 Project Overview</h2>
 
-This report evaluates multiple classification algorithms for predicting employee **turnover intention**, **quiet quitting**, and **monitoring-related turnover risk**.
+<div class="section-intro">
+This project simulates a real-world HR analytics environment using synthetic data informed by industry trends. It demonstrates how organizations can build scalable data pipelines to analyze workforce behavior, predict employee outcomes, and support data-driven decision-making.
+</div>
 
-Models tested include:
+<div class="takeaway-box logistic">
+<b>Core Focus:</b> Turnover Intention • Quiet Quitting • Monitoring-Based Risk
+</div>
 
-- Logistic Regression  
-- Random Forest  
-- XGBoost  
-- Support Vector Machines  
-- Naive Bayes  
+<hr class="section-divider">
 
-Each model is evaluated using:
+<h2>🧭 Explore the Analysis</h2>
 
-- No Resampling  
-- Up-Sampling  
-- Down-Sampling  
-- SMOTE  
+<div class="grid-3">
 
-<br>
+  <div class="card">
+    <h4>📊 Exploratory Data Analysis</h4>
+    <p>
+      Explore workforce structure, behavioral distributions, and key correlations that establish the analytical foundation for modeling employee outcomes.
+    </p>
+    <div class="center-block">
+      <a href="HR_Data_EDA.html" style="
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-width:170px;
+        padding:12px 26px;
+        border-radius:999px;
+        border:2px solid rgba(0,0,0,0.22);
+        background:linear-gradient(135deg, #74B9FF, #4B9CD3, #2E86C1);
+        background-size:200% 200%;
+        color:#ffffff;
+        text-decoration:none;
+        font-weight:600;
+        font-size:15px;
+        line-height:1;
+        box-shadow:0 6px 16px rgba(0,0,0,0.18);">
+        View EDA
+      </a>
+    </div>
+  </div>
 
-<div style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap; margin-top:25px;">
+  <div class="card">
+    <h4>🚨 Turnover Intention Modeling</h4>
+    <p>
+      Model employee departure risk using multiple supervised learning techniques, identifying the strongest drivers of attrition across organizational and behavioral factors.
+    </p>
+    <div class="center-block">
+      <a href="HR_Data_Turnover_Intention_Results.html" style="
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-width:170px;
+        padding:12px 26px;
+        border-radius:999px;
+        border:2px solid rgba(0,0,0,0.22);
+        background:linear-gradient(135deg, #FF7675, #C0392B, #922B21);
+        background-size:200% 200%;
+        color:#ffffff;
+        text-decoration:none;
+        font-weight:600;
+        font-size:15px;
+        line-height:1;
+        box-shadow:0 6px 16px rgba(0,0,0,0.18);">
+        View Results
+      </a>
+    </div>
+  </div>
 
-<a href="HR_Data_Turnover_Intention_Results.html"
-style="background:#4B9CD3;color:white;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:600;">
-Turnover Intention
-</a>
-
-<a href="HR_Data_Quiet_Quitting_Results.html"
-style="background:#5FA8D3;color:white;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:600;">
-Quiet Quitting
-</a>
-
-<a href="HR_Data_Monitoring_Turnover_Risk_Results.html"
-style="background:#6FAED9;color:white;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:600;">
-Monitoring Turnover Risk
-</a>
+  <div class="card">
+    <h4>💤 Quiet Quitting Analysis</h4>
+    <p>
+      Detect patterns of disengagement and reduced discretionary effort through behavioral, performance, and satisfaction indicators.
+    </p>
+    <div class="center-block">
+      <a href="HR_Data_Quiet_Quitting_Results.html" style="
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-width:170px;
+        padding:12px 26px;
+        border-radius:999px;
+        border:2px solid rgba(0,0,0,0.22);
+        background:linear-gradient(135deg, #B39DDB, #7E57C2, #5E35B1);
+        background-size:200% 200%;
+        color:#ffffff;
+        text-decoration:none;
+        font-weight:600;
+        font-size:15px;
+        line-height:1;
+        box-shadow:0 6px 16px rgba(0,0,0,0.18);">
+        View Results
+      </a>
+    </div>
+  </div>
 
 </div>
 
----
+<div class="grid-3">
 
-### Insights Gleaned
+  <div class="card">
+    <h4>🔒 Monitoring & Privacy Risk</h4>
+    <p>
+      Examine how workplace surveillance, trust, and privacy concerns influence employee behavior and turnover risk.
+    </p>
+    <div class="center-block">
+      <a href="HR_Data_Monitoring_Turnover_Risk_Results.html" style="
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-width:170px;
+        padding:12px 26px;
+        border-radius:999px;
+        border:2px solid rgba(0,0,0,0.22);
+        background:linear-gradient(135deg, #F8C471, #E67E22, #BA4A00);
+        background-size:200% 200%;
+        color:#ffffff;
+        text-decoration:none;
+        font-weight:600;
+        font-size:15px;
+        line-height:1;
+        box-shadow:0 6px 16px rgba(0,0,0,0.18);">
+        View Results
+      </a>
+    </div>
+  </div>
 
-This final report synthesizes key findings across the EDA and predictive modeling reports, highlighting the most important workforce patterns, modeling takeaways, and practical implications of the synthetic HR analytics pipeline.
+  <div class="card">
+    <h4>💡 Insights & Recommendations</h4>
+    <p>
+      Translate analytical findings into executive-level insights and actionable workforce strategies that support retention, engagement, and organizational effectiveness.
+    </p>
+    <div class="center-block">
+      <a href="HR_Data_Insights_Gleaned.html" style="
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-width:170px;
+        padding:12px 26px;
+        border-radius:999px;
+        border:2px solid rgba(0,0,0,0.22);
+        background:linear-gradient(135deg, #48C9B0, #16A085, #0E6655);
+        background-size:200% 200%;
+        color:#ffffff;
+        text-decoration:none;
+        font-weight:600;
+        font-size:15px;
+        line-height:1;
+        box-shadow:0 6px 16px rgba(0,0,0,0.18);">
+        View Insights
+      </a>
+    </div>
+  </div>
 
-<div style="margin-top:20px;">
-<a href="HR_Data_Insights_Gleaned.html"
-style="background:#4B9CD3;color:white;padding:12px 20px;border-radius:8px;text-decoration:none;display:inline-block;">
-View Insights Gleaned
-</a>
+  <div class="card">
+    <h4>⚙️ Modeling Approach</h4>
+    <p>
+      Compare performance across models, validation strategies, and evaluation metrics to identify the most effective predictive approaches.
+    </p>
+  </div>
+
 </div>
+
+<div class="grid-3">
+
+  <div class="card">
+    <h4>🔄 Data Pipeline</h4>
+    <p>
+      Structured ETL pipeline covering data generation, transformation, modeling, and visualization.
+    </p>
+  </div>
+
+  <div class="card">
+    <h4>🎯 Predictive Modeling</h4>
+    <p>
+      Classification models evaluating workforce outcomes using machine learning techniques and performance metrics.
+    </p>
+  </div>
+
+  <div class="card">
+    <h4>🔗 Data Pipeline Design</h4>
+    <p>
+      End-to-end workflow connecting synthetic data generation, model development, and reporting outputs.
+    </p>
+  </div>
+
+</div>
+
+<hr class="section-divider">
+
+<h2>🧠 Key Capabilities Demonstrated</h2>
+
+<div class="grid-3">
+
+  <div class="card">
+    <h4>🎯 Predictive Modeling</h4>
+    <p>Logistic Regression, Random Forest, XGBoost, Naïve Bayes, and SVM.</p>
+  </div>
+
+  <div class="card">
+    <h4>🔗 Data Pipeline Design</h4>
+    <p>End-to-end ETL workflow and scalable analytics structure.</p>
+  </div>
+
+  <div class="card">
+    <h4>📈 Visualization & Storytelling</h4>
+    <p>Decision-focused visualizations designed for stakeholder communication and insight delivery.</p>
+  </div>
+
+</div>
+
+<hr class="section-divider">
+
+<h2>🚀 Why This Project Matters</h2>
+
+<div class="section-intro">
+Synthetic data enables ethical experimentation while preserving realism, allowing organizations to build and validate analytics pipelines without exposing sensitive employee information.
+</div>
+
+<div class="takeaway-box rf">
+<b>Outcome:</b> A scalable analytics blueprint for workforce decision-making and predictive HR strategy.
+</div>
+
+</div>
+```
