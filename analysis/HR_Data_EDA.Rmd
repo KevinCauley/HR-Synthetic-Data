@@ -69,8 +69,15 @@ knitr::opts_chunk$set(
   fig.height = 6,
   dpi = 300,
   cache = FALSE,
-  fig.path = "IGNORE/"
+  fig.path = "figures/eda/"
 )
+
+# Image Display Helper
+show_plot <- function(filename) {
+  knitr::include_graphics(
+    file.path("figures", "eda", filename)
+  )
+}
 
 # Color System
 hr_palette <- list(
@@ -706,17 +713,9 @@ top_continuous <- numeric_df %>%
 
 plots <- lapply(top_continuous, function(var) {
   ggplot(hr_df, aes(x = .data[[var]])) +
-    geom_histogram(
-      fill = hr_palette$primary,
-      bins = 30,
-      alpha = 0.8
-    ) +
+    geom_histogram(fill = hr_palette$primary, bins = 30, alpha = 0.8) +
     geom_density(color = "black", linewidth = 1.1) +
-    labs(
-      title = clean_label(var),
-      x = NULL,
-      y = "Density"
-    ) +
+    labs(title = clean_label(var), x = NULL, y = "Density") +
     theme_hr(10)
 })
 
@@ -738,7 +737,7 @@ numeric_df <- hr_df %>%
   select(where(~ var(.x, na.rm = TRUE) > 0))
 
 likert_vars <- numeric_df %>%
-  select(where(~ is.numeric(.x) && max(.x, na.rm = TRUE) <= 7)) %>%
+  select(where(~ max(.x, na.rm = TRUE) <= 7)) %>%
   names()
 
 top_likert <- numeric_df %>%
@@ -755,15 +754,8 @@ plots <- lapply(top_likert, function(var) {
 
   ggplot(df, aes(x = factor(.data[[var]]), y = n, fill = n)) +
     geom_col() +
-    scale_fill_gradient(
-      low = "#A8DADC",
-      high = "#1D3557"
-    ) +
-    labs(
-      title = clean_label(var),
-      x = "Response",
-      y = "Count"
-    ) +
+    scale_fill_gradient(low = "#A8DADC", high = "#1D3557") +
+    labs(title = clean_label(var), x = "Response", y = "Count") +
     theme_hr(10) +
     theme(legend.position = "none")
 })
@@ -858,68 +850,38 @@ Stronger relationships are emphasized visually, while weaker correlations are in
 ```{r correlation-matrix-elite, fig.width=12, fig.height=10, dpi=300}
 hr_df <- get_hr_df()
 
-# Data Prep
 numeric_data <- safe_numeric(hr_df)
 
 corr_matrix <- cor(numeric_data, use = "complete.obs")
 
-# Cluster ordering
 hc <- hclust(dist(corr_matrix))
 corr_matrix <- corr_matrix[hc$order, hc$order]
 
 corr_df <- reshape2::melt(corr_matrix)
 
-# Filter Weak Correlations
 corr_df <- corr_df %>%
   mutate(abs_corr = abs(value)) %>%
-  filter(abs_corr >= 0.10)
-
-# Clean Labels
-corr_df <- corr_df %>%
+  filter(abs_corr >= 0.10) %>%
   mutate(
     Var1 = clean_label(Var1),
     Var2 = clean_label(Var2)
   )
 
-# Plot
 p <- ggplot(corr_df, aes(x = Var1, y = Var2, fill = value)) +
-
-  geom_tile(
-    aes(alpha = abs(value)),
-    color = "white",
-    linewidth = 0.2
-  ) +
-
-  scale_alpha(
-    range = c(0.35, 1),
-    guide = "none"
-  ) +
-
+  geom_tile(aes(alpha = abs(value)), color = "white", linewidth = 0.2) +
+  scale_alpha(range = c(0.35, 1), guide = "none") +
   scale_fill_gradient2(
     low = "#D7263D",
     mid = "white",
     high = "#2A9D8F",
     midpoint = 0,
-    limits = c(-1, 1),
-    name = "Correlation"
+    limits = c(-1, 1)
   ) +
-
-  labs(
-    title = "Correlation Matrix of Workforce Variables",
-    subtitle = "Filtered (|r| ≥ 0.10) • Behavioral signal preserved • Multicollinearity de-emphasized",
-    x = NULL,
-    y = NULL
-  ) +
-
   theme_minimal(base_size = 12) +
-
   theme(
-    plot.title = element_text(size = 18, face = "bold"),
-    plot.subtitle = element_text(size = 11, color = "#555"),
     axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
     axis.text.y = element_text(size = 7),
-    panel.grid = element_blank(),
-    legend.position = "right"
+    panel.grid = element_blank()
   )
 
 print(p)

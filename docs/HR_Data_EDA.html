@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Allen Cauley" />
 
-<meta name="date" content="2026-04-13" />
+<meta name="date" content="2026-04-15" />
 
 <title>Workforce Analytics Using Synthetic HR Data: Exploratory Data Analysis</title>
 
@@ -261,7 +261,7 @@ div.tocify {
 <h1 class="title toc-ignore">Workforce Analytics Using Synthetic HR
 Data: Exploratory Data Analysis</h1>
 <h4 class="author">Kevin Allen Cauley</h4>
-<h4 class="date">April 13, 2026</h4>
+<h4 class="date">April 15, 2026</h4>
 
 </div>
 
@@ -5211,14 +5211,14 @@ statistical and graphical techniques.</p>
 <h2>Continuous Variable Distributions</h2>
 <p>We use histogram and density plots to inspect the spread and shape of
 continuous variables.</p>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/04-continuous-distributions-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/04-continuous-distributions-1.png" width="100%" style="display: block; margin: auto;" /></p>
 </div>
 <div id="likert-scale-variable-distributions" class="section level2">
 <h2>Likert Scale Variable Distributions</h2>
 <p>Likert-scale variables are plotted as bar charts to show the
 distribution of employee attitudes, perceptions, and satisfaction
 levels.</p>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/04-likert-distributions-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/04-likert-distributions-1.png" width="100%" style="display: block; margin: auto;" /></p>
 <div id="interpretation" class="section level3">
 <h3>Interpretation</h3>
 <p>Several productivity and engagement metrics appear normally
@@ -5242,7 +5242,7 @@ represent realistic workforce variation or potential data anomalies that
 may require transformation or robust modeling techniques.</p>
 <div id="likert-variables-outliers" class="section level3">
 <h3>Likert Variables (Outliers)</h3>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/04-outliers-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/04-outliers-1.png" width="100%" style="display: block; margin: auto;" /></p>
 </div>
 </div>
 </div>
@@ -5274,7 +5274,7 @@ This threshold reduces visual noise while retaining subtle but important
 behavioral signals commonly observed in workforce and organizational
 data. Stronger relationships are emphasized visually, while weaker
 correlations are intentionally de-emphasized.</p>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/correlation-matrix-elite-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/correlation-matrix-elite-1.png" width="100%" style="display: block; margin: auto;" /></p>
 <div id="interpreting-correlation-strength" class="section level3">
 <h3>Interpreting Correlation Strength</h3>
 <p>Correlation coefficients (r) measure the strength and direction of
@@ -5316,7 +5316,7 @@ These localized correlation structures suggest that while the dataset is broadly
 </div>
 <div id="pairwise-relationship-exploration" class="section level2">
 <h2>Pairwise Relationship Exploration</h2>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/05-pairwise-correlation-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/05-pairwise-correlation-1.png" width="100%" style="display: block; margin: auto;" /></p>
 <div id="key-correlation-insights" class="section level3">
 <h3>Key Correlation Insights</h3>
 <p>The correlation threshold exploration allows clearer interpretation
@@ -5385,10 +5385,10 @@ necessary during model development.</p>
 <h2>Target Variable Distributions</h2>
 <p>Below we visualize the target categorical outcomes: Turnover
 Intention, Quiet Quitting, and Monitoring Turnover Risk.</p>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/06-target-variable-distributions-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/06-target-variable-distributions-1.png" width="100%" style="display: block; margin: auto;" /></p>
 <div id="turnover-intention-by-department" class="section level3">
 <h3>Turnover Intention by Department</h3>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/06-turnover-by-department-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/06-turnover-by-department-1.png" width="100%" style="display: block; margin: auto;" /></p>
 </div>
 </div>
 </div>
@@ -5402,7 +5402,7 @@ redundant information</strong>. Variance Inflation Factor (VIF) is used
 to quantify this relationship.</p>
 <div id="vif-for-numeric-predictors" class="section level2">
 <h2>VIF for Numeric Predictors</h2>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/vif-numeric-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/vif-numeric-1.png" width="100%" style="display: block; margin: auto;" /></p>
 <div class="takeaway-box">
 <p><strong>Key Insight</strong></p>
 
@@ -5420,7 +5420,7 @@ A small number of variables show moderate inflation, which may reflect overlappi
 <h2>VIF for Categorical Predictors</h2>
 <p>To assess multicollinearity among categorical predictors, we convert
 factor variables into dummy variables using one-hot encoding.</p>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/vif-categorical-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/vif-categorical-1.png" width="100%" style="display: block; margin: auto;" /></p>
 <div class="takeaway-box">
 <p><strong>Key Insight</strong></p>
 
@@ -5477,7 +5477,7 @@ hr_df &lt;- hr_df %&gt;%
 <p>After collapsing the age categories into broader career stages, the
 multicollinearity diagnostics are recalculated for the categorical
 predictors to confirm that the issue has been resolved.</p>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/vif-categorical-updated-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/vif-categorical-updated-1.png" width="100%" style="display: block; margin: auto;" /></p>
 </div>
 </div>
 <div id="distribution-risk-imbalance-analysis" class="section level1">
@@ -5490,7 +5490,7 @@ behavioral patterns—such as extreme overtime, absenteeism, or mental
 health indicators occurring in a smaller subset of employees.</p>
 <div id="numeric-variable-skewness" class="section level2">
 <h2>Numeric Variable Skewness</h2>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/skewness-plot-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/skewness-plot-1.png" width="100%" style="display: block; margin: auto;" /></p>
 <div class="takeaway-box">
 <p><strong>Key Insight</strong></p>
 
@@ -5518,7 +5518,7 @@ performance.</p>
 within each categorical variable.</p>
 <div id="dominant-category-proportion" class="section level3">
 <h3>Dominant Category Proportion</h3>
-<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/IGNORE/categorical-distributions-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="C:/Users/kacau/HR-Synthetic-Data-Local/analysis/figures/eda/categorical-distributions-1.png" width="100%" style="display: block; margin: auto;" /></p>
 <div class="takeaway-box">
 <p><strong>Key Insight</strong></p>
 

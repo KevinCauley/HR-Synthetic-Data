@@ -116,7 +116,7 @@ knitr::opts_chunk$set(
   fig.height = 5,
   dpi = 300,
   cache = FALSE,
-  fig.path = "IGNORE/"
+  fig.path = "figures/turnover/"
 )
 ```
 
@@ -956,7 +956,11 @@ cm_df_rf_none$Prediction <- factor(cm_df_rf_none$Prediction, levels = c("No","Ye
 p <- ggplot(cm_df_rf_none, aes(Prediction, Truth, fill = Freq)) +
   geom_tile(color = "white", linewidth = 0.5) +
   geom_text(aes(label = Freq), color = "black", size = 5, fontface = "bold") +
-  scale_fill_gradient(low = "#e6f2ff", high = "#1A5276", name = "Frequency") +
+  scale_fill_gradient(
+    low = "#E8F5E9",
+    high = "#3FA34D",
+    name = "Frequency"
+  ) +
   labs(title = "Random Forest — No Sampling") +
   theme_hr(base_size = 13)
 
@@ -2958,7 +2962,7 @@ top5_model_scores <- final_metrics %>%
       "spec" = "Specificity",
       "roc_auc" = "ROC AUC"
     ),
-    Model = paste(Model, Resample, sep = " — ")
+    Model_Config = paste(Model, Resample, sep = " — ")
   ) %>%
   group_by(Metric) %>%
   slice_max(order_by = .estimate, n = 5, with_ties = FALSE) %>%
@@ -3063,13 +3067,18 @@ save_plot(p, "master_variable_importance.png", 14, 10, plot_dir)
 ## Turnover Intention - Top Five Performing Models Plot
 
 ```{r 04-best-model, fig.width=14, fig.height=10}
-p <- top5_model_scores %>%
+  p <- top5_model_scores %>%
   
   mutate(
-    Metric = factor(Metric, levels = c("Accuracy","Precision","Recall","F1 Score","Specificity","ROC AUC"))
+    Metric = factor(
+      Metric,
+      levels = c("Accuracy","Precision","Recall","F1 Score","Specificity","ROC AUC")
+    ),
+    
+    Model_Base = gsub(" — .*", "", Model_Config)
   ) %>%
   
-  ggplot(aes(x = Model_Config, y = Score, fill = Model_Config)) +
+  ggplot(aes(x = Model_Config, y = Score, fill = Model_Base)) +
   
   geom_col(width = 0.65) +
   
@@ -3081,7 +3090,7 @@ p <- top5_model_scores %>%
   
   facet_wrap(~ Metric, scales = "free_y") +
   
-  scale_fill_manual(values = rep(model_colors, each = 4)) +
+  scale_fill_manual(values = model_colors) +
   
   labs(
     title = "Top Performing Model Configurations by Metric",
