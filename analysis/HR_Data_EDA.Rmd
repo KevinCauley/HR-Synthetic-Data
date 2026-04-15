@@ -69,7 +69,7 @@ knitr::opts_chunk$set(
   fig.height = 6,
   dpi = 300,
   cache = FALSE,
-  fig.path = "figures/eda/"
+  fig.path = "docs/figures/eda/"
 )
 
 # Image Display Helper
