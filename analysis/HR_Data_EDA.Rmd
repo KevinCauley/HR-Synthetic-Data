@@ -72,13 +72,6 @@ knitr::opts_chunk$set(
   fig.path = "../docs/figures/eda/"
 )
 
-# Image Display Helper
-show_plot <- function(filename) {
-  knitr::include_graphics(
-    file.path("figures", "eda", filename)
-  )
-}
-
 # Color System
 hr_palette <- list(
   primary = "#5FA8D3",
