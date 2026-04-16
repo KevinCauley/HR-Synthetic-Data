@@ -15,8 +15,6 @@ output:
       collapsed: false
       smooth_scroll: true
     css: "assets/styles.css"
-    output_file: HR_Data_EDA.html
-    output_dir: ../docs
 
 number_sections: true
 ---
@@ -48,17 +46,17 @@ source(here::here("analysis", "helper.R"))
 # Reproducibility
 set.seed(123)
 
-# Root Directory
-library(rprojroot)
+# Root + Output Control (CRITICAL FIX)
 knitr::opts_knit$set(
-  root.dir = rprojroot::find_rstudio_root_file()
+  root.dir = here::here(),        # Always start at project root
+  base.dir = here::here("docs")   # Output resolves from docs/
 )
 
-# Output Directories
+# Output Directory for Plots
 plot_dir <- here::here("docs", "figures", "eda")
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
-# Global Chunk Options
+# Global Chunk Options (CLEAN + CORRECT)
 knitr::opts_chunk$set(
   echo = FALSE,
   warning = FALSE,
@@ -69,7 +67,8 @@ knitr::opts_chunk$set(
   fig.height = 6,
   dpi = 300,
   cache = FALSE,
-  fig.path = "../docs/figures/eda/"
+  fig.path = "figures/eda/",   # RELATIVE TO docs/
+  dev = "png"
 )
 
 # Color System

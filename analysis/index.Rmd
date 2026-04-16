@@ -18,12 +18,13 @@ output:
 ```{=html}
 <div class="main-container">
 
-<div class="hero-section">
-  <h1>Workforce Analytics Using Synthetic HR Data</h1>
-  <p class="hero-subtitle">
-    An end-to-end HR analytics pipeline leveraging synthetic data to model employee behavior, predict turnover risk, and generate actionable workforce insights.
-  </p>
-</div>
+<h1 class="hero-title">
+Workforce Analytics Using Synthetic HR Data
+</h1>
+
+<p class="hero-subtitle-left">
+A full analytics pipeline demonstrating how synthetic workforce data can be transformed into actionable insights on employee behavior, retention risk, and organizational health.
+</p>
 
 <hr class="section-divider">
 
@@ -33,7 +34,7 @@ output:
 This project simulates a real-world HR analytics environment using synthetic data informed by industry trends. It demonstrates how organizations can build scalable data pipelines to analyze workforce behavior, predict employee outcomes, and support data-driven decision-making.
 </div>
 
-<div class="takeaway-box logistic">
+<div class="takeaway-box">
 <b>Core Focus:</b> Turnover Intention • Quiet Quitting • Monitoring-Based Risk
 </div>
 
@@ -49,23 +50,8 @@ This project simulates a real-world HR analytics environment using synthetic dat
       Explore workforce structure, behavioral distributions, and key correlations that establish the analytical foundation for modeling employee outcomes.
     </p>
     <div class="center-block">
-      <a href="HR_Data_EDA.html" style="
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        min-width:170px;
-        padding:12px 26px;
-        border-radius:999px;
-        border:2px solid rgba(0,0,0,0.22);
-        background:linear-gradient(135deg, #74B9FF, #4B9CD3, #2E86C1);
-        background-size:200% 200%;
-        color:#ffffff;
-        text-decoration:none;
-        font-weight:600;
-        font-size:15px;
-        line-height:1;
-        box-shadow:0 6px 16px rgba(0,0,0,0.18);">
-        View EDA
+      <a href="HR_Data_EDA.html" class="cta-btn cta-eda">
+        Explore EDA
       </a>
     </div>
   </div>
@@ -76,22 +62,7 @@ This project simulates a real-world HR analytics environment using synthetic dat
       Model employee departure risk using multiple supervised learning techniques, identifying the strongest drivers of attrition across organizational and behavioral factors.
     </p>
     <div class="center-block">
-      <a href="HR_Data_Turnover_Intention_Results.html" style="
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        min-width:170px;
-        padding:12px 26px;
-        border-radius:999px;
-        border:2px solid rgba(0,0,0,0.22);
-        background:linear-gradient(135deg, #FF7675, #C0392B, #922B21);
-        background-size:200% 200%;
-        color:#ffffff;
-        text-decoration:none;
-        font-weight:600;
-        font-size:15px;
-        line-height:1;
-        box-shadow:0 6px 16px rgba(0,0,0,0.18);">
+      <a href="HR_Data_Turnover_Intention_Results.html" class="cta-btn cta-next">
         View Results
       </a>
     </div>
@@ -103,22 +74,7 @@ This project simulates a real-world HR analytics environment using synthetic dat
       Detect patterns of disengagement and reduced discretionary effort through behavioral, performance, and satisfaction indicators.
     </p>
     <div class="center-block">
-      <a href="HR_Data_Quiet_Quitting_Results.html" style="
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        min-width:170px;
-        padding:12px 26px;
-        border-radius:999px;
-        border:2px solid rgba(0,0,0,0.22);
-        background:linear-gradient(135deg, #B39DDB, #7E57C2, #5E35B1);
-        background-size:200% 200%;
-        color:#ffffff;
-        text-decoration:none;
-        font-weight:600;
-        font-size:15px;
-        line-height:1;
-        box-shadow:0 6px 16px rgba(0,0,0,0.18);">
+      <a href="HR_Data_Quiet_Quitting_Results.html" class="cta-btn cta-primary">
         View Results
       </a>
     </div>
@@ -134,22 +90,7 @@ This project simulates a real-world HR analytics environment using synthetic dat
       Examine how workplace surveillance, trust, and privacy concerns influence employee behavior and turnover risk.
     </p>
     <div class="center-block">
-      <a href="HR_Data_Monitoring_Turnover_Risk_Results.html" style="
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        min-width:170px;
-        padding:12px 26px;
-        border-radius:999px;
-        border:2px solid rgba(0,0,0,0.22);
-        background:linear-gradient(135deg, #F8C471, #E67E22, #BA4A00);
-        background-size:200% 200%;
-        color:#ffffff;
-        text-decoration:none;
-        font-weight:600;
-        font-size:15px;
-        line-height:1;
-        box-shadow:0 6px 16px rgba(0,0,0,0.18);">
+      <a href="HR_Data_Monitoring_Turnover_Risk_Results.html" class="cta-btn cta-gold">
         View Results
       </a>
     </div>
@@ -161,22 +102,7 @@ This project simulates a real-world HR analytics environment using synthetic dat
       Translate analytical findings into executive-level insights and actionable workforce strategies that support retention, engagement, and organizational effectiveness.
     </p>
     <div class="center-block">
-      <a href="HR_Data_Insights_Gleaned.html" style="
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        min-width:170px;
-        padding:12px 26px;
-        border-radius:999px;
-        border:2px solid rgba(0,0,0,0.22);
-        background:linear-gradient(135deg, #48C9B0, #16A085, #0E6655);
-        background-size:200% 200%;
-        color:#ffffff;
-        text-decoration:none;
-        font-weight:600;
-        font-size:15px;
-        line-height:1;
-        box-shadow:0 6px 16px rgba(0,0,0,0.18);">
+      <a href="HR_Data_Insights_Gleaned.html" class="cta-btn cta-teal">
         View Insights
       </a>
     </div>
@@ -247,7 +173,7 @@ This project simulates a real-world HR analytics environment using synthetic dat
 Synthetic data enables ethical experimentation while preserving realism, allowing organizations to build and validate analytics pipelines without exposing sensitive employee information.
 </div>
 
-<div class="takeaway-box rf">
+<div class="takeaway-box">
 <b>Outcome:</b> A scalable analytics blueprint for workforce decision-making and predictive HR strategy.
 </div>
 
