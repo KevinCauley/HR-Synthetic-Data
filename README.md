@@ -1,99 +1,110 @@
-# Ethical HR Analytics with Synthetic Data
+# Ethical HR Analytics with Synthetic Data  
 ### Machine Learning Models for Workforce Risk & Engagement
 
-This project demonstrates how organizations can leverage **synthetic workforce data** to ethically model employee risk without exposing sensitive HR information.
+This project builds an end-to-end workforce analytics pipeline using **synthetic HR data** to model employee risk and engagement outcomes while preserving privacy.
 
-The goal of the project is to explore how predictive analytics can support workforce decision-making while preserving employee privacy.
-
----
-
-## Live Analysis
-
-View the full interactive analysis here:
-
-**Live site:**  
-https://mrp-synthetic-data-files.netlify.app
+The objective is to demonstrate how organizations can apply **predictive analytics responsibly**, enabling data-driven decision-making without exposing sensitive employee information.
 
 ---
 
-## Project Overview
+## 🔗 Live Analysis
 
-A synthetic HR dataset was generated using **Python**, informed by:
+Explore the full interactive analysis:
 
-- U.S. Census benchmarks
-- Workforce research
-- Studies on employee well-being, monitoring, and engagement
-
-The dataset was analyzed in **RStudio** using multiple supervised machine learning models to evaluate workforce risk outcomes.
+👉 https://mrp-synthetic-data-files.netlify.app
 
 ---
 
-## Workforce Outcomes Modeled
+## 📊 Project Overview
 
-- Turnover Intention
-- Quiet Quitting Risk
-- Monitoring-Related Turnover Risk
+A synthetic HR dataset was generated in Python using:
 
----
+- U.S. Census benchmarks  
+- Workforce research  
+- Studies on employee well-being, monitoring, and engagement  
 
-## Machine Learning Models
-
-The following classification models were evaluated:
-
-- Logistic Regression
-- Random Forest
-- XGBoost
-- Support Vector Machines
-- Naïve Bayes
+The dataset was analyzed in R using multiple machine learning models to evaluate workforce risk outcomes.
 
 ---
 
-## Handling Class Imbalance
+## 🎯 Workforce Outcomes Modeled
 
-To improve model reliability, multiple resampling techniques were applied:
+- Turnover Intention  
+- Quiet Quitting Risk  
+- Monitoring-Related Turnover Risk  
 
-- SMOTE
-- Oversampling
-- Undersampling
+---
+
+## 🤖 Machine Learning Approach
+
+Multiple classification models were implemented and compared:
+
+- Logistic Regression (baseline, interpretable)
+- Random Forest (ensemble learning)
+- XGBoost (boosted trees for performance)
+- Support Vector Machines (nonlinear classification)
+- Naïve Bayes (probabilistic baseline)
 
 Model performance was evaluated using **10-fold cross-validation**.
 
 ---
 
-## Evaluation Metrics
+## ⚖️ Handling Class Imbalance
 
-Models were compared using:
+To improve model reliability, several resampling techniques were applied:
 
-- Accuracy
-- Precision
-- Recall
-- F1 Score
-- Specificity
-- ROC-AUC
+- SMOTE (synthetic minority oversampling)
+- Oversampling
+- Undersampling
+
+These approaches significantly impacted recall and F1 performance, highlighting the importance of balancing workforce data.
 
 ---
 
-## Tools & Technologies
+## 📈 Evaluation Metrics
 
-- Python
-- R / RStudio
-- Machine Learning
-- Synthetic Data Generation
+Models were evaluated using:
+
+- Accuracy  
+- Precision  
+- Recall  
+- F1 Score  
+- Specificity  
+- ROC-AUC  
+
+This multi-metric approach ensures performance is aligned with real-world decision-making priorities.
+
+---
+
+## 🧠 Key Insights
+
+- Turnover risk is driven by **nonlinear relationships** between engagement, well-being, and workplace factors  
+- Sampling strategies materially improve model performance, particularly for identifying at-risk employees  
+- Tree-based and ensemble models outperform linear approaches in capturing complex workforce behavior  
+- Predictive modeling enables **proactive intervention strategies** rather than reactive HR decisions  
+
+---
+
+## 🛠️ Tools & Technologies
+
+- Python (data generation)
+- R / RStudio (modeling & analysis)
+- Machine Learning (classification models)
+- Synthetic Data Design
 - Git & GitHub
-- Netlify (site hosting)
+- Netlify (deployment)
 
 ---
 
-## Ethical Considerations
+## 🔒 Ethical Considerations
 
-This project demonstrates how **synthetic data can enable predictive workforce analytics without exposing real employee information**, supporting privacy-preserving HR research.
+This project demonstrates how **synthetic data can enable advanced HR analytics without compromising employee privacy**, supporting ethical and responsible use of predictive modeling in workforce contexts.
 
 ---
 
-## Author
+## 👤 Author
 
-Kevin Cauley  
-MS Applied Analytics – Saint Louis University
+**Kevin Cauley**  
+MS Applied Analytics – Saint Louis University  
 
-GitHub:  
-https://github.com/KevinCauley
+🔗 GitHub: https://github.com/KevinCauley  

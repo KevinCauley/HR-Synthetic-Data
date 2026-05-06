@@ -1,0 +1,753 @@
+/* =========================
+   GLOBAL BASE
+========================= */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #f6f8fb;
+  color: #2f3e4e;
+  line-height: 1.65;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+h1,
+h2,
+h3 {
+  scroll-margin-top: 110px;
+  word-wrap: break-word;
+}
+
+p {
+  margin-bottom: 14px;
+}
+
+/* =========================
+   REMOVE DEFAULT RMD HEADER
+========================= */
+
+h1.title,
+p.author,
+p.date {
+  display: none !important;
+}
+
+/* =========================
+   TYPOGRAPHY
+========================= */
+
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-top: 40px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e9f0;
+}
+
+h3 {
+  font-size: 18px;
+  font-weight: 650;
+  margin-top: 24px;
+  margin-bottom: 10px;
+}
+
+h4 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+/* =========================
+   REPORT WRAPPER
+========================= */
+
+.report-container {
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 24px 32px;
+}
+
+/* Keep RMarkdown's generated wrapper from fighting our layout */
+.main-container {
+  max-width: none !important;
+  width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* =========================
+   PAGE LAYOUT / SIDEBAR
+========================= */
+
+.page-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 36px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+}
+
+.sidebar-card {
+  width: 100%;
+}
+
+.sidebar-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4B86C5;
+  margin-bottom: 10px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-nav a {
+  text-decoration: none;
+  color: #5a6b7c;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  line-height: 1.3;
+  display: block;
+  transition: all 0.2s ease;
+}
+
+.sidebar-nav a:hover {
+  background: #eef3f8;
+  color: #2f3e4e;
+}
+
+.page-content {
+  min-width: 0;
+  width: 100%;
+  max-width: 1100px;
+  overflow: visible;
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+/* =========================
+   TABLE + PLOT FIXES
+========================= */
+
+/* Prevent tables from blowing up layout */
+.dataTables_wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Keep plots responsive */
+img, .plotly, .html-widget {
+  max-width: 100% !important;
+  height: auto;
+}
+
+/* Prevent code/DT overflow */
+pre, table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* =========================
+   HERO
+========================= */
+
+.hero-section {
+  background: linear-gradient(135deg, #eef3f8, #e3ebf4);
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+}
+
+.hero-meta {
+  font-size: 14px;
+  color: #5a6b7c;
+  margin-bottom: 14px;
+}
+
+.hero-title,
+.hero-section h1 {
+  font-size: 34px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  color: #2f3e4e;
+}
+
+.hero-subtitle {
+  font-size: 15px;
+  color: #5a6b7c;
+  line-height: 1.6;
+  margin-top: 8px;
+  max-width: 950px;
+}
+
+/* =========================
+   INDEX GRID / CARDS
+========================= */
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 18px 20px 16px 20px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  min-height: 220px;
+}
+
+.card h4 {
+  margin-bottom: 8px;
+}
+
+.card p {
+  margin: 4px 0 14px 0;
+  flex-grow: 1;
+}
+
+.card .cta-btn {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+/* =========================
+   CTA BUTTONS
+========================= */
+
+.cta-btn {
+  display: inline-block;
+  padding: 12px 26px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  color: white !important;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.cta-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  opacity: 0.95;
+  color: white !important;
+}
+
+.btn-blue {
+  background: linear-gradient(135deg, #74B9FF, #2E86C1);
+}
+
+.btn-red {
+  background: linear-gradient(135deg, #FF7675, #922B21);
+}
+
+.btn-purple {
+  background: linear-gradient(135deg, #A29BFE, #6C5CE7);
+}
+
+.btn-teal {
+  background: linear-gradient(135deg, #55EFC4, #0FB9B1);
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, #FDCB6E, #E17055);
+}
+
+/* =========================
+   BUTTON CONTAINERS
+========================= */
+
+.center-block {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.page-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
+  margin: 10px 0 20px 0;
+}
+
+.nav-left, .nav-center, .nav-right {
+  flex: 1;
+  display: flex;
+}
+
+.nav-left { justify-content: flex-start; }
+.nav-center { justify-content: center; }
+.nav-right { justify-content: flex-end; }
+
+.cta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 900px;
+  margin: 40px auto 40px auto;
+  padding: 0;
+}
+
+.cta-row.centered {
+  justify-content: center;
+  gap: 40px;
+}
+
+.cta-row a {
+  max-width: fit-content;
+}
+
+/* =========================
+   PLOTS / FIGURES / WIDGETS
+========================= */
+
+img,
+.plot,
+.figure,
+.html-widget {
+  display: block;
+  max-width: 100% !important;
+  height: auto;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.page-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.figure {
+  max-width: 100%;
+}
+
+pre {
+  overflow-x: auto;
+  white-space: pre;
+}
+
+pre code {
+  display: block;
+  overflow-x: auto;
+}
+
+pre.sourceCode {
+  display: none !important;
+}
+
+/* =========================
+   STANDARD TABLE STYLING
+========================= */
+
+.table-card {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+thead {
+  background: linear-gradient(135deg, #eef3f8, #e3ebf4);
+}
+
+th {
+  text-align: left;
+  padding: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  color: #2f3e4e;
+}
+
+td {
+  padding: 10px;
+  font-size: 13px;
+  border-top: 1px solid #f1f3f6;
+}
+
+tr:nth-child(even) {
+  background: #fafbfd;
+}
+
+tr:hover {
+  background: #eef4fb;
+}
+
+/* =========================
+   DATATABLES FIXES
+========================= */
+
+.dataTables_wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.dataTables_wrapper table {
+  box-shadow: none;
+  border-radius: 10px;
+}
+
+.dataTables_filter input,
+.dataTables_length select {
+  border: 1px solid #c7ced6;
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+/* =========================
+   GT TABLE FIXES + VISUAL UPGRADE
+========================= */
+
+.gt_table {
+  table-layout: fixed !important;
+  width: 100% !important;
+  max-width: 900px !important;
+  margin: 22px auto !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.07) !important;
+}
+
+.gt_table td {
+  white-space: normal !important;
+  word-break: break-word;
+}
+
+.gt_table th {
+  white-space: normal !important;
+}
+
+.gt_heading {
+  background: #f4f8fb !important;
+}
+
+.gt_title {
+  font-size: 18px !important;
+  font-weight: 750 !important;
+  color: #2f3e4e !important;
+}
+
+.gt_subtitle {
+  font-size: 13px !important;
+  color: #5a6b7c !important;
+}
+
+.gt_col_heading {
+  font-weight: 700 !important;
+}
+
+.gt_row {
+  transition: background 0.2s ease;
+}
+
+.gt_row:hover {
+  background: #eef4fb !important;
+}
+
+/* =========================
+   TAKEAWAY / INSIGHT BOXES
+========================= */
+
+.takeaway-box {
+  background: #eef4fb;
+  border-left: 6px solid #4B9CD3;
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin: 20px 0;
+}
+
+.decision-box {
+  background: #f4f8fb;
+  border-left: 5px solid #2E86C1;
+  padding: 20px 24px;
+  border-radius: 12px;
+  margin: 30px 0;
+}
+
+.decision-box h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+/* =========================
+   MODEL HIGHLIGHT CARD
+========================= */
+
+.model-highlight-card {
+  background: linear-gradient(135deg, #eef5fb, #f8fbff);
+  border-left: 8px solid #2E86C1;
+  padding: 26px 30px;
+  border-radius: 14px;
+  margin: 30px 0;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+}
+
+.model-badge {
+  font-size: 12px;
+  font-weight: 800;
+  color: #4B9CD3;
+  margin-bottom: 8px;
+  letter-spacing: 0.2px;
+}
+
+.model-title {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  color: #2f3e4e;
+}
+
+.model-subtitle {
+  font-size: 15px;
+  color: #5a6b7c;
+  margin-bottom: 18px;
+}
+
+.model-metrics {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.metric-box {
+  background: white;
+  border-radius: 10px;
+  padding: 14px 18px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  min-width: 130px;
+  text-align: center;
+}
+
+.metric-label {
+  display: block;
+  font-size: 12px;
+  color: #6c7a89;
+  margin-bottom: 4px;
+}
+
+.metric-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: #2f3e4e;
+}
+
+/* =========================
+   SECTION DIVIDERS / SPACING
+========================= */
+
+.section-divider {
+  border: none;
+  height: 1px;
+  background: #e5e9f0;
+  margin: 30px 0;
+}
+
+.section {
+  margin-bottom: 30px;
+}
+
+.section-intro {
+  margin-bottom: 16px;
+}
+
+.section-spacing {
+  margin-bottom: 22px;
+}
+
+/* =========================
+   RESPONSIVE — TABLET
+========================= */
+
+@media (max-width: 1100px) {
+  .page-layout {
+    display: block;
+  }
+
+  .sidebar {
+    position: relative;
+    top: 0;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================
+   RESPONSIVE — MOBILE
+========================= */
+
+@media (max-width: 900px) {
+  .report-container {
+    padding: 18px 16px;
+  }
+
+  .page-layout {
+    display: block;
+  }
+
+  .sidebar {
+    position: relative;
+    top: 0;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-bottom: 20px;
+    padding: 12px;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 4px;
+  }
+
+  .sidebar-nav a {
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #eef3f8;
+  }
+
+  .sidebar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .page-content {
+    padding: 0;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  h2 {
+    font-size: 20px;
+    margin-top: 30px;
+  }
+
+  h3 {
+    font-size: 17px;
+  }
+
+  .hero-section {
+    padding: 22px 22px;
+  }
+
+  .hero-title,
+  .hero-section h1 {
+    font-size: 26px;
+  }
+
+  .page-nav {
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .page-nav a {
+    width: 90%;
+    text-align: center;
+  }
+
+  .model-metrics {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .metric-box {
+    width: 100%;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+  }
+
+  .gt_table {
+    max-width: 100% !important;
+  }
+
+  pre {
+    overflow-x: auto;
+    font-size: 12px;
+  }
+}
+
+/* =========================
+   INDEX PAGE FIX (SAFE)
+========================= */
+
+.index-wrapper {
+  max-width: 1200px;
+  margin: 60px auto 80px auto;
+  padding: 0 20px;
+}
+
+/* Slightly tighter on tablets */
+@media (max-width: 900px) {
+  .index-wrapper {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}

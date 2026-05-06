@@ -1,0 +1,2730 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Monitoring &amp; Privacy Risk Modeling | Workforce Analytics</title>
+
+<script src="HR_Data_Monitoring_Privacy_files/header-attrs-2.29/header-attrs.js"></script>
+<link href="HR_Data_Monitoring_Privacy_files/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
+<script src="HR_Data_Monitoring_Privacy_files/pagedtable-1.1/js/pagedtable.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+
+
+
+
+
+<link rel="stylesheet" href="../docs/assets/styles.css" type="text/css" />
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Monitoring &amp; Privacy Risk Modeling |
+Workforce Analytics</h1>
+
+
+
+<div class="report-container">
+
+  <div class="page-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-card">
+        <div class="sidebar-label">On this page</div>
+        <nav class="sidebar-nav">
+          <a href="#executive-summary">Executive Summary</a>
+          <a href="#modeling-overview">Modeling Overview</a>
+          <a href="#data-prep-framework">Data Preparation</a>
+          <a href="#model-development">Model Development</a>
+          <a href="#model-evaluation">Model Evaluation</a>
+          <a href="#model-evaluation-results">Evaluation Results</a>
+          <a href="#sampling-strategy-framework">Sampling Strategy Framework</a>
+          <a href="#precision-recall">Precision–Recall</a>
+          <a href="#model-selection">Model Selection</a>
+          <a href="#model-summary">Model Summary</a>
+          <a href="#driver-interpretation">Driver Interpretation</a>
+          <a href="#feature-action">Feature → Action</a>
+          <a href="#business-impact">Business Impact</a>
+        </nav>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="page-content">
+
+      <!-- MATCH EDA STRUCTURE -->
+      <div class="hero-section">
+        <p class="hero-meta">
+          Kevin Allen Cauley • May 06, 2026
+        </p>
+
+        <h1 class="hero-title">Monitoring & Privacy Risk Modeling</h1>
+
+        <p class="hero-subtitle">
+  This section develops and evaluates predictive models to identify employees at risk of monitoring-related turnover, interpret key privacy and surveillance risk patterns, and translate model outputs into executive-level workforce trust recommendations.
+        </p>
+      </div>
+
+      <!-- REPLACED page-nav WITH cta-row -->
+      <div class="cta-row">
+        <a href="HR_Data_Quiet_Quitting.html" class="cta-btn btn-blue">← Back</a>
+        <a href="index.html" class="cta-btn btn-teal">Home</a>
+        <a href="HR_Data_Insights_Gleaned.html" class="cta-btn btn-red">Next →</a>
+      </div>
+<div id="executive-summary" class="section level1">
+<h1>Executive Summary</h1>
+<p>This analysis develops a predictive modeling framework to identify
+employees at risk of monitoring-related turnover using a synthetic,
+research-informed HR dataset.</p>
+<p>Multiple machine learning models—including Logistic Regression,
+Random Forest, XGBoost, Support Vector Machines, and Naive Bayes—were
+evaluated under varying sampling strategies to address class imbalance
+and improve predictive performance.</p>
+<p>Results show that <strong>model effectiveness is driven as much by
+data strategy as algorithm selection</strong>. Sampling strategies such
+as up-sampling, down-sampling, and SMOTE changed model behavior in
+meaningful ways, demonstrating that class-balancing choices can
+materially affect precision, recall, and F1 Score.</p>
+<p>The final model-selection process uses <strong>cross-validated F1
+Score</strong> to identify strong candidate configurations, with holdout
+performance used as a stability check to confirm whether those
+candidates remain practically usable on unseen data.</p>
+<p>Rather than relying on a single predictive signal, monitoring-based
+turnover risk is influenced by a <strong>combination of privacy
+perceptions, monitoring intensity, trust, workload, wellbeing, and
+organizational support factors</strong>.</p>
+<p>From a business perspective, this framework enables a shift from
+<strong>reactive privacy complaint response to proactive workforce trust
+and monitoring-risk management</strong>, supporting earlier
+intervention, better governance, and improved retention outcomes.</p>
+</div>
+<div id="modeling-overview" class="section level1">
+<h1>Modeling Overview</h1>
+<p>This section builds on the exploratory analysis by applying
+predictive modeling techniques to identify employees at risk of
+monitoring-related turnover.</p>
+<p>Rather than relying on a single model, multiple algorithms are
+evaluated and compared to determine the most effective approach for
+workforce decision-making.</p>
+<p>Each model is assessed using cross-validation and evaluated across
+multiple sampling strategies to address class imbalance.</p>
+<p>The objective is not only to identify the most accurate model, but to
+determine which approach best aligns with organizational priorities.</p>
+</div>
+<div id="data-prep-framework" class="section level1">
+<h1>Data Preparation &amp; Modeling Framework</h1>
+<div id="target-definition" class="section level2">
+<h2>Target Definition</h2>
+<p>The target variable for this analysis is <strong>monitoring-based
+turnover risk</strong>, representing whether an employee is likely to
+show turnover risk associated with workplace monitoring, privacy
+concerns, or surveillance-related strain.</p>
+<p>This binary outcome is structured as a classification problem, with
+levels defined as <strong>“No” (not flagged for monitoring-based
+turnover risk)</strong> and <strong>“Yes” (at risk of monitoring-related
+turnover)</strong>. Establishing a consistent target structure ensures
+that all models are trained and evaluated under the same conditions.</p>
+</div>
+<div id="data-partitioning" class="section level2">
+<h2>Data Partitioning</h2>
+<p>To evaluate model performance objectively, the dataset is split into
+training and testing subsets.</p>
+<p>The training set is used to fit and tune models, while the test set
+is reserved for final evaluation. Stratified sampling is applied to
+preserve the original class distribution of monitoring-based turnover
+risk, ensuring that model performance reflects realistic conditions.</p>
+</div>
+<div id="feature-engineering-pipeline" class="section level2">
+<h2>Feature Engineering Pipeline</h2>
+<p>A standardized preprocessing pipeline is applied to ensure
+consistency across all models.</p>
+<p>Categorical variables are converted into numeric representations
+using dummy encoding, and numeric variables are normalized to improve
+model stability—particularly for algorithms sensitive to scale, such as
+Logistic Regression and Support Vector Machines.</p>
+<p>Additionally, zero-variance predictors are removed to prevent
+redundant or non-informative features from influencing model
+performance.</p>
+</div>
+<div id="cross-validation-strategy" class="section level2">
+<h2>Cross-Validation Strategy</h2>
+<p>Cross-validation is used to evaluate model performance during
+training and reduce the risk of overfitting.</p>
+<p>By partitioning the training data into multiple folds, each model is
+evaluated across different subsets of the data. This provides a more
+robust estimate of model performance compared to a single train-test
+split.</p>
+</div>
+</div>
+<div id="model-development" class="section level1">
+<h1>Model Development</h1>
+<p>Each model is implemented using a consistent preprocessing pipeline,
+ensuring that performance differences are driven by the modeling
+approach rather than data preparation.</p>
+<ul>
+<li>Logistic Regression (baseline, interpretable)</li>
+<li>Random Forest (ensemble tree-based)</li>
+<li>XGBoost (boosted trees for performance)</li>
+<li>Support Vector Machine (nonlinear classification)</li>
+<li>Naive Bayes (probabilistic baseline)</li>
+</ul>
+<p>This allows for a fair comparison across algorithms with varying
+levels of complexity and interpretability.</p>
+<hr />
+<div id="model-pipelines" class="section level2">
+<h2>Model Pipelines</h2>
+<p>Workflows are used to combine preprocessing steps and model
+specifications into a single pipeline.</p>
+<p>This ensures that all transformations are applied consistently during
+both training and prediction, reducing the risk of data leakage and
+simplifying model management.</p>
+</div>
+<div id="evaluation-metrics" class="section level2">
+<h2>Evaluation Metrics</h2>
+<p>Model performance is evaluated using a combination of classification
+metrics.</p>
+<p>Accuracy provides an overall performance measure, while precision and
+recall capture trade-offs between false positives and false negatives.
+The F1 Score balances these two metrics, and ROC AUC evaluates the
+model’s ability to distinguish between classes.</p>
+<p>Using multiple metrics ensures a comprehensive evaluation aligned
+with business priorities.</p>
+</div>
+<div id="hyperparameter-tuning" class="section level2">
+<h2>Hyperparameter Tuning</h2>
+<p>For models with tunable parameters, grid search is used to identify
+optimal configurations.</p>
+<p>This process evaluates multiple parameter combinations using
+cross-validation, selecting those that maximize predictive performance.
+Tuning helps improve model accuracy while maintaining
+generalizability.</p>
+</div>
+<div id="model-training" class="section level2">
+<h2>Model Training</h2>
+<p>Multiple supervised learning models were evaluated, including Random
+Forest, XGBoost, Support Vector Machines, Logistic Regression, and Naive
+Bayes.</p>
+<p>Each model and sampling strategy combination was evaluated through
+cross-validation. Tunable models were optimized separately within each
+sampling condition, ensuring that model selection reflects the combined
+effect of algorithm choice, preprocessing, and class-balancing
+strategy.</p>
+<p>Rather than focusing on individual model outputs, performance is
+summarized comparatively to highlight relative strengths across modeling
+approaches.</p>
+<hr />
+</div>
+</div>
+<div id="model-evaluation" class="section level1">
+<h1>Model Evaluation</h1>
+<p>This section evaluates how each model performs on unseen data and
+determines which approach is most suitable for real-world workforce
+decision-making.</p>
+<p>Rather than focusing solely on accuracy, evaluation emphasizes the
+<strong>precision–recall tradeoff</strong>, balancing the ability to
+detect monitoring-related risk with the cost of unnecessary
+intervention.</p>
+<p>This ensures model selection aligns with operational priorities,
+where both detection capability and decision efficiency matter.</p>
+<p>Key metrics include:</p>
+<ul>
+<li><strong>Accuracy</strong> → Overall correctness<br />
+</li>
+<li><strong>Precision</strong> → Reliability of positive
+predictions<br />
+</li>
+<li><strong>Recall</strong> → Ability to detect employees flagged for
+monitoring-related turnover risk</li>
+<li><strong>F1 Score</strong> → Balance between precision and
+recall<br />
+</li>
+<li><strong>ROC AUC</strong> → Overall classification strength</li>
+</ul>
+<p>This comparison highlights the trade-offs between detection,
+prediction reliability, and practical intervention burden.</p>
+<div id="test-set-performance" class="section level2">
+<h2>Test Set Performance</h2>
+<p>Final model performance is evaluated on the holdout test dataset.</p>
+<p>This step provides an unbiased assessment of how each model performs
+on unseen data, ensuring that results reflect real-world predictive
+capability rather than training performance.</p>
+<hr />
+<p>The evaluation framework compares each model and sampling strategy
+combination using cross-validation, then confirms the selected model on
+the holdout test set. This separates model selection from final
+performance confirmation and provides a more defensible assessment of
+how the model is likely to generalize.</p>
+</div>
+</div>
+<div id="sampling-strategy-framework" class="section level1">
+<h1>Sampling Strategy Framework</h1>
+<p>Sampling techniques are applied within the preprocessing pipeline to
+ensure consistency across models.</p>
+<p>By integrating sampling directly into the workflow, transformations
+are applied only to the training data, preventing data leakage and
+preserving the integrity of model evaluation.</p>
+<div id="sampling-recipes-and-evaluation-setup" class="section level2">
+<h2>Sampling Recipes and Evaluation Setup</h2>
+<p>Each sampling strategy is embedded directly into the modeling recipe.
+This ensures that class balancing occurs only within the training folds
+during cross-validation, preventing leakage into validation or test
+data.</p>
+</div>
+</div>
+<div id="model-evaluation-results" class="section level1">
+<h1>Model Evaluation Results &amp; Insights</h1>
+<p>This section synthesizes model performance across sampling strategies
+and evaluation metrics, providing a comparative view of how different
+approaches perform under realistic conditions.</p>
+<p>The focus shifts from individual model behavior to cross-model
+insights, highlighting trade-offs that directly impact workforce
+decision-making.</p>
+<p>The goal is to identify a model that balances detection capability
+with operational efficiency—minimizing both missed risk and unnecessary
+intervention.</p>
+<div id="sampling-strategy-comparison" class="section level2">
+<h2>Sampling Strategy Comparison</h2>
+<p>Class imbalance is a major challenge in monitoring-risk prediction,
+as fewer employees typically fall into the “Yes” category.</p>
+<p>To address this, multiple sampling strategies were applied:</p>
+<ul>
+<li>No Sampling (baseline)</li>
+<li>Up Sampling (increase minority class)</li>
+<li>Down Sampling (reduce majority class)</li>
+<li>SMOTE (synthetic minority generation)</li>
+</ul>
+<p>The goal is to understand how balancing the dataset impacts model
+performance.</p>
+<p><img src="HR_Data_Monitoring_Privacy_files/figure-html/15-plot-sampling-comparison-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p>The sampling comparison shows that monitoring-related turnover risk
+is highly sensitive to the interaction between algorithm choice and
+class-balancing strategy. Several Random Forest and XGBoost
+configurations produced strong holdout F1 Scores, suggesting that
+tree-based models were better able to capture the nonlinear structure of
+monitoring, privacy, trust, and workforce-risk signals.</p>
+<p>The selected configuration, Random Forest with SMOTE, provides the
+strongest cross-validated F1 Score among stable holdout candidates. Its
+holdout profile shows very high precision with moderate recall, meaning
+flagged employees are highly reliable risk signals, but the model may
+still miss some employees who later show monitoring-related turnover
+risk.</p>
+</div>
+<div id="precision-recall" class="section level2">
+<h2>Precision–Recall Curve Analysis</h2>
+<p><img src="HR_Data_Monitoring_Privacy_files/figure-html/16-precision-recall-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p>The precision–recall view shows how each model configuration balances
+detection capability against prediction reliability. Configurations
+farther to the right detect more employees with monitoring-related
+turnover risk, while configurations higher on the chart produce more
+reliable positive predictions.</p>
+<p>The selected configuration is highlighted with an outlined marker. It
+is not chosen because it maximizes a single metric in isolation; rather,
+it provides the strongest cross-validated F1 Score among configurations
+that also produced usable holdout performance.</p>
+<p>This reinforces the business logic behind the model-selection
+process: the goal is not to flag as many employees as possible or
+eliminate all false positives, but to create a practical monitoring-risk
+screening layer that can guide earlier review without replacing human
+judgment.</p>
+</div>
+<div id="decision-matrix-model-comparison" class="section level2">
+<h2>Decision Matrix &amp; Model Comparison</h2>
+<div id="wzpdiepkpy" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#wzpdiepkpy table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#wzpdiepkpy thead, #wzpdiepkpy tbody, #wzpdiepkpy tfoot, #wzpdiepkpy tr, #wzpdiepkpy td, #wzpdiepkpy th {
+  border-style: none;
+}
+
+#wzpdiepkpy p {
+  margin: 0;
+  padding: 0;
+}
+
+#wzpdiepkpy .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: 88%;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#wzpdiepkpy .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#wzpdiepkpy .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#wzpdiepkpy .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#wzpdiepkpy .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#wzpdiepkpy .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#wzpdiepkpy .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#wzpdiepkpy .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#wzpdiepkpy .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#wzpdiepkpy .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#wzpdiepkpy .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#wzpdiepkpy .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#wzpdiepkpy .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#wzpdiepkpy .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#wzpdiepkpy .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#wzpdiepkpy .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#wzpdiepkpy .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#wzpdiepkpy .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#wzpdiepkpy .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wzpdiepkpy .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#wzpdiepkpy .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#wzpdiepkpy .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#wzpdiepkpy .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wzpdiepkpy .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#wzpdiepkpy .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#wzpdiepkpy .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#wzpdiepkpy .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wzpdiepkpy .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#wzpdiepkpy .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#wzpdiepkpy .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#wzpdiepkpy .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#wzpdiepkpy .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#wzpdiepkpy .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wzpdiepkpy .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#wzpdiepkpy .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wzpdiepkpy .gt_left {
+  text-align: left;
+}
+
+#wzpdiepkpy .gt_center {
+  text-align: center;
+}
+
+#wzpdiepkpy .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#wzpdiepkpy .gt_font_normal {
+  font-weight: normal;
+}
+
+#wzpdiepkpy .gt_font_bold {
+  font-weight: bold;
+}
+
+#wzpdiepkpy .gt_font_italic {
+  font-style: italic;
+}
+
+#wzpdiepkpy .gt_super {
+  font-size: 65%;
+}
+
+#wzpdiepkpy .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#wzpdiepkpy .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#wzpdiepkpy .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#wzpdiepkpy .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#wzpdiepkpy .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#wzpdiepkpy .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#wzpdiepkpy .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#wzpdiepkpy .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#wzpdiepkpy div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="7" class="gt_heading gt_title gt_font_normal" style>Cross-Validated Model Decision Matrix</td>
+    </tr>
+    <tr class="gt_heading">
+      <td colspan="7" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border" style>Top configurations ranked by cross-validated F1 Score</td>
+    </tr>
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Sampling">Sampling</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Accuracy">Accuracy</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Precision">Precision</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Recall">Recall</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="F1">F1</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="ROC_AUC">ROC_AUC</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Model" class="gt_row gt_center">Random Forest</td>
+<td headers="Sampling" class="gt_row gt_center">SMOTE</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #5798CA; color: #FFFFFF;">0.870</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #5D9BCB; color: #FFFFFF;">0.848</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #2E86C1; color: #FFFFFF;">1.000</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #4A91C7; color: #FFFFFF;">0.918</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #69A2CF; color: #FFFFFF;">0.797</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">XGBoost</td>
+<td headers="Sampling" class="gt_row gt_center">No Sampling</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #5798CA; color: #FFFFFF;">0.870</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #5D9BCB; color: #FFFFFF;">0.848</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #2E86C1; color: #FFFFFF;">1.000</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #4A91C7; color: #FFFFFF;">0.918</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #74A8D2; color: #FFFFFF;">0.751</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">Random Forest</td>
+<td headers="Sampling" class="gt_row gt_center">Up Sampling</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #5798CA; color: #FFFFFF;">0.870</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #5B9ACB; color: #FFFFFF;">0.854</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #3287C2; color: #FFFFFF;">0.990</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #4A91C7; color: #FFFFFF;">0.917</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #659FCE; color: #FFFFFF;">0.814</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">Random Forest</td>
+<td headers="Sampling" class="gt_row gt_center">No Sampling</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #5898CA; color: #FFFFFF;">0.869</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #5D9BCB; color: #FFFFFF;">0.848</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #2F86C1; color: #FFFFFF;">0.998</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #4A91C7; color: #FFFFFF;">0.917</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #68A1CE; color: #FFFFFF;">0.805</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">XGBoost</td>
+<td headers="Sampling" class="gt_row gt_center">SMOTE</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #5898CA; color: #FFFFFF;">0.867</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #5D9ACB; color: #FFFFFF;">0.849</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #3087C1; color: #FFFFFF;">0.995</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #4B91C7; color: #FFFFFF;">0.916</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #72A7D1; color: #FFFFFF;">0.759</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">XGBoost</td>
+<td headers="Sampling" class="gt_row gt_center">Up Sampling</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #5898CA; color: #FFFFFF;">0.867</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #5A99CB; color: #FFFFFF;">0.859</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #3789C3; color: #FFFFFF;">0.977</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #4B92C7; color: #FFFFFF;">0.914</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #66A0CE; color: #FFFFFF;">0.811</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">Random Forest</td>
+<td headers="Sampling" class="gt_row gt_center">Down Sampling</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #5D9BCC; color: #FFFFFF;">0.846</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #5B9ACB; color: #FFFFFF;">0.855</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #408DC4; color: #FFFFFF;">0.950</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #4F94C8; color: #FFFFFF;">0.899</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #69A1CF; color: #FFFFFF;">0.800</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">XGBoost</td>
+<td headers="Sampling" class="gt_row gt_center">Down Sampling</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #619DCC; color: #FFFFFF;">0.832</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #5C9ACB; color: #FFFFFF;">0.850</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #458FC6; color: #FFFFFF;">0.934</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #5295C9; color: #FFFFFF;">0.890</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #75A9D2; color: #000000;">0.745</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">SVM</td>
+<td headers="Sampling" class="gt_row gt_center">No Sampling</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #70A6D1; color: #FFFFFF;">0.767</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #69A2CF; color: #FFFFFF;">0.797</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #4C92C7; color: #FFFFFF;">0.910</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #5D9ACB; color: #FFFFFF;">0.849</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #7AACD4; color: #000000;">0.725</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">Naive Bayes</td>
+<td headers="Sampling" class="gt_row gt_center">No Sampling</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #7AACD4; color: #000000;">0.723</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #7AACD4; color: #000000;">0.723</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #2E86C1; color: #FFFFFF;">1.000</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #5F9CCC; color: #FFFFFF;">0.840</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #78AAD3; color: #000000;">0.734</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">SVM</td>
+<td headers="Sampling" class="gt_row gt_center">Up Sampling</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #7AACD4; color: #000000;">0.723</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #7AACD4; color: #000000;">0.723</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #2E86C1; color: #FFFFFF;">1.000</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #5F9CCC; color: #FFFFFF;">0.840</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #A2C7E1; color: #000000;">0.532</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">SVM</td>
+<td headers="Sampling" class="gt_row gt_center">SMOTE</td>
+<td headers="Accuracy" class="gt_row gt_center" style="background-color: #7AACD4; color: #000000;">0.723</td>
+<td headers="Precision" class="gt_row gt_center" style="background-color: #7AACD4; color: #000000;">0.723</td>
+<td headers="Recall" class="gt_row gt_center" style="background-color: #2E86C1; color: #FFFFFF;">1.000</td>
+<td headers="F1" class="gt_row gt_center" style="background-color: #5F9CCC; color: #FFFFFF;">0.840</td>
+<td headers="ROC_AUC" class="gt_row gt_center" style="background-color: #B6D3E7; color: #000000;">0.403</td></tr>
+  </tbody>
+  
+  
+</table>
+</div>
+<p>The cross-validated decision matrix ranks model configurations by F1
+Score, showing which combinations performed strongest during resampling.
+Strong cross-validation results indicate promising generalizable
+performance, but they do not guarantee that the same configuration will
+remain stable on unseen holdout data.</p>
+<p>For this reason, final model selection uses a two-step rule: first,
+configurations are evaluated using cross-validated F1 Score; second,
+leading candidates are checked against holdout performance to confirm
+that they still produce usable positive-class predictions.</p>
+<p>This is especially important for monitoring and privacy risk because
+the target reflects a sensitive workforce signal. The model should
+support prioritization and governance review, not automatic decisions
+about employees.</p>
+<div id="model-selection" class="section level3">
+<h3>Model Selection</h3>
+<p>Model selection was guided by practical decision tradeoffs rather
+than raw performance alone.</p>
+<p>For monitoring-based turnover risk prediction, the cost of missing an
+at-risk employee must be balanced against the cost of unnecessary
+intervention. A model with very high recall may identify more potential
+monitoring-related risk cases, but it can also create operational noise
+by flagging too many employees. A model with high precision may reduce
+false alarms, but it may fail to detect enough meaningful risk.</p>
+<p>For this reason, <strong>cross-validated F1 Score was selected as the
+primary model-selection metric</strong> because it balances precision
+and recall while reducing the risk of selecting a model based on one
+favorable test split.</p>
+<p>However, cross-validation alone is not enough. The holdout test set
+is also used as a <strong>stability check</strong> to confirm that the
+selected model produces usable positive-class predictions on unseen
+data. This prevents the final report from selecting a model that
+performs well during resampling but fails during final confirmation.</p>
+<p>In this run, the recommended configuration was <strong>Random Forest
+with SMOTE</strong>. The model should be interpreted as a <strong>risk
+prioritization tool</strong>, meaning it helps identify employees or
+workforce segments that may warrant earlier privacy, trust, or
+monitoring-governance review while leaving final decisions to HR
+leaders, managers, and organizational context.</p>
+</div>
+</div>
+<div id="selected-model-holdout-performance" class="section level2">
+<h2>Selected Model Holdout Performance</h2>
+<p><img src="HR_Data_Monitoring_Privacy_files/figure-html/18-final-model-metrics-plot-1.png" width="100%" style="display: block; margin: auto;" /></p>
+</div>
+<div id="risk-distribution" class="section level2">
+<h2>Risk Distribution</h2>
+<p>The risk distribution shows how the selected model assigns
+monitoring-based turnover-risk probabilities across the holdout test
+set. These scores should be interpreted as prioritization signals rather
+than definitive classifications. In practice, organizations would
+calibrate decision thresholds based on HR capacity, intervention cost,
+privacy sensitivity, and tolerance for missed risk.</p>
+<p><img src="HR_Data_Monitoring_Privacy_files/figure-html/19-risk-distribution-1.png" width="100%" style="display: block; margin: auto;" /></p>
+</div>
+<div id="risk-segmentation" class="section level2">
+<h2>Risk Segmentation</h2>
+<p>The segmentation view translates model probabilities into practical
+intervention tiers. If employees cluster heavily within one tier, that
+does not mean the model is wrong; it means the thresholds should be
+calibrated for the organization’s decision context. In practice, HR
+teams would adjust these thresholds based on available capacity,
+intervention cost, privacy sensitivity, and tolerance for missed
+risk.</p>
+<p><img src="HR_Data_Monitoring_Privacy_files/figure-html/20-risk-segmentation-1.png" width="100%" style="display: block; margin: auto;" /></p>
+<p>The segmentation view translates predicted probabilities into
+practical intervention tiers. In this run, most employees fall into the
+moderate-risk band, suggesting the selected model is better suited for
+ranking relative monitoring-related risk than for sharply separating
+employees into extreme categories.</p>
+<p>This does not mean the model is wrong. It means the thresholds should
+be calibrated to the organization’s decision context. In practice, HR
+and governance teams could adjust these cutoffs based on available
+review capacity, intervention cost, privacy sensitivity, and tolerance
+for missed risk.</p>
+</div>
+</div>
+<div id="model-summary" class="section level1">
+<h1>Final Model Summary &amp; Key Takeaways</h1>
+<p>The selected model represents the strongest cross-validated F1 Score
+among configurations that also met minimum holdout stability
+requirements. This means the final model was not selected only because
+it performed well during resampling; it also had to produce usable
+positive-class predictions on unseen data.</p>
+<p>While the absolute performance values remain moderate, the model is
+useful as a <strong>risk prioritization tool</strong> because it helps
+rank employees by relative likelihood of monitoring-related turnover
+risk. This distinction is important: the model should not be used to
+make automatic employment decisions. Instead, it supports earlier
+review, privacy-aware workforce conversations, and more focused
+monitoring governance.</p>
+<div id="key-takeaways" class="section level2">
+<h2>📊 Key Takeaways</h2>
+<div class="model-highlight-card">
+
+  <div class="model-badge">Recommended Model Selected</div>
+
+  <h3 class="model-title">
+    Random Forest
+  </h3>
+
+  <p class="model-subtitle">
+    Optimized using <strong>SMOTE</strong> with a focus on <strong>F1 Score</strong>
+  </p>
+
+  <div class="model-metrics">
+    <div class="metric-box">
+      <span class="metric-label">CV F1 Score</span>
+      <span class="metric-value">
+        0.918
+      </span>
+    </div>
+
+    <div class="metric-box">
+      <span class="metric-label">Strategy</span>
+      <span class="metric-value">
+        Holdout-Stable Risk Prioritization
+      </span>
+    </div>
+
+    <div class="metric-box">
+      <span class="metric-label">Use Case</span>
+      <span class="metric-value">
+        Monitoring & Privacy Risk Targeting
+      </span>
+    </div>
+  </div>
+
+</div>
+</div>
+<div id="why-this-model-was-selected" class="section level2">
+<h2>Why This Model Was Selected</h2>
+<div class="decision-box">
+
+<h3>Why This Model Was Selected</h3>
+
+<p>
+The final model was selected using a two-step process: cross-validation identified strong candidate configurations, and the holdout test set confirmed whether those candidates remained practically usable on unseen data.
+</p>
+
+<p>
+In this run, the selected configuration was <strong>Random Forest with SMOTE</strong>. It achieved a cross-validated F1 Score of <strong>0.918</strong>, while its holdout test results produced precision of <strong>1</strong>, recall of <strong>0.446</strong>, and F1 Score of <strong>0.617</strong>.
+</p>
+
+<p>
+The selected model met the holdout stability screen and ranked strongest by cross-validated F1 Score among stable candidates.
+</p>
+
+<p>
+This selection rule balances model-development rigor with practical business usefulness. Cross-validation identifies the strongest generalizable configuration, while the holdout stability check ensures the final model still produces usable predictions on unseen data.
+</p>
+
+<p>
+Because the model is designed for workforce risk screening, predictions should be treated as prompts for further HR or manager review, not as standalone conclusions about employee behavior.
+</p>
+
+</div>
+</div>
+<div id="selected-model-performance-metrics" class="section level2">
+<h2>Selected Model Performance Metrics</h2>
+<p>The table below reports holdout test performance for the selected
+configuration. These values are not used alone to select the model;
+instead, they confirm whether the cross-validated winner remains
+practically usable on unseen data.</p>
+<div id="isokqiyols" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#isokqiyols table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#isokqiyols thead, #isokqiyols tbody, #isokqiyols tfoot, #isokqiyols tr, #isokqiyols td, #isokqiyols th {
+  border-style: none;
+}
+
+#isokqiyols p {
+  margin: 0;
+  padding: 0;
+}
+
+#isokqiyols .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: 55%;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#isokqiyols .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#isokqiyols .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#isokqiyols .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#isokqiyols .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#isokqiyols .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#isokqiyols .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#isokqiyols .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#isokqiyols .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#isokqiyols .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#isokqiyols .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#isokqiyols .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#isokqiyols .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#isokqiyols .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#isokqiyols .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#isokqiyols .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#isokqiyols .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#isokqiyols .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#isokqiyols .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#isokqiyols .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#isokqiyols .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#isokqiyols .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#isokqiyols .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#isokqiyols .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#isokqiyols .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#isokqiyols .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#isokqiyols .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#isokqiyols .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#isokqiyols .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#isokqiyols .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#isokqiyols .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#isokqiyols .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#isokqiyols .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#isokqiyols .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#isokqiyols .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#isokqiyols .gt_left {
+  text-align: left;
+}
+
+#isokqiyols .gt_center {
+  text-align: center;
+}
+
+#isokqiyols .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#isokqiyols .gt_font_normal {
+  font-weight: normal;
+}
+
+#isokqiyols .gt_font_bold {
+  font-weight: bold;
+}
+
+#isokqiyols .gt_font_italic {
+  font-style: italic;
+}
+
+#isokqiyols .gt_super {
+  font-size: 65%;
+}
+
+#isokqiyols .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#isokqiyols .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#isokqiyols .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#isokqiyols .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#isokqiyols .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#isokqiyols .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#isokqiyols .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#isokqiyols .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#isokqiyols div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="2" class="gt_heading gt_title gt_font_normal" style>Selected Model Performance Summary</td>
+    </tr>
+    <tr class="gt_heading">
+      <td colspan="2" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border" style>Holdout test performance for Random Forest with SMOTE</td>
+    </tr>
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Metric">Metric</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Score">Score</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Metric" class="gt_row gt_center">Accuracy</td>
+<td headers="Score" class="gt_row gt_center">0.846</td></tr>
+    <tr><td headers="Metric" class="gt_row gt_center">Precision</td>
+<td headers="Score" class="gt_row gt_center">1.000</td></tr>
+    <tr><td headers="Metric" class="gt_row gt_center">Recall</td>
+<td headers="Score" class="gt_row gt_center">0.446</td></tr>
+    <tr><td headers="Metric" class="gt_row gt_center">F1 Score</td>
+<td headers="Score" class="gt_row gt_center">0.617</td></tr>
+    <tr><td headers="Metric" class="gt_row gt_center">ROC AUC</td>
+<td headers="Score" class="gt_row gt_center">0.724</td></tr>
+  </tbody>
+  
+  
+</table>
+</div>
+</div>
+<div id="top-model-configurations" class="section level2">
+<h2>Top Model Configurations</h2>
+<div id="tgkoiznxsk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#tgkoiznxsk table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#tgkoiznxsk thead, #tgkoiznxsk tbody, #tgkoiznxsk tfoot, #tgkoiznxsk tr, #tgkoiznxsk td, #tgkoiznxsk th {
+  border-style: none;
+}
+
+#tgkoiznxsk p {
+  margin: 0;
+  padding: 0;
+}
+
+#tgkoiznxsk .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 12px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: 90%;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#tgkoiznxsk .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#tgkoiznxsk .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#tgkoiznxsk .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#tgkoiznxsk .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#tgkoiznxsk .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#tgkoiznxsk .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#tgkoiznxsk .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#tgkoiznxsk .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#tgkoiznxsk .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#tgkoiznxsk .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#tgkoiznxsk .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#tgkoiznxsk .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#tgkoiznxsk .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#tgkoiznxsk .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#tgkoiznxsk .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#tgkoiznxsk .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#tgkoiznxsk .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#tgkoiznxsk .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#tgkoiznxsk .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#tgkoiznxsk .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#tgkoiznxsk .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#tgkoiznxsk .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#tgkoiznxsk .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#tgkoiznxsk .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#tgkoiznxsk .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#tgkoiznxsk .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#tgkoiznxsk .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#tgkoiznxsk .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#tgkoiznxsk .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#tgkoiznxsk .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#tgkoiznxsk .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#tgkoiznxsk .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#tgkoiznxsk .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#tgkoiznxsk .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#tgkoiznxsk .gt_left {
+  text-align: left;
+}
+
+#tgkoiznxsk .gt_center {
+  text-align: center;
+}
+
+#tgkoiznxsk .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#tgkoiznxsk .gt_font_normal {
+  font-weight: normal;
+}
+
+#tgkoiznxsk .gt_font_bold {
+  font-weight: bold;
+}
+
+#tgkoiznxsk .gt_font_italic {
+  font-style: italic;
+}
+
+#tgkoiznxsk .gt_super {
+  font-size: 65%;
+}
+
+#tgkoiznxsk .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#tgkoiznxsk .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#tgkoiznxsk .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#tgkoiznxsk .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#tgkoiznxsk .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#tgkoiznxsk .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#tgkoiznxsk .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#tgkoiznxsk .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#tgkoiznxsk div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="7" class="gt_heading gt_title gt_font_normal" style>Top Model Configurations</td>
+    </tr>
+    <tr class="gt_heading">
+      <td colspan="7" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border" style>Cross-validation ranking with holdout confirmation metrics</td>
+    </tr>
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Sampling">Sampling</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="CV-F1-Score">CV F1 Score</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Holdout-Precision">Holdout Precision</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Holdout-Recall">Holdout Recall</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Holdout-F1">Holdout F1</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Status">Status</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Model" class="gt_row gt_center">Random Forest</td>
+<td headers="Sampling" class="gt_row gt_center">SMOTE</td>
+<td headers="CV F1 Score" class="gt_row gt_center">0.918</td>
+<td headers="Holdout Precision" class="gt_row gt_center">1.000</td>
+<td headers="Holdout Recall" class="gt_row gt_center">0.446</td>
+<td headers="Holdout F1" class="gt_row gt_center">0.617</td>
+<td headers="Status" class="gt_row gt_center">Selected Final Model</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">XGBoost</td>
+<td headers="Sampling" class="gt_row gt_center">No Sampling</td>
+<td headers="CV F1 Score" class="gt_row gt_center">0.918</td>
+<td headers="Holdout Precision" class="gt_row gt_center">1.000</td>
+<td headers="Holdout Recall" class="gt_row gt_center">0.446</td>
+<td headers="Holdout F1" class="gt_row gt_center">0.617</td>
+<td headers="Status" class="gt_row gt_center">Holdout-Stable Alternative</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">Random Forest</td>
+<td headers="Sampling" class="gt_row gt_center">No Sampling</td>
+<td headers="CV F1 Score" class="gt_row gt_center">0.917</td>
+<td headers="Holdout Precision" class="gt_row gt_center">1.000</td>
+<td headers="Holdout Recall" class="gt_row gt_center">0.446</td>
+<td headers="Holdout F1" class="gt_row gt_center">0.617</td>
+<td headers="Status" class="gt_row gt_center">Holdout-Stable Alternative</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">Random Forest</td>
+<td headers="Sampling" class="gt_row gt_center">Up Sampling</td>
+<td headers="CV F1 Score" class="gt_row gt_center">0.917</td>
+<td headers="Holdout Precision" class="gt_row gt_center">1.000</td>
+<td headers="Holdout Recall" class="gt_row gt_center">0.446</td>
+<td headers="Holdout F1" class="gt_row gt_center">0.617</td>
+<td headers="Status" class="gt_row gt_center">Holdout-Stable Alternative</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">XGBoost</td>
+<td headers="Sampling" class="gt_row gt_center">SMOTE</td>
+<td headers="CV F1 Score" class="gt_row gt_center">0.916</td>
+<td headers="Holdout Precision" class="gt_row gt_center">1.000</td>
+<td headers="Holdout Recall" class="gt_row gt_center">0.446</td>
+<td headers="Holdout F1" class="gt_row gt_center">0.617</td>
+<td headers="Status" class="gt_row gt_center">Holdout-Stable Alternative</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">XGBoost</td>
+<td headers="Sampling" class="gt_row gt_center">Up Sampling</td>
+<td headers="CV F1 Score" class="gt_row gt_center">0.914</td>
+<td headers="Holdout Precision" class="gt_row gt_center">0.964</td>
+<td headers="Holdout Recall" class="gt_row gt_center">0.482</td>
+<td headers="Holdout F1" class="gt_row gt_center">0.643</td>
+<td headers="Status" class="gt_row gt_center">Holdout-Stable Alternative</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">Random Forest</td>
+<td headers="Sampling" class="gt_row gt_center">Down Sampling</td>
+<td headers="CV F1 Score" class="gt_row gt_center">0.899</td>
+<td headers="Holdout Precision" class="gt_row gt_center">0.800</td>
+<td headers="Holdout Recall" class="gt_row gt_center">0.500</td>
+<td headers="Holdout F1" class="gt_row gt_center">0.615</td>
+<td headers="Status" class="gt_row gt_center">Holdout-Stable Alternative</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">XGBoost</td>
+<td headers="Sampling" class="gt_row gt_center">Down Sampling</td>
+<td headers="CV F1 Score" class="gt_row gt_center">0.890</td>
+<td headers="Holdout Precision" class="gt_row gt_center">1.000</td>
+<td headers="Holdout Recall" class="gt_row gt_center">0.446</td>
+<td headers="Holdout F1" class="gt_row gt_center">0.617</td>
+<td headers="Status" class="gt_row gt_center">Holdout-Stable Alternative</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">SVM</td>
+<td headers="Sampling" class="gt_row gt_center">No Sampling</td>
+<td headers="CV F1 Score" class="gt_row gt_center">0.849</td>
+<td headers="Holdout Precision" class="gt_row gt_center">0.657</td>
+<td headers="Holdout Recall" class="gt_row gt_center">0.411</td>
+<td headers="Holdout F1" class="gt_row gt_center">0.505</td>
+<td headers="Status" class="gt_row gt_center">Holdout-Stable Alternative</td></tr>
+    <tr><td headers="Model" class="gt_row gt_center">Naive Bayes</td>
+<td headers="Sampling" class="gt_row gt_center">No Sampling</td>
+<td headers="CV F1 Score" class="gt_row gt_center">0.840</td>
+<td headers="Holdout Precision" class="gt_row gt_center">NA</td>
+<td headers="Holdout Recall" class="gt_row gt_center">0.000</td>
+<td headers="Holdout F1" class="gt_row gt_center">NA</td>
+<td headers="Status" class="gt_row gt_center">Not Selected</td></tr>
+  </tbody>
+  
+  
+</table>
+</div>
+<p>While model performance identifies <em>which employees are at risk of
+monitoring-related turnover</em>, understanding <em>why</em> those
+predictions occur is critical for meaningful intervention.</p>
+<p>This section interprets the underlying drivers of monitoring-based
+turnover risk, connecting statistical patterns to real-world workforce
+behavior.</p>
+</div>
+</div>
+<div id="driver-interpretation" class="section level1">
+<h1>Driver Interpretation</h1>
+<p>Because the selected predictive workflow does not provide a
+straightforward, model-agnostic feature-importance ranking, driver
+interpretation is based on the broader analytical pattern observed
+across the modeling and exploratory analysis.</p>
+<p>The results suggest that monitoring-based turnover risk is not driven
+by one isolated factor. Instead, risk appears to reflect a combination
+of <strong>privacy perceptions, monitoring intensity, trust, workload,
+wellbeing, and organizational support factors</strong>.</p>
+<p>This is important from a business perspective because monitoring risk
+should not be treated only as a technology or compliance issue.
+Effective monitoring governance requires coordinated action across
+transparency, fairness, privacy protection, manager communication,
+workload expectations, and employee trust.</p>
+<div id="feature-action" class="section level2">
+<h2>Feature → Action Mapping</h2>
+<p>To translate model insights into practical action, key risk areas are
+mapped to targeted workforce interventions. This bridges the gap between
+predictive analytics and real-world decision-making by connecting model
+interpretation to practical HR response strategies.</p>
+<div id="vaiiwxqjhr" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#vaiiwxqjhr table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#vaiiwxqjhr thead, #vaiiwxqjhr tbody, #vaiiwxqjhr tfoot, #vaiiwxqjhr tr, #vaiiwxqjhr td, #vaiiwxqjhr th {
+  border-style: none;
+}
+
+#vaiiwxqjhr p {
+  margin: 0;
+  padding: 0;
+}
+
+#vaiiwxqjhr .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: 90%;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#vaiiwxqjhr .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#vaiiwxqjhr .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#vaiiwxqjhr .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#vaiiwxqjhr .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#vaiiwxqjhr .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#vaiiwxqjhr .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#vaiiwxqjhr .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#vaiiwxqjhr .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#vaiiwxqjhr .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#vaiiwxqjhr .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#vaiiwxqjhr .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#vaiiwxqjhr .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#vaiiwxqjhr .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#vaiiwxqjhr .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#vaiiwxqjhr .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#vaiiwxqjhr .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#vaiiwxqjhr .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#vaiiwxqjhr .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#vaiiwxqjhr .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#vaiiwxqjhr .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#vaiiwxqjhr .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#vaiiwxqjhr .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#vaiiwxqjhr .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#vaiiwxqjhr .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#vaiiwxqjhr .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#vaiiwxqjhr .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#vaiiwxqjhr .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#vaiiwxqjhr .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#vaiiwxqjhr .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#vaiiwxqjhr .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#vaiiwxqjhr .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#vaiiwxqjhr .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#vaiiwxqjhr .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#vaiiwxqjhr .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#vaiiwxqjhr .gt_left {
+  text-align: left;
+}
+
+#vaiiwxqjhr .gt_center {
+  text-align: center;
+}
+
+#vaiiwxqjhr .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#vaiiwxqjhr .gt_font_normal {
+  font-weight: normal;
+}
+
+#vaiiwxqjhr .gt_font_bold {
+  font-weight: bold;
+}
+
+#vaiiwxqjhr .gt_font_italic {
+  font-style: italic;
+}
+
+#vaiiwxqjhr .gt_super {
+  font-size: 65%;
+}
+
+#vaiiwxqjhr .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#vaiiwxqjhr .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#vaiiwxqjhr .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#vaiiwxqjhr .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#vaiiwxqjhr .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#vaiiwxqjhr .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#vaiiwxqjhr .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#vaiiwxqjhr .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#vaiiwxqjhr div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" style="table-layout:fixed;width:90%;" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <colgroup>
+    <col style="width:190px;"/>
+    <col style="width:360px;"/>
+    <col style="width:430px;"/>
+  </colgroup>
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="3" class="gt_heading gt_title gt_font_normal" style>Monitoring &amp; Privacy Risk Driver-to-Action Map</td>
+    </tr>
+    <tr class="gt_heading">
+      <td colspan="3" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border" style>Translating model insights into workforce trust and monitoring governance strategy</td>
+    </tr>
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Risk_Area">Risk Area</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="What_It_Suggests">What It Suggests</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Recommended_Action">Recommended Action</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Risk_Area" class="gt_row gt_left">Monitoring intensity and perceived surveillance</td>
+<td headers="What_It_Suggests" class="gt_row gt_left">Employees exposed to higher monitoring intensity may experience reduced autonomy, increased pressure, or heightened surveillance concerns.</td>
+<td headers="Recommended_Action" class="gt_row gt_left">Review monitoring scope, necessity, transparency, and proportionality before expanding monitoring practices.</td></tr>
+    <tr><td headers="Risk_Area" class="gt_row gt_left">Privacy concerns and trust</td>
+<td headers="What_It_Suggests" class="gt_row gt_left">Higher privacy concern may reduce trust in leadership and increase monitoring-related turnover risk.</td>
+<td headers="Recommended_Action" class="gt_row gt_left">Improve communication about data use, access controls, retention policies, and employee privacy protections.</td></tr>
+    <tr><td headers="Risk_Area" class="gt_row gt_left">Workload, stress, and wellbeing</td>
+<td headers="What_It_Suggests" class="gt_row gt_left">Monitoring may compound existing strain when employees already feel overloaded, unsupported, or closely scrutinized.</td>
+<td headers="Recommended_Action" class="gt_row gt_left">Pair monitoring programs with workload review, wellbeing resources, and manager support practices.</td></tr>
+    <tr><td headers="Risk_Area" class="gt_row gt_left">Manager and organizational support</td>
+<td headers="What_It_Suggests" class="gt_row gt_left">Employees may tolerate monitoring better when they perceive fair treatment, support, and a clear business purpose.</td>
+<td headers="Recommended_Action" class="gt_row gt_left">Train managers to explain monitoring practices, respond to concerns, and avoid punitive use of productivity data.</td></tr>
+    <tr><td headers="Risk_Area" class="gt_row gt_left">Governance and fairness</td>
+<td headers="What_It_Suggests" class="gt_row gt_left">Unclear or inconsistent monitoring policies may increase perceived unfairness and risk.</td>
+<td headers="Recommended_Action" class="gt_row gt_left">Establish transparent governance, audit monitoring impacts, and evaluate whether tools affect employee groups differently.</td></tr>
+  </tbody>
+  
+  
+</table>
+</div>
+</div>
+</div>
+<div id="business-impact" class="section level1">
+<h1>Business Impact &amp; Decision Guidance</h1>
+<p>The model is designed to support workforce decision-making at a
+strategic level. Rather than functioning as an automated decision
+system, it should be used as a <strong>risk intelligence layer</strong>
+that helps HR, leadership, and governance stakeholders prioritize where
+deeper review may be needed.</p>
+<div id="decision-guidance" class="section level2">
+<h2>Strategic Decision Guidance</h2>
+<div class="decision-box">
+
+<h3>Strategic Decision Guidance</h3>
+
+<p>
+This model is best deployed as a <strong>risk prioritization tool</strong>, not as a standalone decision system.
+</p>
+
+<ul>
+  <li><strong>High-risk employees</strong> → Prioritize for HR, manager, or governance review</li>
+  <li><strong>Moderate-risk employees</strong> → Monitor privacy concerns, workload, trust, and support trends</li>
+  <li><strong>Low-risk employees</strong> → Maintain baseline monitoring governance and communication practices</li>
+</ul>
+
+<p>
+The value of the model is not in replacing human judgment, but in helping decision-makers focus attention earlier and more consistently.
+</p>
+
+</div>
+</div>
+<div id="model-limitations" class="section level2">
+<h2>Model Limitations</h2>
+<div class="decision-box">
+
+<h3>Model Limitations</h3>
+
+<p>
+The model should be interpreted within the context of synthetic data, simulated workforce patterns, and organizational variability.
+</p>
+
+<ul>
+  <li>Predictions reflect patterns in synthetic data, not observed outcomes from a real organization</li>
+  <li>Performance may shift when applied to different employee populations or industries</li>
+  <li>Risk scores should support review and prioritization, not automatic employment decisions</li>
+  <li>Human context remains essential before any intervention is taken</li>
+</ul>
+
+</div>
+</div>
+<div id="final-takeaway" class="section level2">
+<h2>Final Takeaway</h2>
+<p>Monitoring-based turnover risk is not driven by a single variable. It
+reflects a network of privacy, trust, monitoring, workload, wellbeing,
+and organizational support signals that collectively shape how employees
+experience workplace surveillance.</p>
+<p>The modeling framework demonstrates how predictive analytics can move
+beyond static reporting and support proactive workforce trust
+management. In this run, the selected model provides a strong
+prioritization signal: employees flagged by the model are likely to
+warrant closer review, while lower recall indicates that
+monitoring-related risk should also be monitored through surveys,
+manager feedback, privacy complaints, and workforce climate
+indicators.</p>
+<p>Used responsibly, this type of model becomes a decision-support tool:
+not a replacement for human judgment, but a way to help organizations
+balance operational visibility with employee trust, privacy, and
+long-term retention outcomes.</p>
+<hr class="section-divider">
+
+<div class="page-nav">
+
+  <div class="nav-left">
+    <a href="HR_Data_Quiet_Quitting.html" class="cta-btn btn-blue">← Back</a>
+  </div>
+
+  <div class="nav-center">
+    <a href="index.html" class="cta-btn btn-teal">Home</a>
+  </div>
+
+  <div class="nav-right">
+    <a href="HR_Data_Insights_Gleaned.html" class="cta-btn btn-red">Next →</a>
+  </div>
+
+</div>
+
+</div> <!-- page-content -->
+</div> <!-- page-layout -->
+</div> <!-- main-container -->
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,502 +1,747 @@
 ---
 title: "Executive Insights: Workforce Risk Modeling Results"
-author: "Kevin Allen Cauley"
-date: "`r format(Sys.Date(), '%B %d, %Y')`"
 
 output:
   html_document:
     always_allow_html: true
     self_contained: false
-    theme: flatly
     toc: false
-    css: "assets/styles.css"
-    output_file: HR_Data_Insights_Gleaned.html
-    output_dir: ../docs
+    toc_float: false
+    theme: null
+    highlight: null
+    df_print: paged
+    fig_caption: true
+    css: "../docs/assets/styles.css"
+    includes:
+      in_header: "../docs/assets/header.html"
+
+number_sections: true
 ---
 
+```{=html}
+<div class="report-container">
+
+  <div class="page-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-card">
+        <div class="sidebar-label">On this page</div>
+        <nav class="sidebar-nav">
+          <a href="#executive-summary">Executive Summary</a>
+          <a href="#modeling-results">Portfolio-Level Modeling Results</a>
+          <a href="#workforce-patterns">Cross-Model Workforce Patterns</a>
+          <a href="#strategic-recommendations">Strategic Workforce Recommendations</a>
+          <a href="#responsible-governance">Responsible Use & Governance</a>
+          <a href="#executive-action-roadmap">Executive Action Roadmap</a>
+          <a href="#final-takeaway">Final Takeaway</a>
+        </nav>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="page-content">
+
+      <!-- MATCH EDA STRUCTURE -->
+      <div class="hero-section">
+        <p class="hero-meta">
+          Kevin Allen Cauley • `r format(Sys.Date(), '%B %d, %Y')`
+        </p>
+
+        <h1 class="hero-title">Executive Insights: Workforce Risk Modeling Results</h1>
+
+        <p class="hero-subtitle">
+        This section synthesizes the final modeling results across turnover intention, quiet quitting, and monitoring-related turnover risk, translating model performance into executive-level workforce insights, governance guidance, and practical HR action priorities.
+        </p>
+      </div>
+
+      <!-- REPLACED page-nav WITH cta-row -->
+      <div class="cta-row">
+        <a href="HR_Data_Monitoring_Privacy.html" class="cta-btn btn-blue">← Back</a>
+        <a href="index.html" class="cta-btn btn-teal">Home</a>
+      </div>
+```
+
 ```{r 00-setup, include=FALSE}
-# Function Helpers
 source(here::here("analysis", "helper.R"))
 
-# Reproducibility
-set.seed(123)
+PLOT_SUBFOLDER <- "insights"
 
-# Ensure all paths resolve from project root
-library(rprojroot)
+cat("Using plot folder:", PLOT_SUBFOLDER, "\n")
 
-knitr::opts_knit$set(
-  root.dir = rprojroot::find_rstudio_root_file()
+# Required Packages
+required_pkgs <- c(
+  "conflicted", "tidyverse", "here", "gt", "scales", "glue"
 )
 
-# Output Directory
-plot_dir <- here::here("docs", "figures", "insights")
-dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
+for (pkg in required_pkgs) {
+  if (!pkg %in% rownames(installed.packages())) {
+    install.packages(pkg)
+  }
+}
 
-# Global chunk options
+library(conflicted)
+library(tidyverse)
+library(here)
+library(gt)
+library(scales)
+library(glue)
+
+conflicted::conflicts_prefer(
+  dplyr::filter,
+  dplyr::select,
+  dplyr::mutate,
+  dplyr::summarise,
+  dplyr::arrange,
+  dplyr::slice,
+  dplyr::slice_head,
+  dplyr::slice_max,
+  dplyr::slice_min,
+  dplyr::recode,
+  dplyr::rename,
+  dplyr::lag
+)
+
+# Global Options
 knitr::opts_chunk$set(
   echo = FALSE,
   warning = FALSE,
   message = FALSE,
   fig.align = "center",
   out.width = "100%",
-  fig.retina = 2,
-  fig.width = 8,
-  fig.height = 5,
-  dpi = 300,
-  cache = FALSE,
-  fig.path = "IGNORE/"
-)
-```
-
-```{r 00-load-data}
-# Load Clean Dataset (Standardized Pipeline)
-hr_df <- readRDS(here::here("data", "processed", "hr_dataset_clean.rds"))
-
-# Validation
-required_cols <- c(
-  "turnover_intention",
-  "quiet_quitting",
-  "monitoring_turnover_risk"
+  fig.width = 9,
+  fig.height = 5.5,
+  dpi = 300
 )
 
-# Missing Column Check (Safety)
-missing_cols <- setdiff(required_cols, names(hr_df))
+set.seed(123)
 
-if (length(missing_cols) > 0) {
+# Load final model summaries exported from each modeling report
+summary_dir <- here::here("data", "processed", "model_summaries")
+
+summary_files <- c(
+  "turnover_model_summary.rds",
+  "quiet_quitting_model_summary.rds",
+  "monitoring_privacy_model_summary.rds"
+)
+
+missing_files <- summary_files[!file.exists(file.path(summary_dir, summary_files))]
+
+if (length(missing_files) > 0) {
   stop(
-    paste0(
-      "Missing required columns: ",
-      paste(missing_cols, collapse = ", ")
-    )
+    "Missing model summary file(s): ",
+    paste(missing_files, collapse = ", "),
+    ". Re-render the modeling reports before rendering Insights Gleaned."
   )
 }
 
-# Type Enforcement
-hr_df <- hr_df %>%
+model_summaries <- purrr::map_dfr(
+  file.path(summary_dir, summary_files),
+  readRDS
+) %>%
   mutate(
-    turnover_intention = as.factor(turnover_intention),
-    quiet_quitting = as.factor(quiet_quitting),
-    monitoring_turnover_risk = as.factor(monitoring_turnover_risk)
+    Outcome = factor(
+      Outcome,
+      levels = c(
+        "Turnover Intention",
+        "Quiet Quitting",
+        "Monitoring & Privacy Risk"
+      )
+    ),
+    Model_Config = paste(Model, Sampling, sep = " + "),
+    across(
+      c(
+        CV_F1,
+        Holdout_Accuracy,
+        Holdout_Precision,
+        Holdout_Recall,
+        Holdout_F1,
+        Holdout_ROC_AUC
+      ),
+      as.numeric
+    )
+  ) %>%
+  arrange(Outcome)
+
+best_holdout_model <- model_summaries %>%
+  dplyr::arrange(dplyr::desc(Holdout_F1)) %>%
+  utils::head(1)
+
+highest_precision_model <- model_summaries %>%
+  dplyr::arrange(dplyr::desc(Holdout_Precision)) %>%
+  utils::head(1)
+
+highest_recall_model <- model_summaries %>%
+  dplyr::arrange(dplyr::desc(Holdout_Recall)) %>%
+  utils::head(1)
+
+lowest_holdout_model <- model_summaries %>%
+  dplyr::arrange(Holdout_F1) %>%
+  utils::head(1)
+```
+
+# Executive Summary {#executive-summary}
+
+This final section synthesizes the full workforce analytics pipeline, moving from exploratory analysis and predictive modeling into executive-level interpretation. Across the three modeling tracks, the project evaluates employee turnover intention, quiet quitting risk, and monitoring-related turnover risk using a consistent modeling framework.
+
+The results show that workforce risk is not one-dimensional. Turnover risk, disengagement risk, and monitoring-related risk each require a different interpretation because the strongest model, holdout behavior, and business use case vary by outcome.
+
+Across the portfolio, the strongest holdout model was **`r best_holdout_model$Model_Config`** for **`r best_holdout_model$Outcome`**, with a holdout F1 Score of **`r scales::number(best_holdout_model$Holdout_F1, accuracy = 0.001)`**. The highest precision result was **`r highest_precision_model$Model_Config`** for **`r highest_precision_model$Outcome`**, indicating the strongest reliability among flagged cases.
+
+The main business takeaway is that these models should be used as **risk prioritization tools**, not automated decision systems. Their value is in helping HR, leadership, and governance teams focus attention earlier, identify patterns across workforce signals, and guide more targeted human review.
+
+# Portfolio-Level Modeling Results {#modeling-results}
+
+The final modeling results provide a portfolio-level view of how each workforce risk outcome performed after model development, cross-validation, and holdout confirmation.
+
+Rather than comparing the outcomes as if they represent the same type of problem, the table below summarizes each selected model in context. Turnover intention, quiet quitting, and monitoring-related turnover risk differ in signal strength, business sensitivity, and practical use.
+
+```{r 01-final-model-summary-table, echo=FALSE}
+model_summaries %>%
+  mutate(
+    `Selected Model` = Model,
+    `Sampling Strategy` = Sampling,
+    `Model Configuration` = Model_Config,
+    `Selection Strategy` = Selection_Strategy
+  ) %>%
+  select(
+    Outcome,
+    `Selected Model`,
+    `Sampling Strategy`,
+    `Selection Strategy`,
+    CV_F1,
+    Holdout_Accuracy,
+    Holdout_Precision,
+    Holdout_Recall,
+    Holdout_F1,
+    Holdout_ROC_AUC
+  ) %>%
+  gt() %>%
+  tab_header(
+    title = "Final Selected Models Across Workforce Outcomes",
+    subtitle = "Cross-validated selection with holdout performance confirmation"
+  ) %>%
+  cols_label(
+    CV_F1 = "CV F1",
+    Holdout_Accuracy = "Accuracy",
+    Holdout_Precision = "Precision",
+    Holdout_Recall = "Recall",
+    Holdout_F1 = "F1",
+    Holdout_ROC_AUC = "ROC AUC"
+  ) %>%
+  fmt_number(
+    columns = c(
+      CV_F1,
+      Holdout_Accuracy,
+      Holdout_Precision,
+      Holdout_Recall,
+      Holdout_F1,
+      Holdout_ROC_AUC
+    ),
+    decimals = 3
+  ) %>%
+  cols_align("center") %>%
+  data_color(
+    columns = c(
+      CV_F1,
+      Holdout_Accuracy,
+      Holdout_Precision,
+      Holdout_Recall,
+      Holdout_F1,
+      Holdout_ROC_AUC
+    ),
+    colors = scales::col_numeric(
+      palette = c("#EAF2F8", "#A9CCE3", "#2E86C1"),
+      domain = c(0, 1)
+    )
+  ) %>%
+  tab_options(
+    table.width = pct(95),
+    table.font.size = px(12)
   )
 ```
 
-<div class="main-container">
+## Final Model Comparison
 
-<div class="hero-section">
-  <h1>Executive Insights</h1>
-  <p class="hero-subtitle">
-    This section synthesizes findings across all analyses, translating predictive modeling results into actionable workforce strategies and organizational recommendations.
-  </p>
-</div>
+```{r 02-final-model-comparison-heatmap, echo=FALSE}
+comparison_long <- model_summaries %>%
+  select(
+    Outcome,
+    Model_Config,
+    Holdout_Accuracy,
+    Holdout_Precision,
+    Holdout_Recall,
+    Holdout_F1,
+    Holdout_ROC_AUC
+  ) %>%
+  pivot_longer(
+    cols = starts_with("Holdout"),
+    names_to = "Metric",
+    values_to = "Score"
+  ) %>%
+  mutate(
+    Metric = recode(
+      Metric,
+      Holdout_Accuracy = "Accuracy",
+      Holdout_Precision = "Precision",
+      Holdout_Recall = "Recall",
+      Holdout_F1 = "F1 Score",
+      Holdout_ROC_AUC = "ROC AUC"
+    ),
+    Metric = factor(
+      Metric,
+      levels = c("Accuracy", "Precision", "Recall", "F1 Score", "ROC AUC")
+    ),
+    Outcome_Label = paste0(as.character(Outcome), "\n", Model_Config),
+    Plot_Label = scales::number(Score, accuracy = 0.001)
+  )
 
-<div class="nav-row">
-  <a href="HR_Data_Monitoring_Turnover_Risk_Results.html" class="btn-clean">← Back</a>
-  <a href="index.html" class="btn-clean">Home</a>
-  <span></span>
-</div>
+p <- ggplot(
+  comparison_long,
+  aes(x = Metric, y = fct_rev(Outcome_Label), fill = Score)
+) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  geom_text(
+    aes(label = Plot_Label),
+    fontface = "bold",
+    size = 3.8,
+    color = "#243447"
+  ) +
+  scale_fill_gradient(
+    low = "#EAF2F8",
+    high = "#2E86C1",
+    limits = c(0, 1),
+    name = "Score"
+  ) +
+  labs(
+    title = "Final Holdout Performance Across Workforce Risk Models",
+    subtitle = "Selected models compared using the same final evaluation metrics",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_hr(10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(color = "#5a6b7c"),
+    axis.text.x = element_text(face = "bold"),
+    axis.text.y = element_text(size = 8.5),
+    panel.grid = element_blank(),
+    legend.position = "right",
+    plot.margin = margin(10, 20, 10, 10)
+  )
 
-<hr>
+print(p)
+save_plot(p, "portfolio_holdout_metric_heatmap.png", 10.5, 5.8)
+```
 
-## Workforce Risk Overview
+The portfolio comparison shows that monitoring-related turnover risk produced the strongest overall holdout profile, especially in precision and F1 Score. This suggests the monitoring/privacy model is the most reliable for identifying a focused review queue.
 
-This analysis reveals consistent patterns across multiple models, identifying key workplace factors that contribute to employee disengagement and turnover risk.
+Turnover intention produced moderate but usable holdout performance, making it appropriate for retention-risk prioritization rather than definitive classification. Quiet quitting showed weaker transfer from cross-validation to holdout performance, meaning it should be interpreted more cautiously as an early-warning engagement screen.
 
-Across all models, three major themes emerged:
-- Employee well-being (burnout, stress, mental health)
-- Workplace support (manager relationships, organizational support)
-- Engagement and satisfaction (job satisfaction, commitment)
+## Prediction Confidence & Practical Use
 
-<div class="takeaway-box">
-<strong>Key Insight:</strong> Workforce risk is not driven by a single factor, but by a combination of well-being, support, and engagement variables that interact to influence employee behavior.
-</div>
+```{r 03-precision-recall-portfolio-plot, echo=FALSE}
+portfolio_pr <- model_summaries %>%
+  mutate(
+    Outcome_Label = as.character(Outcome),
+    Use_Profile = case_when(
+      Holdout_Precision >= 0.80 & Holdout_Recall < 0.60 ~ "High-confidence review queue",
+      Holdout_Recall >= 0.80 & Holdout_Precision < 0.40 ~ "Broad screening signal",
+      Holdout_F1 >= 0.45 ~ "Balanced prioritization signal",
+      TRUE ~ "Cautious early-warning signal"
+    )
+  )
 
-## Turnover Intention Insights
+p <- ggplot(
+  portfolio_pr,
+  aes(
+    x = Holdout_Recall,
+    y = Holdout_Precision,
+    size = Holdout_F1,
+    color = Outcome
+  )
+) +
+  geom_vline(
+    xintercept = 0.50,
+    linetype = "dashed",
+    color = "#D5DBDB",
+    linewidth = 0.6
+  ) +
+  geom_hline(
+    yintercept = 0.50,
+    linetype = "dashed",
+    color = "#D5DBDB",
+    linewidth = 0.6
+  ) +
+  geom_point(alpha = 0.85) +
+  geom_text(
+    aes(label = Outcome_Label),
+    nudge_y = 0.06,
+    fontface = "bold",
+    size = 3.3,
+    show.legend = FALSE
+  ) +
+  scale_x_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1)
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1.05)
+  ) +
+  scale_size_continuous(
+    range = c(6, 12),
+    labels = scales::number_format(accuracy = 0.001)
+  ) +
+  labs(
+    title = "Prediction Confidence and Detection Tradeoffs",
+    subtitle = "Precision shows reliability of flagged cases; recall shows detection coverage",
+    x = "Recall: Share of actual risk cases detected",
+    y = "Precision: Reliability of positive predictions",
+    color = "Outcome",
+    size = "Holdout F1"
+  ) +
+  theme_hr(11) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(color = "#5a6b7c"),
+    legend.position = "right",
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(10, 20, 15, 10)
+  )
 
-The turnover model highlights strong relationships between employee burnout, job satisfaction, and perceived organizational support.
+print(p)
+save_plot(p, "portfolio_precision_recall_tradeoff.png", 9.5, 6)
+```
 
-Employees with higher burnout and lower satisfaction levels show significantly increased likelihood of leaving.
+This view highlights why each model should be used differently. A model with high precision is useful for building a focused review queue because flagged employees are more likely to represent meaningful risk. A model with high recall is useful for broad screening because it captures more potential cases, but it may also generate more false positives.
 
-<div class="takeaway-box">
-<strong>Key Insight:</strong> Burnout and job satisfaction are the strongest predictors of turnover intention, making them critical intervention points for retention strategies.
-</div>
+The monitoring/privacy model is the strongest candidate for confident prioritization. The turnover model is useful for balanced retention-risk screening. The quiet quitting model should be treated as a cautious engagement signal that may require additional survey, manager, or qualitative context before action is taken.
 
-Best Model: **SVM (SMOTE)**
+## Risk Segmentation Across Outcomes
 
-Support Vector Machine with SMOTE offered the **most balanced and reliable performance** across all key classification metrics. It performed consistently well in:
+```{r 04-model-use-profile-table, echo=FALSE}
+use_profile_table <- model_summaries %>%
+  mutate(
+    Practical_Profile = case_when(
+      Holdout_Precision >= 0.80 & Holdout_Recall < 0.60 ~
+        "High-confidence review queue",
+      Holdout_Recall >= 0.80 & Holdout_Precision < 0.40 ~
+        "Broad screening signal",
+      Holdout_F1 >= 0.45 ~
+        "Balanced prioritization signal",
+      TRUE ~
+        "Cautious early-warning signal"
+    ),
+    Recommended_Use = case_when(
+      Outcome == "Turnover Intention" ~
+        "Use for retention-risk prioritization and targeted manager/HR review.",
+      Outcome == "Quiet Quitting" ~
+        "Use as an early engagement-risk signal supported by survey and manager context.",
+      Outcome == "Monitoring & Privacy Risk" ~
+        "Use for privacy, trust, and monitoring-governance review prioritization.",
+      TRUE ~
+        "Use as a decision-support signal."
+    )
+  ) %>%
+  select(
+    Outcome,
+    Model_Config,
+    Practical_Profile,
+    Recommended_Use
+  )
 
-- **Recall**: 0.538  
-- **F1 Score**: 0.490  
-- **ROC AUC**: 0.527  
-
-Unlike models that overfit to one class, **SVM (SMOTE)** provided a meaningful spread of predictions across both positive and negative cases. Its confusion matrix confirms that it detected both true positives and true negatives, without collapsing into a biased classifier. This makes it ideal for **early intervention**, where missing at-risk employees (false negatives) is more costly than raising a few false alarms.
+use_profile_table %>%
+  gt() %>%
+  tab_header(
+    title = "Practical Use Profile by Workforce Risk Outcome",
+    subtitle = "How each selected model should be interpreted in decision-making"
+  ) %>%
+  cols_label(
+    Model_Config = "Selected Configuration",
+    Practical_Profile = "Practical Profile",
+    Recommended_Use = "Recommended Use"
+  ) %>%
+  cols_width(
+    Outcome ~ px(190),
+    Model_Config ~ px(230),
+    Practical_Profile ~ px(230),
+    Recommended_Use ~ px(420)
+  ) %>%
+  cols_align("center", columns = c(Outcome, Model_Config, Practical_Profile)) %>%
+  tab_options(
+    table.width = pct(95),
+    table.font.size = px(12)
+  )
+```
 
 ---
 
-Why Naive Bayes (SMOTE) *Appears* Best but Isn't
+# Cross-Model Workforce Patterns {#workforce-patterns}
 
-Naive Bayes (SMOTE) seemed like a top performer at first:
+The modeling results point to a common theme across the project: workforce risk is rarely caused by a single variable. Instead, risk appears to emerge from overlapping behavioral, organizational, and employee-experience signals.
 
-- **Perfect Recall**: 1.000  
-- **Highest F1 Score**: 0.628  
-- **Perfect Specificity**: 1.000  
-- **Accuracy**: 0.574  
+The three outcomes represent different forms of workforce vulnerability:
 
-However, a deeper look at the **confusion matrix** reveals:
+- **Turnover intention** reflects potential exit risk.
+- **Quiet quitting** reflects potential disengagement while remaining employed.
+- **Monitoring-related turnover risk** reflects workforce trust and privacy pressure connected to surveillance or monitoring practices.
 
-|                | Predicted Yes | Predicted No |
-|----------------|----------------|---------------|
-| **Actual Yes** | 109 (TP)       | 0 (FN)        |
-| **Actual No**  | 92 (FP)        | 0 (TN)        |
+Together, these outcomes show that employee risk should be interpreted as a portfolio of signals rather than a single prediction.
 
-Naive Bayes **predicted every case as "Yes"**, flagging all employees as at-risk — which artificially inflates recall but makes it completely **unusable in practice**.
+## Shared Risk Themes
 
-- **No true negatives detected**  
-- **ROC AUC barely above random (0.503)**  
-- **Precision severely diluted by false positives**
+```{r 05-shared-risk-themes-table, echo=FALSE}
+shared_themes <- tibble::tribble(
+  ~Theme, ~Why_It_Matters, ~Executive_Implication,
+  "Employee experience and trust",
+  "Risk patterns across the models suggest that trust, perceived support, and fairness matter across multiple workforce outcomes.",
+  "Leadership should treat workforce risk as an experience-management issue, not only a staffing or compliance issue.",
 
-This one-sided prediction is a known risk when combining **Naive Bayes with SMOTE**, as the algorithm is sensitive to class priors and assumes feature independence.
+  "Wellbeing and workload pressure",
+  "Burnout, strain, and workload-related signals can contribute to disengagement, exit risk, and monitoring sensitivity.",
+  "Retention and engagement strategies should include workload review, wellbeing support, and manager capacity planning.",
 
-While **Naive Bayes (SMOTE)** *looks good on paper*, it is **not a viable model**. The real-world utility of a classifier depends not just on recall, but on **balanced predictions and decision-making power**.  
+  "Manager and organizational support",
+  "Employees are less likely to disengage or consider leaving when support systems are visible, credible, and responsive.",
+  "Manager enablement, communication quality, and escalation pathways should be part of the intervention strategy.",
 
-For Turnover Intention, **SVM (SMOTE)** is the most balanced and trustworthy model for deployment.
+  "Privacy and monitoring governance",
+  "Monitoring-related risk is tied to how employees perceive transparency, proportionality, and fairness in workplace data use.",
+  "Monitoring programs should include governance review, privacy communication, and employee trust safeguards.",
 
-### Turnover Intention Radar Plot and Confusion Matrix
-
-```{r 04-turnover-radar-plot, fig.width=10, fig.height=6, echo=FALSE}
-# Load required libraries
-library(fmsb)
-library(ggplot2)
-
-# ---- Radar Chart ----
-radar_data <- data.frame(
-  row.names = c("Max", "Min", "Logistic", "NaiveBayes", "RandomForest", "SVM", "XGBoost"),
-  Accuracy = c(1, 0, 0.512, 0.574, 0.575, 0.523, 0.493),
-  F1.Score = c(1, 0, 0.437, 0.628, 0.463, 0.525, 0.452),
-  Precision = c(1, 0, 0.463, 0.432, 0.556, 0.443, 0.447),
-  Recall = c(1, 0, 0.478, 1.000, 0.109, 0.538, 0.457),
-  ROC.AUC = c(1, 0, 0.503, 0.503, 0.512, 0.556, 0.495),
-  Specificity = c(1, 0, 0.596, 1.000, 0.927, 0.512, 0.523)
+  "Model outputs as prioritization signals",
+  "The models are strongest when used to identify where deeper review may be needed, not to make final employee-level decisions.",
+  "Use predictions as structured prompts for human review, not as automated decisions."
 )
 
-model_colors <- c(
-  "Logistic" = "#4B9CD3",
-  "NaiveBayes" = "#F4D03F",
-  "RandomForest" = "#3FA34D",
-  "SVM" = "#884EA0",
-  "XGBoost" = "#E87461"
-)
-
-# Radar chart
-radarchart(
-  radar_data,
-  axistype = 1,
-  pcol = model_colors,
-  pfcol = adjustcolor(model_colors, alpha.f = 0.25),
-  plwd = 2,
-  plty = 1,
-  cglcol = "gray80",
-  cglty = 1,
-  axislabcol = "gray30",
-  caxislabels = seq(0, 1, 0.25),
-  cglwd = 0.8,
-  vlcex = 0.8,
-  title = "Model Comparison – Radar Chart (Turnover Intention)"
-)
-legend("topright", legend = names(model_colors), col = model_colors, lty = 1, lwd = 2, bty = "n")
-
-# ---- Confusion Matrix Polar Plot ----
-confusion_data <- data.frame(
-  Model = rep(c("Logistic", "NaiveBayes", "RandomForest", "SVM", "XGBoost"), each = 4),
-  Category = rep(c("True Positive", "False Positive", "True Negative", "False Negative"), times = 5),
-  Count = c(
-    44, 65, 54, 38,
-    109, 0, 0, 92,
-    8, 101, 82, 10,
-    43, 66, 44, 48,
-    52, 57, 50, 42
-  )
-)
-
-confusion_data$Model <- factor(confusion_data$Model, levels = names(model_colors))
-
-ggplot(confusion_data, aes(x = Category, y = Count, fill = Model)) +
-  geom_bar(stat = "identity", position = "identity", alpha = 0.6) +
-  coord_polar() +
-  scale_fill_manual(values = model_colors) +
-  labs(title = "Confusion Matrix Breakdown – Top Models (Turnover Intention)") +
-  theme_minimal(base_size = 13) +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    axis.text.x = element_text(face = "bold"),
-    legend.position = "right"
+shared_themes %>%
+  gt() %>%
+  tab_header(
+    title = "Shared Workforce Risk Themes",
+    subtitle = "Common patterns across turnover, disengagement, and monitoring/privacy risk"
+  ) %>%
+  cols_label(
+    Theme = "Shared Theme",
+    Why_It_Matters = "Why It Matters",
+    Executive_Implication = "Executive Implication"
+  ) %>%
+  cols_width(
+    Theme ~ px(220),
+    Why_It_Matters ~ px(390),
+    Executive_Implication ~ px(430)
+  ) %>%
+  tab_options(
+    table.width = pct(95),
+    table.font.size = px(12)
   )
 ```
 
-## Quiet Quitting Insights
+## Outcome-Specific Risk Differences
 
-Quiet quitting behavior is strongly associated with reduced engagement, lower discretionary effort, and weaker organizational commitment.
+Although the models share common workforce themes, each outcome requires a different business response.
 
-Employees in this category may not leave immediately but show declining productivity and involvement.
+Turnover intention is most useful for identifying employees who may require retention conversations, manager follow-up, or workload review. Quiet quitting is more ambiguous because disengagement can be behavioral, emotional, or contextual, making it better suited for engagement monitoring than direct intervention. Monitoring/privacy risk is the clearest governance signal because it connects workforce risk to privacy, trust, surveillance, and policy design.
 
-<div class="takeaway-box">
-<strong>Key Insight:</strong> Quiet quitting serves as an early warning signal of disengagement that often precedes turnover.
-</div>
+# Strategic Workforce Recommendations {#strategic-recommendations}
 
-Best Model: **Naive Bayes (SMOTE)**
+The modeling results support a practical executive strategy: use predictive outputs to prioritize attention, then combine those signals with human context, qualitative information, and organizational judgment.
 
-For identifying quiet quitting behavior, **Naive Bayes (SMOTE)** achieved **perfect recall (1.000)** and **specificity (1.000)**, alongside the **highest F1 score (0.628)** among all models. These strengths make it incredibly sensitive — able to capture nearly all disengaged employees.
+The recommendations below translate the modeling results into workforce action areas.
 
-However, its **lower precision (0.432)** and **high false positive rate** suggest that while it's effective at flagging risk, it also over-identifies employees who aren't actually quiet quitting. The confusion matrix shows this model predicts most employees as "at risk", which could lead to unnecessary interventions.
+```{r 06-strategic-recommendations-table, echo=FALSE}
+recommendations <- tibble::tribble(
+  ~Risk_Area, ~Primary_Model_Signal, ~Recommended_Action,
+  "Retention Risk",
+  "Turnover intention model",
+  "Use risk scores to prioritize retention conversations, manager check-ins, workload review, and career-development discussions.",
 
-This model is ideal for **early detection** in large teams or low-stakes environments, where catching every possible case is more important than precision.  
+  "Quiet Quitting / Engagement Risk",
+  "Quiet quitting model",
+  "Treat predictions as early engagement signals. Pair model output with pulse surveys, manager observations, role clarity review, and discretionary-effort indicators.",
 
-At the same time - less suited for **high-consequence decisions** like performance reviews or escalated work intervention without further confirmation.
+  "Monitoring & Privacy Risk",
+  "Monitoring/privacy model",
+  "Use flagged cases and segments to guide monitoring governance review, privacy communication, trust-building, and proportionality checks.",
 
-Compared to other models:
-- **SVM** and **XGBoost** provided better balance across all metrics
-- **Random Forest** and **Logistic Regression** had stronger precision but missed more true cases (low recall)
+  "Workforce Planning",
+  "All models",
+  "Compare risk patterns across departments, roles, tenure groups, and work arrangements to identify structural workforce pressure points.",
 
-**Naive Bayes (SMOTE)** is a great *first-pass flagging model*, but should be paired with **secondary review or human-in-the-loop oversight** for practical application.
-
-### Quiet Quitting Radar Plot and Confusion Matrix
-
-```{r 04-quiet-radar-plot, fig.width=10, fig.height=6, echo=FALSE}
-# Load required libraries
-library(fmsb)
-library(ggplot2)
-library(dplyr)
-library(gridExtra)
-
-# ---- Radar Chart Data ----
-radar_data <- data.frame(
-  row.names = c("Max", "Min", "Logistic", "NaiveBayes", "RandomForest", "SVM", "XGBoost"),
-  Accuracy = c(1, 0, 0.532, 0.574, 0.575, 0.523, 0.493),
-  F1.Score = c(1, 0, 0.484, 0.628, 0.463, 0.525, 0.452),
-  Precision = c(1, 0, 0.489, 0.432, 0.556, 0.443, 0.447),
-  Recall = c(1, 0, 0.478, 1.000, 0.109, 0.538, 0.457),
-  ROC.AUC = c(1, 0, 0.503, 0.503, 0.512, 0.556, 0.495),
-  Specificity = c(1, 0, 0.578, 1.000, 0.927, 0.512, 0.523)
+  "Leadership Decision Support",
+  "All models",
+  "Use model outputs to focus executive attention, not to automate employment decisions or replace manager/HR judgment."
 )
 
-# Define model colors
-model_colors <- c(
-  "Logistic" = "#4B9CD3",
-  "NaiveBayes" = "#F4D03F",
-  "RandomForest" = "#3FA34D",
-  "SVM" = "#884EA0",
-  "XGBoost" = "#E87461"
-)
-
-# ---- Radar Chart ----
-radarchart(
-  radar_data,
-  axistype = 1,
-  pcol = model_colors,
-  pfcol = adjustcolor(model_colors, alpha.f = 0.3),
-  plwd = 2,
-  plty = 1,
-  cglcol = "gray80",
-  cglty = 1,
-  axislabcol = "gray30",
-  caxislabels = seq(0, 1, 0.25),
-  cglwd = 0.8,
-  vlcex = 0.8,
-  title = "Model Comparison – Radar Chart (Quiet Quitting)"
-)
-legend("topright", legend = names(model_colors), col = model_colors, lty = 1, lwd = 2, bty = "n")
-
-# ---- Confusion Matrix Breakdown ----
-confusion_data <- data.frame(
-  Model = rep(c("Logistic", "NaiveBayes", "RandomForest", "SVM", "XGBoost"), each = 4),
-  Category = rep(c("True Positive", "False Positive", "True Negative", "False Negative"), times = 5),
-  Count = c(
-    25, 18, 58, 100,
-    26, 17, 63, 95,
-    42, 1, 2, 156,
-    43, 0, 0, 158,
-    18, 25, 78, 80
-  )
-)
-
-confusion_data$Model <- factor(confusion_data$Model, levels = names(model_colors))
-
-# Polar bar plot
-ggplot(confusion_data, aes(x = Category, y = Count, fill = Model)) +
-  geom_bar(stat = "identity", position = "identity", alpha = 0.6) +
-  coord_polar() +
-  scale_fill_manual(values = model_colors) +
-  labs(title = "Confusion Matrix Breakdown – Top Models (Quiet Quitting)") +
-  theme_minimal(base_size = 13) +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    axis.text.x = element_text(face = "bold"),
-    legend.position = "right"
+recommendations %>%
+  gt() %>%
+  tab_header(
+    title = "Strategic Workforce Recommendations",
+    subtitle = "Translating model outputs into executive action"
+  ) %>%
+  cols_label(
+    Risk_Area = "Risk Area",
+    Primary_Model_Signal = "Primary Model Signal",
+    Recommended_Action = "Recommended Action"
+  ) %>%
+  cols_width(
+    Risk_Area ~ px(210),
+    Primary_Model_Signal ~ px(230),
+    Recommended_Action ~ px(560)
+  ) %>%
+  tab_options(
+    table.width = pct(95),
+    table.font.size = px(12)
   )
 ```
 
-## Work Related Monitoring and Turnoven Risk Insights
+# Responsible Use & Governance {#responsible-governance}
 
-Monitoring-related variables reveal that increased surveillance and perceived intrusiveness may contribute to employee dissatisfaction and elevated turnover risk.
+Because these models deal with workforce risk, responsible use is central to the project. The models should support better questions, earlier review, and more consistent prioritization. They should not be used as automated decision systems.
 
-While monitoring can improve oversight, excessive or poorly implemented monitoring may negatively impact employee trust.
+The strongest governance principle is simple: model outputs should inform human review, not replace it.
 
-<div class="takeaway-box">
-<strong>Key Insight:</strong> Workplace monitoring must be balanced with trust, as overly intrusive practices can increase disengagement and turnover risk.
-</div>
+## What the Models Can Do
 
-Best Model: **Naive Bayes (SMOTE)**
+These models can help organizations:
 
-For predicting turnover risk due to monitoring tools in the workplace, **Naive Bayes (SMOTE)** emerged as the most sensitive model, achieving **perfect recall (1.000)**, **perfect specificity (1.000)**, and the **highest F1 score (0.628)**. This means it was able to identify nearly all at-risk employees while correctly ruling out those not at risk.
+- Identify where workforce risk may be concentrated
+- Compare risk patterns across outcomes
+- Prioritize HR, manager, or governance review
+- Support earlier intervention before risk becomes visible through turnover or complaints
+- Create a repeatable analytics framework for workforce decision support
 
-However, its **lower precision (0.432)** indicates a high number of false positives. The confusion matrix confirms that while it catches most true positives, it may over-alert — potentially leading to unnecessary follow-ups by HR teams.
+## What the Models Should Not Do
 
-This model is best suited for **early warning systems** and **broad workforce monitoring**, where missing a true turnover risk is more costly than over-alerting.
+These models should not be used to:
 
-At the same time, it may not be ideal for **high-stakes decisions** such as formal escalation, performance intervention, or termination risk reviews without additional checks.
+- Make automatic employment decisions
+- Label employees as problems or flight risks without context
+- Replace manager judgment, HR review, or employee voice
+- Justify surveillance expansion without governance review
+- Treat synthetic-data results as direct evidence from a real organization
 
-Compared to other models:
-- **SVM (No Sampling)** offered more balanced performance and the best ROC AUC. 
-- **Random Forest** provided the highest precision but missed many actual turnover cases. 
-- **Logistic Regression** remained a transparent and steady baseline with balanced mid-tier metrics.
+## Human-in-the-Loop Decision Guidance
 
-**Naive Bayes (SMOTE)** is best used as a *first-pass detection tool* within a multi-step monitoring system — ideally followed by **review or confirmation mechanisms**.
+```{r 07-governance-table, echo=FALSE}
+governance_table <- tibble::tribble(
+  ~Decision_Point, ~Model_Role, ~Human_Review_Requirement,
+  "Employee flagged as high risk",
+  "Prioritizes the case for review",
+  "HR or manager reviews context, recent changes, workload, and employee feedback before action.",
 
-### Monitoring Turnover Risk Radar Plot and Confusion Matrix
+  "Department shows elevated risk",
+  "Identifies a possible structural pattern",
+  "Leadership reviews staffing, workload, management practices, and local climate indicators.",
 
-```{r 04-monitoring-radar-plot, fig.width=10, fig.height=6, echo=FALSE}
-# Load required libraries
-library(fmsb)
-library(ggplot2)
-library(dplyr)
-library(gridExtra)
+  "Monitoring/privacy risk increases",
+  "Signals possible trust or governance concern",
+  "Privacy, HR, and leadership review monitoring practices, transparency, and proportionality.",
 
-# ---- Radar Chart Data ----
-radar_data <- data.frame(
-  row.names = c("Max", "Min", "Logistic", "NaiveBayes", "RandomForest", "SVM", "XGBoost"),
-  Accuracy = c(1, 0, 0.532, 0.574, 0.575, 0.523, 0.493),
-  F1.Score = c(1, 0, 0.484, 0.628, 0.463, 0.525, 0.452),
-  Precision = c(1, 0, 0.489, 0.432, 0.556, 0.443, 0.447),
-  Recall = c(1, 0, 0.478, 1.000, 0.109, 0.538, 0.457),
-  ROC.AUC = c(1, 0, 0.473, 0.503, 0.512, 0.556, 0.495),
-  Specificity = c(1, 0, 0.578, 1.000, 0.927, 0.512, 0.523)
+  "Quiet quitting risk appears elevated",
+  "Provides an early engagement signal",
+  "Managers validate through conversations, engagement surveys, role clarity, and support needs.",
+
+  "Model performance shifts over time",
+  "Indicates possible drift",
+  "Analytics team reviews data quality, feature behavior, class balance, and model recalibration needs."
 )
 
-# Define model colors
-model_colors <- c(
-  "Logistic" = "#4B9CD3",
-  "NaiveBayes" = "#F4D03F",
-  "RandomForest" = "#3FA34D",
-  "SVM" = "#884EA0",
-  "XGBoost" = "#E87461"
-)
-
-# ---- Radar Chart ----
-radarchart(
-  radar_data,
-  axistype = 1,
-  pcol = model_colors,
-  pfcol = adjustcolor(model_colors, alpha.f = 0.3),
-  plwd = 2,
-  plty = 1,
-  cglcol = "gray80",
-  cglty = 1,
-  axislabcol = "gray30",
-  caxislabels = seq(0, 1, 0.25),
-  cglwd = 0.8,
-  vlcex = 0.8,
-  title = "Model Comparison – Radar Chart (Monitoring Turnover Risk)"
-)
-legend("topright", legend = names(model_colors), col = model_colors, lty = 1, lwd = 2, bty = "n")
-
-# ---- Confusion Matrix Breakdown ----
-confusion_data <- data.frame(
-  Model = rep(c("Logistic", "NaiveBayes", "RandomForest", "SVM", "XGBoost"), each = 4),
-  Category = rep(c("True Positive", "False Positive", "True Negative", "False Negative"), times = 5),
-  Count = c(
-    51, 39, 94, 17,    # Logistic (SMOTE)
-    109, 48, 36, 8,     # Naive Bayes (SMOTE)
-    1, 33, 144, 23,     # Random Forest (Upsampling)
-    17, 26, 128, 30,    # SVM (No Resampling)
-    41, 37, 104, 19     # XGBoost (Downsampling)
-  )
-)
-
-confusion_data$Model <- factor(confusion_data$Model, levels = names(model_colors))
-
-# Polar bar plot
-ggplot(confusion_data, aes(x = Category, y = Count, fill = Model)) +
-  geom_bar(stat = "identity", position = "identity", alpha = 0.6) +
-  coord_polar() +
-  scale_fill_manual(values = model_colors) +
-  labs(title = "Confusion Matrix Breakdown – Top Models (Monitoring Turnover Risk)") +
-  theme_minimal(base_size = 13) +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    axis.text.x = element_text(face = "bold"),
-    legend.position = "right"
+governance_table %>%
+  gt() %>%
+  tab_header(
+    title = "Human-in-the-Loop Governance Framework",
+    subtitle = "How model outputs should be reviewed before action"
+  ) %>%
+  cols_label(
+    Decision_Point = "Decision Point",
+    Model_Role = "Model Role",
+    Human_Review_Requirement = "Human Review Requirement"
+  ) %>%
+  cols_width(
+    Decision_Point ~ px(260),
+    Model_Role ~ px(260),
+    Human_Review_Requirement ~ px(520)
+  ) %>%
+  tab_options(
+    table.width = pct(95),
+    table.font.size = px(12)
   )
 ```
 
-## Cross-Model Patterns
+# Executive Action Roadmap {#executive-action-roadmap}
 
-Across all analyses, several variables consistently emerged as influential:
+The roadmap below organizes the findings into practical next steps. The goal is to move from model results to an actionable workforce analytics operating rhythm.
 
-- Burnout and stress levels
-- Job satisfaction and engagement
-- Manager and organizational support
-- Workplace environment and culture
+```{r 08-action-roadmap-table, echo=FALSE}
+roadmap <- tibble::tribble(
+  ~Timeline, ~Action, ~Expected_Value,
+  "Immediate Actions",
+  "Use the final model summaries to identify which workforce risks are strongest, weakest, and most actionable.",
+  "Creates a clear executive understanding of what each model can and cannot support.",
 
-<div class="takeaway-box">
-<strong>Key Insight:</strong> These factors collectively form the foundation of workforce stability and should be prioritized in organizational strategy.
-</div>
+  "Immediate Actions",
+  "Review high-risk monitoring/privacy segments with HR, privacy, and governance stakeholders.",
+  "Focuses attention on the strongest model signal and most sensitive workforce domain.",
 
-```{r 05-model-performance-comparison, echo=FALSE}
-img_path <- here::here(
-  "outputs",
-  "hr_data_insights_gleaned",
-  "plots",
-  "top_models_comparison.png"
+  "30–60 Day Actions",
+  "Build a recurring workforce risk dashboard that tracks turnover, engagement, monitoring/privacy, and wellbeing indicators.",
+  "Turns one-time modeling results into a repeatable decision-support process.",
+
+  "30–60 Day Actions",
+  "Pair model outputs with qualitative review, pulse surveys, manager feedback, and policy context.",
+  "Improves interpretation and reduces the risk of acting on model output alone.",
+
+  "Long-Term Strategy",
+  "Develop governance standards for workforce analytics, including review cadence, model monitoring, privacy safeguards, and documentation.",
+  "Creates a sustainable, responsible analytics framework for HR decision-making.",
+
+  "Long-Term Strategy",
+  "Recalibrate models as new data becomes available and compare performance across employee groups and organizational contexts.",
+  "Improves model reliability, fairness, and long-term business value."
 )
 
-if (file.exists(img_path)) {
-  knitr::include_graphics(img_path)
-} else {
-  cat("<p style='text-align:center; color:#888;'>Model comparison plot not available.</p>")
-}
+roadmap %>%
+  gt() %>%
+  tab_header(
+    title = "Executive Action Roadmap",
+    subtitle = "Moving from model results to responsible workforce action"
+  ) %>%
+  cols_width(
+    Timeline ~ px(180),
+    Action ~ px(520),
+    Expected_Value ~ px(420)
+  ) %>%
+  tab_options(
+    table.width = pct(95),
+    table.font.size = px(12)
+  )
 ```
 
-This visualization compares the highest-performing model configurations across all evaluation metrics. 
+# Final Takeaway {#final-takeaway}
 
-While several models demonstrated strong performance in individual metrics, Support Vector Machines and Random Forest models tended to provide the most balanced performance across recall, precision, and ROC-AUC.
+This project demonstrates how synthetic HR data can support a realistic workforce analytics pipeline, from data preparation and exploratory analysis to predictive modeling and executive decision support.
 
-This highlights the importance of evaluating models across multiple metrics rather than relying on accuracy alone when assessing workforce risk predictions.
+The strongest insight is not that one model solves workforce risk. Instead, the results show that different workforce outcomes require different model interpretations. Turnover intention is useful for retention-risk prioritization, quiet quitting is best treated as an early engagement signal, and monitoring/privacy risk provides the clearest governance-focused review signal.
 
-## Strategic Recommendations
+Used responsibly, this framework helps organizations move from reactive reporting to proactive workforce intelligence. The models do not replace human judgment; they help leaders ask better questions, prioritize attention, and respond earlier to patterns that may affect retention, engagement, trust, and organizational effectiveness.
 
-Based on the findings, organizations should focus on:
-
-- Reducing employee burnout through workload management and well-being initiatives  
-- Strengthening manager-employee relationships through leadership development  
-- Improving engagement through recognition, career growth, and communication  
-- Evaluating monitoring practices to ensure they support rather than hinder employee trust  
-
-<div class="takeaway-box">
-<strong>Key Insight:</strong> Targeted interventions in well-being, leadership, and engagement can significantly reduce workforce risk and improve retention outcomes.
-</div>
-
-## Conclusion
-
-This project demonstrates how synthetic HR data can be used to build a full analytics pipeline that delivers actionable insights into workforce behavior.
-
-By combining exploratory analysis with predictive modeling, organizations can move beyond reactive decision-making and proactively manage employee risk.
-
-<div class="takeaway-box">
-<strong>Final Takeaway:</strong> Data-driven workforce strategies enable organizations to identify risks early, intervene effectively, and create more stable and engaged work environments.
-</div>
+```{=html}
+<hr class="section-divider">
 
 <div class="page-nav">
-  <a href="HR_Data_Monitoring_Turnover_Risk_Results.html" class="btn-clean">← Back</a>
-  <a href="index.html" class="btn-clean">Return Home →</a>
-</div>
+
+  <div class="nav-left">
+    <a href="HR_Data_Monitoring_Privacy.html" class="cta-btn btn-blue">← Back</a>
+  </div>
+
+  <div class="nav-center">
+    <a href="index.html" class="cta-btn btn-teal">Home</a>
+  </div>
 
 </div>
+
+</div> <!-- page-content -->
+</div> <!-- page-layout -->
+</div> <!-- report-container -->
+```
