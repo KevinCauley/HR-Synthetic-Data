@@ -1,5 +1,5 @@
 ---
-title: "Executive Insights: Workforce Risk Modeling Results"
+title: ""
 
 output:
   html_document:
@@ -11,6 +11,7 @@ output:
     highlight: null
     df_print: paged
     fig_caption: true
+    css: "../docs/assets/styles.css"
     includes:
       in_header: "../docs/assets/header.html"
 
@@ -32,7 +33,7 @@ number_sections: true
           <a href="#workforce-patterns">Cross-Model Workforce Patterns</a>
           <a href="#strategic-recommendations">Strategic Workforce Recommendations</a>
           <a href="#responsible-governance">Responsible Use & Governance</a>
-          <a href="#executive-action-roadmap">Executive Action Roadmap</a>
+          <a href="#executive-action-roadmap">Roadmap Timeline View</a>
           <a href="#final-takeaway">Final Takeaway</a>
         </nav>
       </div>
@@ -106,11 +107,15 @@ knitr::opts_chunk$set(
   echo = FALSE,
   warning = FALSE,
   message = FALSE,
+  results = "hide",
   fig.align = "center",
   out.width = "100%",
-  fig.width = 9,
-  fig.height = 5.5,
-  dpi = 300
+  fig.width = 9.5,
+  fig.height = 5.8,
+  fig.retina = 2,
+  dpi = 300,
+  cache = FALSE,
+  dev = "png"
 )
 
 set.seed(123)
@@ -177,23 +182,106 @@ highest_recall_model <- model_summaries %>%
 lowest_holdout_model <- model_summaries %>%
   dplyr::arrange(Holdout_F1) %>%
   utils::head(1)
+
+outcome_colors <- c(
+  "Turnover Intention" = "#4B9CD3",
+  "Quiet Quitting" = "#2A9D8F",
+  "Monitoring & Privacy Risk" = "#E87461"
+)
+
+outcome_light_colors <- c(
+  "Turnover Intention" = "#D6EAF8",
+  "Quiet Quitting" = "#D5F5E3",
+  "Monitoring & Privacy Risk" = "#FADBD8"
+)
+
+metric_order <- c(
+  "Accuracy",
+  "Precision",
+  "Recall",
+  "F1 Score",
+  "ROC AUC"
+)
+
+model_summaries <- model_summaries %>%
+  mutate(
+    Outcome_Label = as.character(Outcome),
+    Outcome_Label = factor(
+      Outcome_Label,
+      levels = c(
+        "Turnover Intention",
+        "Quiet Quitting",
+        "Monitoring & Privacy Risk"
+      )
+    )
+  )
+
+# Consistent portfolio colors
+portfolio_colors <- c(
+  "Turnover Intention" = "#5AA0D1",
+  "Quiet Quitting" = "#45A79C",
+  "Monitoring & Privacy Risk" = "#E67E6B"
+)
+
+outline_color <- "#223247"
+subtitle_color <- "#5a6b7c"
+grid_color <- "#D5DBDB"
+
+# -------------------------------------------------------------------
+# Executive summary helper objects
+# -------------------------------------------------------------------
+
+required_summary_cols <- c(
+  "Outcome",
+  "Model_Config",
+  "Holdout_F1",
+  "Holdout_Precision",
+  "Holdout_Recall"
+)
+
+missing_summary_cols <- setdiff(required_summary_cols, names(model_summaries))
+
+if (length(missing_summary_cols) > 0) {
+  stop(
+    "Missing required model_summaries columns: ",
+    paste(missing_summary_cols, collapse = ", ")
+  )
+}
+
+strongest_holdout_model <- model_summaries %>%
+  arrange(desc(Holdout_F1)) %>%
+  slice(1)
+
+highest_precision_model <- model_summaries %>%
+  arrange(desc(Holdout_Precision)) %>%
+  slice(1)
+
+highest_recall_model <- model_summaries %>%
+  arrange(desc(Holdout_Recall)) %>%
+  slice(1)
+
+lowest_holdout_model <- model_summaries %>%
+  arrange(Holdout_F1) %>%
+  slice(1)
 ```
 
 # Executive Summary {#executive-summary}
 
-This final section synthesizes the full workforce analytics pipeline, moving from exploratory analysis and predictive modeling into executive-level interpretation. Across the three modeling tracks, the project evaluates employee turnover intention, quiet quitting risk, and monitoring-related turnover risk using a consistent modeling framework.
+This final section synthesizes the full workforce analytics pipeline, moving from exploratory analysis and predictive modeling into executive-level interpretation.
 
-The results show that workforce risk is not one-dimensional. Turnover risk, disengagement risk, and monitoring-related risk each require a different interpretation because the strongest model, holdout behavior, and business use case vary by outcome.
+Across the three modeling tracks, the project evaluates turnover intention, quiet quitting, and monitoring-related turnover risk using a consistent modeling framework. Together, these outcomes show that workforce risk is not one-dimensional. Each target reflects a different business problem, requires a different interpretation strategy, and supports a different type of workforce decision.
 
-Across the portfolio, the strongest holdout model was **`r best_holdout_model$Model_Config`** for **`r best_holdout_model$Outcome`**, with a holdout F1 Score of **`r scales::number(best_holdout_model$Holdout_F1, accuracy = 0.001)`**. The highest precision result was **`r highest_precision_model$Model_Config`** for **`r highest_precision_model$Outcome`**, indicating the strongest reliability among flagged cases.
+The strongest holdout model was **`r strongest_holdout_model$Model_Config`** for **`r strongest_holdout_model$Outcome`**, with a holdout F1 Score of **`r round(strongest_holdout_model$Holdout_F1, 3)`**. The strongest precision result was **`r highest_precision_model$Model_Config`** for **`r highest_precision_model$Outcome`**, indicating the most reliable review queue among flagged cases.
 
 The main business takeaway is that these models should be used as **risk prioritization tools**, not automated decision systems. Their value is in helping HR, leadership, and governance teams focus attention earlier, identify patterns across workforce signals, and guide more targeted human review.
 
-# Portfolio-Level Modeling Results {#modeling-results}
+# Final Modeling Results {#modeling-results}
 
-The final modeling results provide a portfolio-level view of how each workforce risk outcome performed after model development, cross-validation, and holdout confirmation.
+The final modeling results provide a portfolio-level view of how each workforce-risk outcome performed after model development, cross-validation, and holdout confirmation.
 
-Rather than comparing the outcomes as if they represent the same type of problem, the table below summarizes each selected model in context. Turnover intention, quiet quitting, and monitoring-related turnover risk differ in signal strength, business sensitivity, and practical use.
+These outcomes should not be compared as if they represent the same type of problem. Turnover intention, quiet quitting, and monitoring-related turnover risk differ in signal strength, business sensitivity, interpretability, and practical use.
+
+The goal of this section is to translate model performance into executive decision guidance: which outcomes are most reliable, which require caution, and how each model should be used responsibly.
 
 ```{r 01-final-model-summary-table, echo=FALSE}
 model_summaries %>%
@@ -260,6 +348,95 @@ model_summaries %>%
   )
 ```
 
+## Executive Model Scorecard
+
+```{r 01b-executive-model-scorecard, echo=FALSE}
+scorecard_df <- model_summaries %>%
+  mutate(
+    Outcome = factor(
+      as.character(Outcome),
+      levels = c(
+        "Turnover Intention",
+        "Quiet Quitting",
+        "Monitoring & Privacy Risk"
+      )
+    )
+  ) %>%
+  select(
+    Outcome,
+    Holdout_F1,
+    Holdout_Precision,
+    Holdout_Recall
+  )
+
+p <- ggplot(scorecard_df, aes(x = Outcome, y = Holdout_F1, fill = Outcome)) +
+  geom_col(
+    width = 0.60,
+    alpha = 0.95,
+    show.legend = FALSE
+  ) +
+  geom_point(
+    aes(y = Holdout_Precision, shape = "Precision"),
+    size = 4.8,
+    stroke = 1.4,
+    color = outline_color,
+    fill = "white"
+  ) +
+  geom_point(
+    aes(y = Holdout_Recall, shape = "Recall"),
+    size = 5.1,
+    stroke = 1.4,
+    color = outline_color,
+    fill = "white"
+  ) +
+  geom_text(
+    aes(
+      y = Holdout_F1,
+      label = paste0("F1\n", scales::number(Holdout_F1, accuracy = 0.001))
+    ),
+    vjust = -0.35,
+    fontface = "bold",
+    size = 4.1,
+    color = outline_color
+  ) +
+  scale_fill_manual(values = portfolio_colors) +
+  scale_shape_manual(
+    name = "Supporting Metric",
+    values = c("Precision" = 21, "Recall" = 24)
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1.12),
+    breaks = c(0, 0.30, 0.60, 0.90, 1.20),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  labs(
+    title = "Executive Model Scorecard",
+    subtitle = "Bars show holdout F1; markers show whether the selected model is stronger in precision or recall",
+    x = NULL,
+    y = "Holdout Score",
+    shape = "Supporting Metric"
+  ) +
+  coord_cartesian(clip = "off") +
+  theme_hr(11) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = subtitle_color, size = 11.5),
+    axis.text.x = element_text(face = "bold", size = 11),
+    legend.position = "top",
+    legend.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(12, 24, 18, 12)
+  )
+
+print(p)
+save_plot(p, "executive_model_scorecard.png", 10.2, 6.0)
+```
+
+The scorecard gives a compact executive view of the selected models. Holdout **F1 Score** summarizes overall balance, while the marker positions show whether each model leans more toward **precision** (reliability of flagged cases) or **recall** (coverage of true risk cases).
+
+Monitoring & Privacy Risk shows the strongest overall balance and the strongest precision profile. Turnover Intention remains reasonably balanced for prioritization use. Quiet Quitting is materially weaker on holdout F1, indicating that it should be interpreted more cautiously and paired with additional qualitative context.
+
 ## Final Model Comparison
 
 ```{r 02-final-model-comparison-heatmap, echo=FALSE}
@@ -287,29 +464,44 @@ comparison_long <- model_summaries %>%
       Holdout_F1 = "F1 Score",
       Holdout_ROC_AUC = "ROC AUC"
     ),
-    Metric = factor(
-      Metric,
-      levels = c("Accuracy", "Precision", "Recall", "F1 Score", "ROC AUC")
+    Metric = factor(Metric, levels = metric_order),
+    Outcome = factor(
+      Outcome,
+      levels = c(
+        "Turnover Intention",
+        "Quiet Quitting",
+        "Monitoring & Privacy Risk"
+      )
     ),
     Outcome_Label = paste0(as.character(Outcome), "\n", Model_Config),
-    Plot_Label = scales::number(Score, accuracy = 0.001)
+    Plot_Label = ifelse(
+      is.na(Score),
+      "N/A",
+      scales::number(Score, accuracy = 0.001)
+    )
   )
 
 p <- ggplot(
   comparison_long,
   aes(x = Metric, y = fct_rev(Outcome_Label), fill = Score)
 ) +
-  geom_tile(color = "white", linewidth = 0.8) +
+  geom_tile(
+    color = "white",
+    linewidth = 1.1,
+    width = 0.95,
+    height = 0.88
+  ) +
   geom_text(
     aes(label = Plot_Label),
     fontface = "bold",
-    size = 3.8,
-    color = "#243447"
+    size = 4.1,
+    color = "#1F2D3D"
   ) +
   scale_fill_gradient(
-    low = "#EAF2F8",
-    high = "#2E86C1",
+    low = "#F4F8FB",
+    high = "#1F618D",
     limits = c(0, 1),
+    na.value = "#F2F4F4",
     name = "Score"
   ) +
   labs(
@@ -318,19 +510,20 @@ p <- ggplot(
     x = NULL,
     y = NULL
   ) +
-  theme_hr(10) +
+  theme_hr(11) +
   theme(
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "#5a6b7c"),
-    axis.text.x = element_text(face = "bold"),
-    axis.text.y = element_text(size = 8.5),
-    panel.grid = element_blank(),
+    plot.title = element_text(face = "bold", size = 17),
+    plot.subtitle = element_text(color = "#5a6b7c", size = 12, margin = margin(b = 12)),
+    axis.text.x = element_text(face = "bold", size = 10),
+    axis.text.y = element_text(size = 9.5, lineheight = 0.95),
     legend.position = "right",
-    plot.margin = margin(10, 20, 10, 10)
+    legend.title = element_text(face = "bold"),
+    panel.grid = element_blank(),
+    plot.margin = margin(12, 22, 12, 10)
   )
 
 print(p)
-save_plot(p, "portfolio_holdout_metric_heatmap.png", 10.5, 5.8)
+save_plot(p, "portfolio_holdout_metric_heatmap.png", 11, 6)
 ```
 
 The portfolio comparison shows that monitoring-related turnover risk produced the strongest overall holdout profile, especially in precision and F1 Score. This suggests the monitoring/privacy model is the most reliable for identifying a focused review queue.
@@ -339,83 +532,187 @@ Turnover intention produced moderate but usable holdout performance, making it a
 
 ## Prediction Confidence & Practical Use
 
-```{r 03-precision-recall-portfolio-plot, echo=FALSE}
-portfolio_pr <- model_summaries %>%
+```{r 03-precision-recall-plot, echo=FALSE}
+tradeoff_df <- model_summaries %>%
   mutate(
-    Outcome_Label = as.character(Outcome),
-    Use_Profile = case_when(
-      Holdout_Precision >= 0.80 & Holdout_Recall < 0.60 ~ "High-confidence review queue",
-      Holdout_Recall >= 0.80 & Holdout_Precision < 0.40 ~ "Broad screening signal",
-      Holdout_F1 >= 0.45 ~ "Balanced prioritization signal",
-      TRUE ~ "Cautious early-warning signal"
+    Outcome = factor(
+      as.character(Outcome),
+      levels = c(
+        "Turnover Intention",
+        "Quiet Quitting",
+        "Monitoring & Privacy Risk"
+      )
+    )
+  ) %>%
+  transmute(
+    Outcome,
+    Recall = Holdout_Recall,
+    Precision = Holdout_Precision,
+    Holdout_F1
+  )
+
+label_df <- tradeoff_df %>%
+  mutate(
+    label_x = case_when(
+      Outcome == "Turnover Intention" ~ 0.50,
+      Outcome == "Quiet Quitting" ~ 0.37,
+      Outcome == "Monitoring & Privacy Risk" ~ 0.48
+    ),
+    label_y = case_when(
+      Outcome == "Turnover Intention" ~ 0.51,
+      Outcome == "Quiet Quitting" ~ 0.24,
+      Outcome == "Monitoring & Privacy Risk" ~ 0.91
+    ),
+    label_text = paste0(
+      Outcome,
+      "\nF1 = ",
+      scales::number(Holdout_F1, accuracy = 0.001)
     )
   )
 
-p <- ggplot(
-  portfolio_pr,
-  aes(
-    x = Holdout_Recall,
-    y = Holdout_Precision,
-    size = Holdout_F1,
-    color = Outcome
-  )
-) +
+zone_df <- tibble::tribble(
+  ~xmin, ~xmax, ~ymin, ~ymax, ~fill,
+  0.00, 0.50, 0.50, 1.00, "#EDF4FB",
+  0.50, 1.00, 0.50, 1.00, "#EEF7F2",
+  0.50, 1.00, 0.00, 0.50, "#F8F2E3",
+  0.00, 0.50, 0.00, 0.50, "#F8EEEE"
+)
+
+p <- ggplot(tradeoff_df, aes(x = Recall, y = Precision)) +
+  geom_rect(
+    data = zone_df,
+    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+    inherit.aes = FALSE,
+    fill = zone_df$fill,
+    color = NA,
+    alpha = 0.95
+  ) +
   geom_vline(
     xintercept = 0.50,
     linetype = "dashed",
-    color = "#D5DBDB",
-    linewidth = 0.6
+    color = "#AAB7B8",
+    linewidth = 0.7
   ) +
   geom_hline(
     yintercept = 0.50,
     linetype = "dashed",
-    color = "#D5DBDB",
-    linewidth = 0.6
+    color = "#AAB7B8",
+    linewidth = 0.7
   ) +
-  geom_point(alpha = 0.85) +
-  geom_text(
-    aes(label = Outcome_Label),
-    nudge_y = 0.06,
+  annotate(
+    "label",
+    x = 0.22, y = 0.93,
+    label = "High-Confidence\nReview Queue",
+    fill = "white",
+    color = "#24588B",
+    label.size = 0.35,
+    size = 3.6,
+    fontface = "bold"
+  ) +
+  annotate(
+    "label",
+    x = 0.79, y = 0.93,
+    label = "Balanced\nPrioritization",
+    fill = "white",
+    color = "#25523B",
+    label.size = 0.35,
+    size = 3.6,
+    fontface = "bold"
+  ) +
+  annotate(
+    "label",
+    x = 0.79, y = 0.13,
+    label = "Broad Screening\nSignal",
+    fill = "white",
+    color = "#8A6A00",
+    label.size = 0.35,
+    size = 3.6,
+    fontface = "bold"
+  ) +
+  annotate(
+    "label",
+    x = 0.22, y = 0.16,
+    label = "Cautious\nValidation Needed",
+    fill = "white",
+    color = "#7A4E4E",
+    label.size = 0.35,
+    size = 3.5,
+    fontface = "bold"
+  ) +
+  geom_point(
+    aes(size = Holdout_F1, fill = Outcome),
+    shape = 21,
+    color = "white",
+    stroke = 1.2,
+    alpha = 0.95
+  ) +
+  geom_segment(
+    data = label_df,
+    aes(
+      x = Recall,
+      y = Precision,
+      xend = label_x,
+      yend = label_y
+    ),
+    color = "#AAB7B8",
+    linewidth = 0.5
+  ) +
+  geom_label(
+    data = label_df,
+    aes(
+      x = label_x,
+      y = label_y,
+      label = label_text
+    ),
+    fill = "white",
+    color = outline_color,
     fontface = "bold",
-    size = 3.3,
-    show.legend = FALSE
+    size = 3.6,
+    label.size = 0.35,
+    lineheight = 1.05
+  ) +
+  scale_fill_manual(values = portfolio_colors) +
+  scale_size_continuous(
+    name = "Holdout F1",
+    range = c(8, 14),
+    breaks = c(0.30, 0.40, 0.50, 0.60),
+    labels = scales::number_format(accuracy = 0.001)
   ) +
   scale_x_continuous(
     labels = scales::percent_format(accuracy = 1),
-    limits = c(0, 1)
+    limits = c(0, 1.02),
+    expand = expansion(mult = c(0.01, 0.02))
   ) +
   scale_y_continuous(
     labels = scales::percent_format(accuracy = 1),
-    limits = c(0, 1.05)
-  ) +
-  scale_size_continuous(
-    range = c(6, 12),
-    labels = scales::number_format(accuracy = 0.001)
+    limits = c(0, 1.05),
+    expand = expansion(mult = c(0.01, 0.02))
   ) +
   labs(
     title = "Prediction Confidence and Detection Tradeoffs",
-    subtitle = "Precision shows reliability of flagged cases; recall shows detection coverage",
+    subtitle = "Precision indicates reliability of flagged cases; recall indicates detection coverage",
     x = "Recall: Share of actual risk cases detected",
     y = "Precision: Reliability of positive predictions",
-    color = "Outcome",
-    size = "Holdout F1"
+    fill = "Outcome"
   ) +
+  coord_cartesian(clip = "off") +
   theme_hr(11) +
   theme(
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "#5a6b7c"),
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = subtitle_color, size = 11.5),
     legend.position = "right",
+    legend.title = element_text(face = "bold"),
     panel.grid.minor = element_blank(),
-    plot.margin = margin(10, 20, 15, 10)
+    plot.margin = margin(12, 30, 18, 12)
   )
 
 print(p)
-save_plot(p, "portfolio_precision_recall_tradeoff.png", 9.5, 6)
+save_plot(p, "precision_recall_tradeoff.png", 10.8, 6.6)
 ```
 
-This view highlights why each model should be used differently. A model with high precision is useful for building a focused review queue because flagged employees are more likely to represent meaningful risk. A model with high recall is useful for broad screening because it captures more potential cases, but it may also generate more false positives.
+This view shows why each model should be used differently. A model with higher precision is better suited for focused review because flagged employees are more likely to represent meaningful risk. A model with higher recall is better suited for broader screening because it captures more potential cases, but it may also generate more false positives.
 
-The monitoring/privacy model is the strongest candidate for confident prioritization. The turnover model is useful for balanced retention-risk screening. The quiet quitting model should be treated as a cautious engagement signal that may require additional survey, manager, or qualitative context before action is taken.
+The monitoring/privacy model shows the strongest evidence for confident prioritization because it produces the highest reliability among positive predictions. The turnover model provides a more balanced retention-risk signal. The quiet quitting model should be interpreted more cautiously as an early engagement signal that requires additional survey, manager, or qualitative context before action is taken.
 
 ## Risk Segmentation Across Outcomes
 
@@ -463,24 +760,142 @@ use_profile_table %>%
   ) %>%
   cols_width(
     Outcome ~ px(190),
-    Model_Config ~ px(230),
-    Practical_Profile ~ px(230),
-    Recommended_Use ~ px(420)
+    Model_Config ~ px(240),
+    Practical_Profile ~ px(245),
+    Recommended_Use ~ px(440)
   ) %>%
   cols_align("center", columns = c(Outcome, Model_Config, Practical_Profile)) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#EBF5FB"),
+      cell_text(weight = "bold")
+    ),
+    locations = cells_body(
+      columns = Practical_Profile,
+      rows = Practical_Profile == "High-confidence review queue"
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#EAF7EF"),
+      cell_text(weight = "bold")
+    ),
+    locations = cells_body(
+      columns = Practical_Profile,
+      rows = Practical_Profile == "Balanced prioritization signal"
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#FFF4DA"),
+      cell_text(weight = "bold")
+    ),
+    locations = cells_body(
+      columns = Practical_Profile,
+      rows = Practical_Profile == "Cautious early-warning signal"
+    )
+  ) %>%
   tab_options(
     table.width = pct(95),
-    table.font.size = px(12)
+    table.font.size = px(12),
+    data_row.padding = px(9)
   )
 ```
 
+## Portfolio Risk Use Matrix
+
+```{r 04-portfolio-risk-use-profile, echo=FALSE}
+use_profile_long <- model_summaries %>%
+  mutate(
+    Outcome = factor(
+      as.character(Outcome),
+      levels = c(
+        "Turnover Intention",
+        "Quiet Quitting",
+        "Monitoring & Privacy Risk"
+      )
+    )
+  ) %>%
+  transmute(
+    Outcome,
+    Reliability = Holdout_Precision,
+    Coverage = Holdout_Recall,
+    Balance = Holdout_F1
+  ) %>%
+  pivot_longer(
+    cols = c(Reliability, Coverage, Balance),
+    names_to = "Metric",
+    values_to = "Score"
+  ) %>%
+  mutate(
+    Metric = factor(
+      Metric,
+      levels = c("Reliability", "Coverage", "Balance")
+    ),
+    Outcome = forcats::fct_rev(Outcome),
+    Score_Label = scales::number(Score, accuracy = 0.001)
+  )
+
+p <- ggplot(use_profile_long, aes(x = Score, y = Outcome, color = Outcome)) +
+  geom_segment(
+    aes(x = 0, xend = Score, yend = Outcome),
+    linewidth = 4,
+    alpha = 0.35,
+    show.legend = FALSE
+  ) +
+  geom_point(
+    size = 5.2,
+    show.legend = FALSE
+  ) +
+  geom_text(
+    aes(label = Score_Label),
+    hjust = -0.20,
+    size = 3.8,
+    fontface = "bold",
+    color = outline_color,
+    show.legend = FALSE
+  ) +
+  facet_wrap(~ Metric, nrow = 1) +
+  scale_color_manual(values = portfolio_colors) +
+  scale_x_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1.08),
+    expand = expansion(mult = c(0.01, 0.02))
+  ) +
+  labs(
+    title = "Portfolio Risk Use Profile",
+    subtitle = "Reliability = precision, coverage = recall, and balance = holdout F1",
+    x = "Score",
+    y = NULL
+  ) +
+  coord_cartesian(clip = "off") +
+  theme_hr(10.8) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = subtitle_color, size = 11.5),
+    strip.text = element_text(face = "bold", size = 11.5),
+    axis.text.y = element_text(face = "bold", size = 10.5),
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    plot.margin = margin(12, 30, 16, 12)
+  )
+
+print(p)
+save_plot(p, "portfolio_risk_use_profile.png", 11.2, 5.8)
+```
+
+This profile converts technical metrics into decision language. **Reliability** reflects how trustworthy a positive flag is, **coverage** reflects how much risk the model detects, and **balance** summarizes the overall usefulness of the selected model.
+
+The comparison reinforces the broader portfolio story. Monitoring & Privacy Risk is strongest on reliability and overall balance, Turnover Intention is moderate but usable across all three dimensions, and Quiet Quitting is comparatively weaker and should be used as a supporting engagement signal rather than a standalone decision tool.
+
 ---
 
-# Cross-Model Workforce Patterns {#workforce-patterns}
+# Cross-Model Workforce Patterns {#cross-model-patterns}
 
-The modeling results point to a common theme across the project: workforce risk is rarely caused by a single variable. Instead, risk appears to emerge from overlapping behavioral, organizational, and employee-experience signals.
+The modeling results point to a common theme across the project: workforce risk rarely emerges from a single variable. Instead, risk appears through overlapping behavioral, organizational, wellbeing, trust, and employee-experience signals.
 
-The three outcomes represent different forms of workforce vulnerability:
+The three outcomes represent distinct forms of workforce vulnerability:
 
 - **Turnover intention** reflects potential exit risk.
 - **Quiet quitting** reflects potential disengagement while remaining employed.
@@ -490,57 +905,24 @@ Together, these outcomes show that employee risk should be interpreted as a port
 
 ## Shared Risk Themes
 
-```{r 05-shared-risk-themes-table, echo=FALSE}
-shared_themes <- tibble::tribble(
-  ~Theme, ~Why_It_Matters, ~Executive_Implication,
-  "Employee experience and trust",
-  "Risk patterns across the models suggest that trust, perceived support, and fairness matter across multiple workforce outcomes.",
-  "Leadership should treat workforce risk as an experience-management issue, not only a staffing or compliance issue.",
+Across the project, the strongest workforce-risk story is not that one model is universally best. Instead, the results show that each outcome captures a different part of the employee experience.
 
-  "Wellbeing and workload pressure",
-  "Burnout, strain, and workload-related signals can contribute to disengagement, exit risk, and monitoring sensitivity.",
-  "Retention and engagement strategies should include workload review, wellbeing support, and manager capacity planning.",
+Common themes include:
 
-  "Manager and organizational support",
-  "Employees are less likely to disengage or consider leaving when support systems are visible, credible, and responsive.",
-  "Manager enablement, communication quality, and escalation pathways should be part of the intervention strategy.",
-
-  "Privacy and monitoring governance",
-  "Monitoring-related risk is tied to how employees perceive transparency, proportionality, and fairness in workplace data use.",
-  "Monitoring programs should include governance review, privacy communication, and employee trust safeguards.",
-
-  "Model outputs as prioritization signals",
-  "The models are strongest when used to identify where deeper review may be needed, not to make final employee-level decisions.",
-  "Use predictions as structured prompts for human review, not as automated decisions."
-)
-
-shared_themes %>%
-  gt() %>%
-  tab_header(
-    title = "Shared Workforce Risk Themes",
-    subtitle = "Common patterns across turnover, disengagement, and monitoring/privacy risk"
-  ) %>%
-  cols_label(
-    Theme = "Shared Theme",
-    Why_It_Matters = "Why It Matters",
-    Executive_Implication = "Executive Implication"
-  ) %>%
-  cols_width(
-    Theme ~ px(220),
-    Why_It_Matters ~ px(390),
-    Executive_Implication ~ px(430)
-  ) %>%
-  tab_options(
-    table.width = pct(95),
-    table.font.size = px(12)
-  )
-```
+- **Trust and support** shape whether employees stay connected to the organization.
+- **Workload and wellbeing** influence both withdrawal risk and retention risk.
+- **Role clarity and manager support** affect how employees interpret their work environment.
+- **Monitoring and privacy perceptions** add a governance layer to workforce analytics.
 
 ## Outcome-Specific Risk Differences
 
 Although the models share common workforce themes, each outcome requires a different business response.
 
-Turnover intention is most useful for identifying employees who may require retention conversations, manager follow-up, or workload review. Quiet quitting is more ambiguous because disengagement can be behavioral, emotional, or contextual, making it better suited for engagement monitoring than direct intervention. Monitoring/privacy risk is the clearest governance signal because it connects workforce risk to privacy, trust, surveillance, and policy design.
+Turnover intention is most useful for identifying employees who may require retention conversations, manager follow-up, workload review, or career-pathing support.
+
+Quiet quitting is more ambiguous because disengagement can be behavioral, emotional, or contextual. It is better suited for engagement monitoring and qualitative follow-up than direct intervention.
+
+Monitoring-related risk is the clearest governance signal because it connects workforce risk to privacy, trust, surveillance, and policy design.
 
 # Strategic Workforce Recommendations {#strategic-recommendations}
 
@@ -588,13 +970,21 @@ recommendations %>%
     Primary_Model_Signal ~ px(230),
     Recommended_Action ~ px(560)
   ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#EBF5FB"),
+      cell_text(weight = "bold")
+    ),
+    locations = cells_body(columns = Risk_Area)
+  ) %>%
   tab_options(
     table.width = pct(95),
-    table.font.size = px(12)
+    table.font.size = px(12),
+    data_row.padding = px(9)
   )
 ```
 
-# Responsible Use & Governance {#responsible-governance}
+# Responsible Use & Governance {#responsible-use}
 
 Because these models deal with workforce risk, responsible use is central to the project. The models should support better questions, earlier review, and more consistent prioritization. They should not be used as automated decision systems.
 
@@ -606,8 +996,8 @@ These models can help organizations:
 
 - Identify where workforce risk may be concentrated
 - Compare risk patterns across outcomes
-- Prioritize HR, manager, or governance review
-- Support earlier intervention before risk becomes visible through turnover or complaints
+- Prioritize HR, manager, leadership, or governance review
+- Support earlier intervention before risk becomes visible through turnover, disengagement, or employee complaints
 - Create a repeatable analytics framework for workforce decision support
 
 ## What the Models Should Not Do
@@ -617,111 +1007,122 @@ These models should not be used to:
 - Make automatic employment decisions
 - Label employees as problems or flight risks without context
 - Replace manager judgment, HR review, or employee voice
-- Justify surveillance expansion without governance review
-- Treat synthetic-data results as direct evidence from a real organization
+- Justify monitoring expansion without governance review
+- Trigger punitive action without human validation
 
 ## Human-in-the-Loop Decision Guidance
 
-```{r 07-governance-table, echo=FALSE}
-governance_table <- tibble::tribble(
-  ~Decision_Point, ~Model_Role, ~Human_Review_Requirement,
-  "Employee flagged as high risk",
-  "Prioritizes the case for review",
-  "HR or manager reviews context, recent changes, workload, and employee feedback before action.",
+The appropriate use case is **human-in-the-loop prioritization**. Model outputs can help identify where review may be needed, but final interpretation should include employee context, manager knowledge, organizational conditions, privacy considerations, and ethical review.
 
-  "Department shows elevated risk",
-  "Identifies a possible structural pattern",
-  "Leadership reviews staffing, workload, management practices, and local climate indicators.",
+This is especially important for monitoring-related risk, where model outputs may reflect employee trust and privacy concerns. In that context, the goal is not to increase surveillance, but to improve transparency, governance, and workforce support.
 
-  "Monitoring/privacy risk increases",
-  "Signals possible trust or governance concern",
-  "Privacy, HR, and leadership review monitoring practices, transparency, and proportionality.",
+## Roadmap Timeline View {#executive-action-roadmap}
 
-  "Quiet quitting risk appears elevated",
-  "Provides an early engagement signal",
-  "Managers validate through conversations, engagement surveys, role clarity, and support needs.",
-
-  "Model performance shifts over time",
-  "Indicates possible drift",
-  "Analytics team reviews data quality, feature behavior, class balance, and model recalibration needs."
-)
-
-governance_table %>%
-  gt() %>%
-  tab_header(
-    title = "Human-in-the-Loop Governance Framework",
-    subtitle = "How model outputs should be reviewed before action"
-  ) %>%
-  cols_label(
-    Decision_Point = "Decision Point",
-    Model_Role = "Model Role",
-    Human_Review_Requirement = "Human Review Requirement"
-  ) %>%
-  cols_width(
-    Decision_Point ~ px(260),
-    Model_Role ~ px(260),
-    Human_Review_Requirement ~ px(520)
-  ) %>%
-  tab_options(
-    table.width = pct(95),
-    table.font.size = px(12)
+```{r 08-roadmap-timeline-view, echo=FALSE}
+roadmap_plot_df <- tibble::tribble(
+  ~step, ~stage, ~y, ~label_y, ~label,
+  1, "Immediate Actions", 1, 1.34, "Clarify model use cases",
+  2, "Immediate Actions", 1, 0.78, "Review monitoring and privacy signals",
+  3, "30–60 Day Actions", 2, 2.34, "Build recurring risk dashboard",
+  4, "30–60 Day Actions", 2, 1.78, "Add qualitative review inputs",
+  5, "Long-Term Strategy", 3, 3.34, "Formalize governance standards",
+  6, "Long-Term Strategy", 3, 2.78, "Monitor drift and recalibrate"
+) %>%
+  mutate(
+    stage = factor(
+      stage,
+      levels = c(
+        "Immediate Actions",
+        "30–60 Day Actions",
+        "Long-Term Strategy"
+      )
+    ),
+    label = stringr::str_wrap(label, width = 22)
   )
-```
 
-# Executive Action Roadmap {#executive-action-roadmap}
-
-The roadmap below organizes the findings into practical next steps. The goal is to move from model results to an actionable workforce analytics operating rhythm.
-
-```{r 08-action-roadmap-table, echo=FALSE}
-roadmap <- tibble::tribble(
-  ~Timeline, ~Action, ~Expected_Value,
-  "Immediate Actions",
-  "Use the final model summaries to identify which workforce risks are strongest, weakest, and most actionable.",
-  "Creates a clear executive understanding of what each model can and cannot support.",
-
-  "Immediate Actions",
-  "Review high-risk monitoring/privacy segments with HR, privacy, and governance stakeholders.",
-  "Focuses attention on the strongest model signal and most sensitive workforce domain.",
-
-  "30–60 Day Actions",
-  "Build a recurring workforce risk dashboard that tracks turnover, engagement, monitoring/privacy, and wellbeing indicators.",
-  "Turns one-time modeling results into a repeatable decision-support process.",
-
-  "30–60 Day Actions",
-  "Pair model outputs with qualitative review, pulse surveys, manager feedback, and policy context.",
-  "Improves interpretation and reduces the risk of acting on model output alone.",
-
-  "Long-Term Strategy",
-  "Develop governance standards for workforce analytics, including review cadence, model monitoring, privacy safeguards, and documentation.",
-  "Creates a sustainable, responsible analytics framework for HR decision-making.",
-
-  "Long-Term Strategy",
-  "Recalibrate models as new data becomes available and compare performance across employee groups and organizational contexts.",
-  "Improves model reliability, fairness, and long-term business value."
-)
-
-roadmap %>%
-  gt() %>%
-  tab_header(
-    title = "Executive Action Roadmap",
-    subtitle = "Moving from model results to responsible workforce action"
-  ) %>%
-  cols_width(
-    Timeline ~ px(180),
-    Action ~ px(520),
-    Expected_Value ~ px(420)
-  ) %>%
-  tab_options(
-    table.width = pct(95),
-    table.font.size = px(12)
+p <- ggplot(roadmap_plot_df, aes(x = step, y = y, color = stage)) +
+  geom_path(
+    linewidth = 2.2,
+    color = "#C9D3D3",
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    aes(
+      x = step,
+      xend = step,
+      y = y,
+      yend = label_y
+    ),
+    color = "#B7C4C9",
+    linewidth = 0.7,
+    show.legend = FALSE
+  ) +
+  geom_point(
+    size = 14,
+    show.legend = FALSE
+  ) +
+  geom_text(
+    aes(label = step),
+    color = "white",
+    fontface = "bold",
+    size = 5
+  ) +
+  geom_label(
+    aes(y = label_y, label = label),
+    fill = "white",
+    color = outline_color,
+    fontface = "bold",
+    size = 3.6,
+    label.size = 0.35,
+    label.padding = grid::unit(0.16, "lines"),
+    label.r = grid::unit(0.14, "lines"),
+    lineheight = 1.0,
+    show.legend = FALSE
+  ) +
+  scale_color_manual(values = c(
+    "Immediate Actions" = "#5AA0D1",
+    "30–60 Day Actions" = "#45A79C",
+    "Long-Term Strategy" = "#E67E6B"
+  )) +
+  scale_x_continuous(
+    breaks = 1:6,
+    limits = c(0.5, 6.6)
+  ) +
+  scale_y_continuous(
+    breaks = c(1, 2, 3),
+    labels = c(
+      "Immediate Actions",
+      "30–60 Day Actions",
+      "Long-Term Strategy"
+    ),
+    limits = c(0.45, 3.60)
+  ) +
+  labs(
+    title = "Executive Action Roadmap Timeline",
+    subtitle = "A staged path from model outputs to responsible workforce analytics operations",
+    x = "Implementation Sequence",
+    y = NULL
+  ) +
+  coord_cartesian(clip = "off") +
+  theme_hr(10.8) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = subtitle_color, size = 11.5),
+    axis.text.y = element_text(face = "bold", size = 10.5),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    plot.margin = margin(16, 34, 30, 18)
   )
+
+print(p)
+save_plot(p, "executive_action_roadmap_timeline.png", 11.0, 6.6)
 ```
 
 # Final Takeaway {#final-takeaway}
 
 This project demonstrates how synthetic HR data can support a realistic workforce analytics pipeline, from data preparation and exploratory analysis to predictive modeling and executive decision support.
 
-The strongest insight is not that one model solves workforce risk. Instead, the results show that different workforce outcomes require different model interpretations. Turnover intention is useful for retention-risk prioritization, quiet quitting is best treated as an early engagement signal, and monitoring/privacy risk provides the clearest governance-focused review signal.
+The strongest insight is not that one model solves workforce risk. Instead, the results show that different workforce outcomes require different interpretations. Turnover intention is useful for retention-risk prioritization, quiet quitting is best treated as an early engagement signal, and monitoring/privacy risk provides the clearest governance-focused review signal.
 
 Used responsibly, this framework helps organizations move from reactive reporting to proactive workforce intelligence. The models do not replace human judgment; they help leaders ask better questions, prioritize attention, and respond earlier to patterns that may affect retention, engagement, trust, and organizational effectiveness.
 

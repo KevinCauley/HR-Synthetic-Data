@@ -1,5 +1,5 @@
 ---
-title: "Monitoring & Privacy Risk Modeling | Workforce Analytics"
+title: ""
 
 output:
   html_document:
@@ -11,6 +11,7 @@ output:
     highlight: null
     df_print: paged
     fig_caption: true
+    css: "../docs/assets/styles.css"
     includes:
       in_header: "../docs/assets/header.html"
 
@@ -117,11 +118,15 @@ knitr::opts_chunk$set(
   echo = FALSE,
   warning = FALSE,
   message = FALSE,
+  results = "hide",
   fig.align = "center",
   out.width = "100%",
-  fig.width = 8,
-  fig.height = 5,
-  dpi = 300
+  fig.retina = 2,
+  fig.width = 9,
+  fig.height = 5.75,
+  dpi = 300,
+  cache = FALSE,
+  dev = "png"
 )
 
 # Reproducibility
@@ -139,15 +144,15 @@ base_df <- df %>%
 
 This analysis develops a predictive modeling framework to identify employees at risk of monitoring-related turnover using a synthetic, research-informed HR dataset.
 
-Multiple machine learning models—including Logistic Regression, Random Forest, XGBoost, Support Vector Machines, and Naive Bayes—were evaluated under varying sampling strategies to address class imbalance and improve predictive performance.
+Multiple machine learning models—including Logistic Regression, Random Forest, XGBoost, Support Vector Machines, and Naive Bayes—were evaluated across multiple sampling strategies to address class imbalance and compare predictive performance under different modeling conditions.
 
-Results show that **model effectiveness is driven as much by data strategy as algorithm selection**. Sampling strategies such as up-sampling, down-sampling, and SMOTE changed model behavior in meaningful ways, demonstrating that class-balancing choices can materially affect precision, recall, and F1 Score.
+Results show that **model effectiveness is shaped by both algorithm choice and data strategy**. Sampling strategies such as up-sampling, down-sampling, and SMOTE changed model behavior in meaningful ways, demonstrating that class-balancing choices can materially affect precision, recall, F1 Score, and overall usability.
 
-The final model-selection process uses **cross-validated F1 Score** to identify strong candidate configurations, with holdout performance used as a stability check to confirm whether those candidates remain practically usable on unseen data.
+The final model-selection process uses **cross-validated F1 Score** as the primary ranking metric, while holdout test performance is used as a stability check to confirm that the selected configuration remains practically usable on unseen data.
 
-Rather than relying on a single predictive signal, monitoring-based turnover risk is influenced by a **combination of privacy perceptions, monitoring intensity, trust, workload, wellbeing, and organizational support factors**.
+Rather than relying on a single predictive signal, monitoring-related turnover risk is influenced by a **combination of privacy perceptions, monitoring intensity, workplace trust, workload pressure, wellbeing, and organizational support factors**.
 
-From a business perspective, this framework enables a shift from **reactive privacy complaint response to proactive workforce trust and monitoring-risk management**, supporting earlier intervention, better governance, and improved retention outcomes.
+From a business perspective, this framework enables a shift from **reactive privacy concern response to proactive workforce trust and monitoring-risk management**, supporting earlier intervention, better governance, and improved retention outcomes.
 
 # Modeling Overview {#modeling-overview}
 
@@ -163,9 +168,13 @@ The objective is not only to identify the most accurate model, but to determine 
 
 ## Target Definition
 
-The target variable for this analysis is **monitoring-based turnover risk**, representing whether an employee is likely to show turnover risk associated with workplace monitoring, privacy concerns, or surveillance-related strain.
+The target variable for this analysis is **monitoring-related turnover risk**, representing whether an employee is likely to show elevated turnover risk associated with workplace monitoring, privacy concerns, or surveillance-related strain.
 
-This binary outcome is structured as a classification problem, with levels defined as **"No" (not flagged for monitoring-based turnover risk)** and **"Yes" (at risk of monitoring-related turnover)**. Establishing a consistent target structure ensures that all models are trained and evaluated under the same conditions.
+This binary outcome is structured as a classification problem, with levels defined as **"No"** and **"Yes"**, where **"Yes"** represents employees flagged as higher risk for monitoring-related turnover in the synthetic dataset.
+
+Within this framework, the target should not be interpreted as a directly observed resignation event. Instead, it reflects a workforce-risk signal tied to monitoring perceptions, privacy concerns, trust, workload strain, and employee experience.
+
+This distinction is important because monitoring-related risk is both a workforce analytics issue and a governance issue. The goal is not to label employees, but to identify patterns that may warrant earlier HR, leadership, or monitoring-governance review.
 
 ```{r 01-target, echo=FALSE}
 # Ensure correct factor levels
@@ -190,11 +199,15 @@ test_data  <- testing(split)
 
 ## Feature Engineering Pipeline
 
-A standardized preprocessing pipeline is applied to ensure consistency across all models.
+A standardized preprocessing workflow was applied to ensure consistent evaluation across all modeling approaches.
 
-Categorical variables are converted into numeric representations using dummy encoding, and numeric variables are normalized to improve model stability—particularly for algorithms sensitive to scale, such as Logistic Regression and Support Vector Machines.
+Workforce variables representing organizational context, monitoring exposure, privacy perceptions, employee wellbeing, trust, managerial support, workload conditions, and behavioral indicators were transformed into model-compatible formats while preserving interpretability for downstream HR and governance analysis.
 
-Additionally, zero-variance predictors are removed to prevent redundant or non-informative features from influencing model performance.
+Categorical workforce attributes were converted into numeric representations using dummy encoding, while continuous variables were normalized where required for scale-sensitive algorithms such as Logistic Regression and Support Vector Machines.
+
+Predictors with zero variance or limited informational value were removed to reduce noise and improve model stability across resampling conditions.
+
+This preprocessing framework ensures that observed performance differences are driven primarily by modeling behavior and sampling strategy rather than inconsistent data preparation.
 
 ```{r 03-recipe, echo=FALSE}
 rec <- recipe(monitoring_turnover_risk ~ ., data = train_data) %>%
@@ -221,15 +234,11 @@ cv_folds <- vfold_cv(train_data, v = 5, strata = monitoring_turnover_risk)
 
 # Model Development {#model-development}
 
-Each model is implemented using a consistent preprocessing pipeline, ensuring that performance differences are driven by the modeling approach rather than data preparation.
+Multiple predictive modeling approaches were evaluated to determine how different algorithms interpret monitoring-related workforce-risk patterns within a synthetic HR environment.
 
-- Logistic Regression (baseline, interpretable)
-- Random Forest (ensemble tree-based)
-- XGBoost (boosted trees for performance)
-- Support Vector Machine (nonlinear classification)
-- Naive Bayes (probabilistic baseline)
+The goal was not simply to identify the highest-performing model, but to compare how various modeling strategies balance interpretability, detection capability, stability, and operational usefulness within a privacy-preserving analytics framework.
 
-This allows for a fair comparison across algorithms with varying levels of complexity and interpretability.
+Each model was trained using a standardized preprocessing workflow to ensure that performance differences reflected modeling behavior rather than inconsistent data preparation.
 
 ---
 
@@ -338,13 +347,15 @@ This process evaluates multiple parameter combinations using cross-validation, s
 
 ## Model Training
 
-Multiple supervised learning models were evaluated, including Random Forest, XGBoost, Support Vector Machines, Logistic Regression, and Naive Bayes.
+Multiple supervised learning algorithms were evaluated, including Logistic Regression, Random Forest, XGBoost, Support Vector Machines, and Naive Bayes.
 
-Each model and sampling strategy combination was evaluated through cross-validation. Tunable models were optimized separately within each sampling condition, ensuring that model selection reflects the combined effect of algorithm choice, preprocessing, and class-balancing strategy.
+Each model was trained under multiple class-balancing conditions to evaluate how resampling strategies influence monitoring-related risk detection behavior. This is particularly important because employees flagged for monitoring-related turnover risk typically represent a smaller portion of the workforce population.
 
-Rather than focusing on individual model outputs, performance is summarized comparatively to highlight relative strengths across modeling approaches.
+Rather than focusing on a single performance statistic, the modeling framework evaluates how each configuration balances detection capability, prediction reliability, and operational practicality.
 
-```{r 12-modeling-framework, echo=FALSE}
+This comparative approach reinforces the broader objective of the project: demonstrating how research-informed synthetic workforce data can support realistic HR analytics workflows while preserving employee privacy and organizational confidentiality.
+
+```{r 12-modeling-framework, include=FALSE, results='hide', message=FALSE, warning=FALSE}
 # This framework evaluates each model + sampling strategy combination together using cross-validation. Tunable models are tuned separately under each sampling condition.
 
 # Final model selection is based on cross-validated F1 Score with a holdout viability check before reporting the selected model.
@@ -478,10 +489,12 @@ model_grid <- tidyr::expand_grid(
 
 set.seed(123)
 
-model_results <- purrr::pmap(
-  list(model_grid$Model, model_grid$Sampling),
-  run_cv_model_sampling
-)
+model_training_output <- capture.output({
+  model_results <- purrr::pmap(
+    list(model_grid$Model, model_grid$Sampling),
+    run_cv_model_sampling
+  )
+})
 
 names(model_results) <- paste(model_grid$Model, model_grid$Sampling, sep = " + ")
 
@@ -508,32 +521,37 @@ results_all <- purrr::map_dfr(model_results, "test_metrics") %>%
 
 # Model Evaluation {#model-evaluation}
 
-This section evaluates how each model performs on unseen data and determines which approach is most suitable for real-world workforce decision-making.
+This evaluation framework examines how different modeling strategies perform on **unseen workforce data** while emphasizing practical HR and monitoring-governance decision-support considerations rather than purely statistical optimization.
 
-Rather than focusing solely on accuracy, evaluation emphasizes the **precision–recall tradeoff**, balancing the ability to detect monitoring-related risk with the cost of unnecessary intervention.
+Because workforce intervention and governance-review resources are finite, the analysis prioritizes models that balance early monitoring-related risk detection with prediction reliability. The objective is to support proactive privacy, trust, and retention review processes while minimizing unnecessary intervention burden.
+
+Evaluation therefore focuses not only on predictive accuracy, but also on how effectively each configuration translates into operationally useful workforce prioritization signals.
+
+Rather than focusing solely on accuracy, evaluation emphasizes the **precision–recall tradeoff**, balancing the ability to detect monitoring-related risk with the cost of unnecessary review.
 
 This ensures model selection aligns with operational priorities, where both detection capability and decision efficiency matter.
 
 Key metrics include:
 
 - **Accuracy** → Overall correctness  
-- **Precision** → Reliability of positive predictions  
-- **Recall** → Ability to detect employees flagged for monitoring-related turnover risk
+- **Precision** → Reliability of positive monitoring-risk predictions  
+- **Recall** → Ability to detect monitoring-related risk cases  
 - **F1 Score** → Balance between precision and recall  
 - **ROC AUC** → Overall classification strength  
 
-This comparison highlights the trade-offs between detection, prediction reliability, and practical intervention burden.
+This comparison highlights the trade-offs between detection, prediction reliability, and practical review burden.
 
 ## Test Set Performance
 
-Final model performance is evaluated on the holdout test dataset.
+Final model assessment is conducted using the holdout test dataset to evaluate how each configuration performs on previously unseen workforce observations.
 
-This step provides an unbiased assessment of how each model performs on unseen data, ensuring that results reflect real-world predictive capability rather than training performance.
+This stage acts as a practical stability check rather than the primary model-selection mechanism. Cross-validation identifies the strongest generalized configurations during training, while holdout evaluation confirms whether those patterns remain operationally useful under unseen conditions.
 
+This distinction is especially important for monitoring-related turnover risk because privacy, trust, and surveillance-related concerns may vary across organizational context and employee groups.
+
+The evaluation framework therefore separates model discovery from final operational validation, creating a more defensible and realistic assessment process for workforce-risk modeling.
 
 ---
-
-The evaluation framework compares each model and sampling strategy combination using cross-validation, then confirms the selected model on the holdout test set. This separates model selection from final performance confirmation and provides a more defensible assessment of how the model is likely to generalize.
 
 # Sampling Strategy Framework {#sampling-strategy-framework}
 
@@ -569,9 +587,8 @@ stopifnot(all(c("Model", "Sampling", ".metric", "mean") %in% names(cv_results_al
 # Gold-standard selection is based primarily on cross-validated F1 Score,
 # but the selected model must also meet minimum holdout stability checks.
 #
-# Monitoring-based turnover risk is a sensitive workforce and governance
-# outcome, so this selection logic avoids over-claiming when strong CV
-# performance does not fully transfer to unseen data.
+# This prevents a model from being selected if it performs well in CV
+# but fails to produce usable positive-class predictions on the holdout set.
 # -------------------------------------------------------------------
 
 # Minimum holdout requirements for a model to be considered usable
@@ -587,14 +604,12 @@ holdout_screen <- results_all %>%
   mutate(
     Model = as.character(Model),
     Sampling = as.character(Sampling),
-    
     viable_holdout = !is.na(precision) &
       !is.na(recall) &
       !is.na(f_meas) &
       precision > 0 &
       recall > 0 &
       f_meas > 0,
-    
     stable_holdout = viable_holdout &
       f_meas >= min_holdout_f1 &
       recall >= min_holdout_recall &
@@ -603,14 +618,14 @@ holdout_screen <- results_all %>%
 
 # Prefer models that meet the stronger holdout stability screen.
 eligible_configs <- holdout_screen %>%
-  filter(stable_holdout) %>%
-  select(Model, Sampling)
+  dplyr::filter(stable_holdout) %>%
+  dplyr::select(Model, Sampling)
 
 # Fallback: if no model meets the stronger screen, use basic viability.
 if (nrow(eligible_configs) == 0) {
   eligible_configs <- holdout_screen %>%
-    filter(viable_holdout) %>%
-    select(Model, Sampling)
+    dplyr::filter(viable_holdout) %>%
+    dplyr::select(Model, Sampling)
 }
 
 # Stop if no model is even viable on the holdout set.
@@ -630,34 +645,10 @@ cv_f1_table <- cv_results_all %>%
   ) %>%
   select(Model, Sampling, cv_f1 = mean)
 
-# Combine CV and holdout evidence
-selection_pool <- cv_f1_table %>%
-  left_join(
-    holdout_screen %>%
-      select(
-        Model,
-        Sampling,
-        holdout_precision = precision,
-        holdout_recall = recall,
-        holdout_f1 = f_meas,
-        holdout_roc_auc = roc_auc,
-        stable_holdout,
-        viable_holdout
-      ),
-    by = c("Model", "Sampling")
-  ) %>%
-  mutate(
-    selection_status = case_when(
-      stable_holdout ~ "Stable holdout candidate",
-      viable_holdout ~ "Viable holdout candidate",
-      TRUE ~ "Not viable on holdout"
-    )
-  )
-
 # Select the best cross-validated model among eligible holdout configurations
 top_model_cv <- cv_f1_table %>%
-  dplyr::inner_join(eligible_configs, by = c("Model", "Sampling")) %>%
-  dplyr::left_join(
+  inner_join(eligible_configs, by = c("Model", "Sampling")) %>%
+  left_join(
     holdout_screen %>%
       dplyr::select(
         Model,
@@ -717,36 +708,20 @@ final_model_metrics <- results_all %>%
 ```
 
 ```{r 14b-selected-model-consistency-check, include=FALSE}
-# -------------------------------------------------------------------
-# Selected model consistency check
-# -------------------------------------------------------------------
-
+# Final selected model consistency check
 stopifnot(exists("top_model_name"))
 stopifnot(exists("top_sampling_method"))
 stopifnot(exists("top_model_config"))
-stopifnot(exists("top_f1"))
-stopifnot(exists("top_holdout_f1"))
-stopifnot(exists("top_holdout_precision"))
-stopifnot(exists("top_holdout_recall"))
-stopifnot(exists("top_holdout_roc_auc"))
-stopifnot(exists("selection_strategy_label"))
-stopifnot(exists("selection_rule_note"))
 stopifnot(exists("final_model_metrics"))
 stopifnot(exists("final_preds"))
 
 stopifnot(length(top_model_name) == 1)
 stopifnot(length(top_sampling_method) == 1)
-stopifnot(length(top_model_config) == 1)
-
 stopifnot(nrow(final_model_metrics) == 5)
 
 stopifnot(
   all(c("Accuracy", "Precision", "Recall", "F1 Score", "ROC AUC") %in% final_model_metrics$Metric)
 )
-
-if (!top_model_config %in% names(model_results)) {
-  stop("Selected model configuration does not exist in model_results: ", top_model_config)
-}
 ```
 
 ```{r 14c-final-consistency-lock, include=FALSE}
@@ -804,16 +779,20 @@ cat("Holdout ROC AUC:", top_holdout_roc_auc, "\n")
 
 ## Sampling Strategy Comparison {#sampling-strategy-comparison}
 
-Class imbalance is a major challenge in monitoring-risk prediction, as fewer employees typically fall into the "Yes" category.
+Class imbalance is a major challenge in monitoring-related turnover-risk modeling because employees flagged for monitoring-related risk typically represent a smaller portion of the workforce population.
 
-To address this, multiple sampling strategies were applied:
+To better understand how class-balancing strategies influence workforce-risk detection, multiple resampling approaches were evaluated across all algorithms. The goal is not to artificially inflate performance, but to examine how different balancing strategies affect the tradeoff between detection capability and prediction reliability.
+
+This comparison helps demonstrate how modeling decisions influence practical workforce prioritization outcomes within HR analytics and monitoring-governance environments.
+
+The models include:
 
 - No Sampling (baseline)
 - Up Sampling (increase minority class)
 - Down Sampling (reduce majority class)
 - SMOTE (synthetic minority generation)
 
-The goal is to understand how balancing the dataset impacts model performance.
+**The goal is to understand how balancing the dataset impacts model performance.**
 
 ```{r 15-plot-sampling-comparison, echo=FALSE}
 plot_df <- results_all %>%
@@ -823,32 +802,30 @@ plot_df <- results_all %>%
       Metric,
       levels = c("Precision", "Recall", "F1 Score", "ROC AUC")
     ),
-    Model = as.character(Model),
-    Sampling = as.character(Sampling),
     Model_Sampling = paste(Model, Sampling, sep = " + ")
   )
 
-# Rank rows by holdout F1 Score for cleaner storytelling
-model_order <- plot_df %>%
+f1_order <- plot_df %>%
   filter(.metric == "f_meas") %>%
   arrange(desc(.estimate)) %>%
   pull(Model_Sampling)
 
 plot_df <- plot_df %>%
   mutate(
-    Model_Sampling = factor(Model_Sampling, levels = rev(model_order)),
-    Plot_Label = scales::number(.estimate, accuracy = 0.001)
+    Model_Sampling = factor(Model_Sampling, levels = rev(f1_order)),
+    Plot_Label = ifelse(
+      is.na(.estimate),
+      "",
+      scales::number(.estimate, accuracy = 0.001)
+    )
   )
 
-p <- ggplot(
-  plot_df,
-  aes(x = Metric, y = Model_Sampling, fill = .estimate)
-) +
-  geom_tile(color = "white", linewidth = 0.75) +
+p <- ggplot(plot_df, aes(x = Metric, y = Model_Sampling, fill = .estimate)) +
+  geom_tile(color = "white", linewidth = 0.6) +
   geom_text(
     aes(label = Plot_Label),
     fontface = "bold",
-    size = 3.4,
+    size = 3.5,
     color = "#243447"
   ) +
   scale_fill_gradient(
@@ -859,29 +836,30 @@ p <- ggplot(
     name = "Score"
   ) +
   labs(
-    title = "Model Performance Across Sampling Strategies",
-    subtitle = "Holdout performance ranked by F1 Score",
+    title = "Holdout Performance Across Model Configurations",
+    subtitle = "Rows are ranked by holdout F1 Score; higher values indicate stronger performance",
     x = NULL,
     y = NULL
   ) +
   theme_hr(10) +
   theme(
     plot.title = element_text(face = "bold"),
-    plot.subtitle = element_text(color = "#5a6b7c"),
-    axis.text.y = element_text(size = 8),
-    axis.text.x = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 12, color = "#5a6b7c"),
+    axis.text.y = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(size = 10, face = "bold"),
     legend.position = "right",
-    panel.grid = element_blank(),
-    plot.margin = margin(10, 18, 10, 10)
+    panel.grid = element_blank()
   )
 
 print(p)
 save_plot(p, "sampling_strategy_performance_heatmap.png", 10.5, 8)
 ```
 
-The sampling comparison shows that monitoring-related turnover risk is highly sensitive to the interaction between algorithm choice and class-balancing strategy. Several Random Forest and XGBoost configurations produced strong holdout F1 Scores, suggesting that tree-based models were better able to capture the nonlinear structure of monitoring, privacy, trust, and workforce-risk signals.
+The heatmap shows holdout test performance across model and sampling combinations. It is used as a confirmation view rather than the sole model-selection mechanism. The final model is selected using cross-validated F1 Score among configurations that also produce usable holdout performance.
 
-The selected configuration, Random Forest with SMOTE, provides the strongest cross-validated F1 Score among stable holdout candidates. Its holdout profile shows very high precision with moderate recall, meaning flagged employees are highly reliable risk signals, but the model may still miss some employees who later show monitoring-related turnover risk.
+This distinction matters because a model can look strong on one holdout metric while being less stable during cross-validation. In this report, cross-validation provides the primary model-selection evidence, while holdout results confirm whether the selected configuration remains practically useful on unseen data.
+
+The results show that no single configuration dominates every metric. Some approaches improve recall but reduce precision, while others are more conservative. This reinforces that monitoring-related turnover modeling should be interpreted as a decision-support layer, not as an automatic classification system.
 
 ## Precision–Recall Curve Analysis {#precision-recall}
 
@@ -922,6 +900,24 @@ p <- ggplot(
     linetype = "dashed",
     color = "#D5DBDB",
     linewidth = 0.5
+  ) +
+  annotate(
+    "rect",
+    xmin = 0.45,
+    xmax = 0.65,
+    ymin = 0.45,
+    ymax = 0.65,
+    alpha = 0.08,
+    fill = "#2A9D8F"
+  ) +
+  annotate(
+    "text",
+    x = 0.55,
+    y = 0.67,
+    label = "Balanced Operational Zone",
+    size = 4.2,
+    fontface = "bold",
+    color = "#1B4332"
   ) +
   geom_point(
     aes(size = f_meas),
@@ -992,7 +988,11 @@ p <- ggplot(
   theme_hr(11) +
   theme(
     plot.title = element_text(face = "bold", size = 15),
-    plot.subtitle = element_text(color = "#5a6b7c", size = 11),
+    plot.subtitle = element_text(
+  size = 12,
+  color = "#5a6b7c",
+  margin = margin(b = 12)
+),
     axis.title = element_text(size = 10),
     axis.text = element_text(size = 9),
     legend.position = "right",
@@ -1013,7 +1013,7 @@ The selected configuration is highlighted with an outlined marker. It is not cho
 
 This reinforces the business logic behind the model-selection process: the goal is not to flag as many employees as possible or eliminate all false positives, but to create a practical monitoring-risk screening layer that can guide earlier review without replacing human judgment.
 
-## Decision Matrix & Model Comparison
+## Cross-Validated Model Comparison
 
 ```{r 17-model-decision-breakdown, echo=FALSE}
 decision_table <- cv_results_all %>%
@@ -1032,7 +1032,7 @@ decision_table %>%
   dplyr::slice_head(n = 12) %>%
   gt() %>%
   tab_header(
-    title = "Cross-Validated Model Decision Matrix",
+    title = "Cross-Validated Model Comparison",
     subtitle = "Top configurations ranked by cross-validated F1 Score"
   ) %>%
   fmt_number(
@@ -1041,35 +1041,28 @@ decision_table %>%
   ) %>%
   data_color(
     columns = c(Accuracy, Precision, Recall, F1, ROC_AUC),
-    colors = col_numeric(
+    colors = scales::col_numeric(
       palette = c("#EAF2F8", "#A9CCE3", "#2E86C1"),
       domain = c(0, 1)
     )
   ) %>%
   cols_align("center") %>%
   tab_options(
-    table.width = pct(88),
-    table.font.size = px(13)
+    table.width = pct(92),
+    table.font.size = px(12),
+    data_row.padding = px(8)
   )
 ```
 
-The cross-validated decision matrix ranks model configurations by F1 Score, showing which combinations performed strongest during resampling. Strong cross-validation results indicate promising generalizable performance, but they do not guarantee that the same configuration will remain stable on unseen holdout data.
-
-For this reason, final model selection uses a two-step rule: first, configurations are evaluated using cross-validated F1 Score; second, leading candidates are checked against holdout performance to confirm that they still produce usable positive-class predictions.
-
-This is especially important for monitoring and privacy risk because the target reflects a sensitive workforce signal. The model should support prioritization and governance review, not automatic decisions about employees.
-
 ### Model Selection {#model-selection}
 
-Model selection was guided by practical decision tradeoffs rather than raw performance alone.
+Model selection was guided by a two-step rule designed to balance statistical rigor with business usefulness.
 
-For monitoring-based turnover risk prediction, the cost of missing an at-risk employee must be balanced against the cost of unnecessary intervention. A model with very high recall may identify more potential monitoring-related risk cases, but it can also create operational noise by flagging too many employees. A model with high precision may reduce false alarms, but it may fail to detect enough meaningful risk.
+First, candidate configurations were ranked by cross-validated F1 Score, which serves as the primary model-selection metric because it balances precision and recall under class imbalance. Second, the leading candidates were reviewed on the holdout test set to confirm that they still produced usable positive-class predictions on unseen data.
 
-For this reason, **cross-validated F1 Score was selected as the primary model-selection metric** because it balances precision and recall while reducing the risk of selecting a model based on one favorable test split.
+This second step matters. A configuration can rank highly during resampling yet behave too aggressively or too weakly on the holdout set. For this reason, the final model is selected as the strongest cross-validated configuration that also satisfies minimum holdout stability requirements.
 
-However, cross-validation alone is not enough. The holdout test set is also used as a **stability check** to confirm that the selected model produces usable positive-class predictions on unseen data. This prevents the final report from selecting a model that performs well during resampling but fails during final confirmation.
-
-In this run, the recommended configuration was **`r top_model_name` with `r top_sampling_method`**. The model should be interpreted as a **risk prioritization tool**, meaning it helps identify employees or workforce segments that may warrant earlier privacy, trust, or monitoring-governance review while leaving final decisions to HR leaders, managers, and organizational context.
+In this run, the recommended configuration was **`r top_model_name` with `r top_sampling_method`**. The model should be interpreted as a **risk prioritization tool**, meaning it helps identify employees or workforce segments that may warrant earlier privacy, trust, or monitoring-governance review, while leaving final decisions to HR leaders, managers, governance stakeholders, and organizational context.
 
 ## Selected Model Holdout Performance
 
@@ -1080,29 +1073,32 @@ final_model_plot_df <- final_model_metrics %>%
       Metric,
       levels = c("Accuracy", "Precision", "Recall", "F1 Score", "ROC AUC")
     ),
-    Highlight = ifelse(Metric == "F1 Score", "Selected Metric", "Supporting Metric"),
+    Highlight = ifelse(Metric == "F1 Score", "Primary Selection Metric", "Supporting Metric"),
     Plot_Label = ifelse(is.na(Score), "N/A", scales::number(Score, accuracy = 0.001))
   )
 
+y_max <- max(0.70, max(final_model_plot_df$Score, na.rm = TRUE) + 0.10)
+
 p <- ggplot(final_model_plot_df, aes(x = Metric, y = Score, fill = Highlight)) +
-  geom_col(width = 0.65, na.rm = TRUE) +
+  geom_col(width = 0.62, na.rm = TRUE) +
   geom_text(
     aes(label = Plot_Label),
-    vjust = -0.45,
+    vjust = -0.4,
     fontface = "bold",
     size = 4
   ) +
   scale_fill_manual(values = c(
-    "Selected Metric" = "#2E86C1",
+    "Primary Selection Metric" = "#2E86C1",
     "Supporting Metric" = "#AAB7B8"
   )) +
   scale_y_continuous(
-    limits = c(0, 1.08),
-    labels = scales::percent_format(accuracy = 1)
+    limits = c(0, y_max),
+    labels = scales::percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.04))
   ) +
   labs(
-    title = paste("Final Model Performance:", top_model_name),
-    subtitle = paste("Holdout test performance | Sampling Strategy:", top_sampling_method),
+    title = paste("Final Holdout Performance:", top_model_name),
+    subtitle = paste("Sampling Strategy:", top_sampling_method),
     x = NULL,
     y = "Score"
   ) +
@@ -1115,121 +1111,119 @@ p <- ggplot(final_model_plot_df, aes(x = Metric, y = Score, fill = Highlight)) +
   )
 
 print(p)
-save_plot(p, "final_model_metrics.png", 8, 5)
+save_plot(p, "final_model_metrics.png", 8, 4.6)
 ```
 
 ## Risk Distribution
 
-The risk distribution shows how the selected model assigns monitoring-based turnover-risk probabilities across the holdout test set. These scores should be interpreted as prioritization signals rather than definitive classifications. In practice, organizations would calibrate decision thresholds based on HR capacity, intervention cost, privacy sensitivity, and tolerance for missed risk.
+The risk distribution shows how the selected model assigns monitoring-related turnover-risk probabilities across the holdout test set. These scores should be interpreted as **review-priority signals**, not definitive employee labels.
+
+Because monitoring-related risk is tied to privacy perceptions, trust, workload pressure, and governance context, probability scores should be interpreted as prioritization signals that help identify where additional HR or monitoring-governance review may be warranted.
 
 ```{r 19-risk-distribution, echo=FALSE}
-p <- final_preds %>%
-  ggplot(aes(x = .pred_Yes)) +
+risk_distribution <- final_preds %>%
+  mutate(
+    predicted_probability = .pred_Yes,
+    risk_percentile = percent_rank(predicted_probability),
+    review_priority = case_when(
+      risk_percentile >= 0.90 ~ "High Review Priority",
+      risk_percentile >= 0.60 ~ "Moderate Review Priority",
+      TRUE ~ "Lower Review Priority"
+    ),
+    review_priority = factor(
+      review_priority,
+      levels = c(
+        "Lower Review Priority",
+        "Moderate Review Priority",
+        "High Review Priority"
+      )
+    )
+  )
+
+p <- ggplot(
+  risk_distribution,
+  aes(x = predicted_probability, fill = review_priority)
+) +
   geom_histogram(
-    bins = 25,
-    fill = "#4B9CD3",
+    bins = 28,
     color = "white",
-    linewidth = 0.4
+    alpha = 0.90
   ) +
-  geom_vline(
-    xintercept = 0.40,
-    linetype = "dashed",
-    linewidth = 0.7,
-    color = "#F39C12"
-  ) +
-  geom_vline(
-    xintercept = 0.70,
-    linetype = "dashed",
-    linewidth = 0.7,
-    color = "#C0392B"
-  ) +
-  annotate(
-    "text",
-    x = 0.40,
-    y = Inf,
-    label = "Moderate Risk",
-    vjust = 1.6,
-    hjust = -0.05,
-    size = 3.5
-  ) +
-  annotate(
-    "text",
-    x = 0.70,
-    y = Inf,
-    label = "High Risk",
-    vjust = 1.6,
-    hjust = 1.05,
-    size = 3.5
+  scale_fill_manual(
+    values = c(
+      "Lower Review Priority" = "#D5E8D4",
+      "Moderate Review Priority" = "#F9E79F",
+      "High Review Priority" = "#F5B7B1"
+    )
   ) +
   scale_x_continuous(
     labels = scales::percent_format(accuracy = 1),
-    limits = c(0, 1)
+    limits = c(0, 1),
+    expand = expansion(mult = c(0.01, 0.01))
   ) +
   labs(
-    title = "Predicted Monitoring-Based Turnover Risk Distribution",
-    subtitle = "Employees are scored by their predicted probability of monitoring-related turnover risk",
-    x = "Predicted Probability of Monitoring-Based Turnover Risk",
-    y = "Employee Count"
+    title = "Predicted Monitoring-Related Turnover Review-Priority Distribution",
+    subtitle = "Relative workforce-risk signals across the holdout population",
+    x = "Predicted Probability of Monitoring-Related Turnover Risk",
+    y = "Employee Count",
+    fill = "Review Priority"
   ) +
   theme_hr(11) +
   theme(
-    plot.title = element_text(face = "bold"),
-    plot.subtitle = element_text(color = "#5a6b7c"),
-    plot.margin = margin(10, 25, 15, 10)
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = "#5a6b7c", size = 11),
+    legend.position = "top",
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(10, 20, 15, 10)
   )
 
 print(p)
-save_plot(p, "risk_distribution.png", 8, 5)
+save_plot(p, "risk_distribution.png", 8.6, 5.2)
 ```
 
-## Risk Segmentation
+## Review-Priority Segmentation
 
-The segmentation view translates model probabilities into practical intervention tiers. If employees cluster heavily within one tier, that does not mean the model is wrong; it means the thresholds should be calibrated for the organization’s decision context. In practice, HR teams would adjust these thresholds based on available capacity, intervention cost, privacy sensitivity, and tolerance for missed risk.
+The segmentation view translates model probabilities into practical review-priority tiers. These tiers are not automatic decisions; they organize attention for HR, leadership, governance, or workforce planning review.
 
-```{r 20-risk-segmentation, echo=FALSE}
-risk_segments <- final_preds %>%
+Because monitoring-related risk is sensitive and context-dependent, relative ranking is more useful than rigid fixed thresholds. In practice, HR and governance teams could adjust review queues based on available capacity, privacy sensitivity, intervention goals, and tolerance for missed risk.
+
+```{r 20-risk-segmentation, echo=FALSE, message=FALSE, warning=FALSE}
+risk_segment_summary <- risk_distribution %>%
+  count(review_priority, .drop = FALSE) %>%
   mutate(
-    Risk_Level = case_when(
-      .pred_Yes >= 0.70 ~ "High Risk",
-      .pred_Yes >= 0.40 ~ "Moderate Risk",
-      TRUE ~ "Low Risk"
-    ),
-    Risk_Level = factor(
-      Risk_Level,
-      levels = c("Low Risk", "Moderate Risk", "High Risk")
-    )
-  ) %>%
-  count(Risk_Level, .drop = FALSE) %>%
-  mutate(
-    Percent = n / sum(n),
-    Label = ifelse(
-      n == 0,
-      "",
-      paste0(n, "\n", scales::percent(Percent, accuracy = 1))
-    )
+    percent = n / sum(n),
+    label = paste0(n, "\n", scales::percent(percent, accuracy = 1))
   )
 
-p <- ggplot(risk_segments, aes(x = Risk_Level, y = n, fill = Risk_Level)) +
-  geom_col(width = 0.52, show.legend = FALSE) +
+p <- ggplot(
+  risk_segment_summary,
+  aes(
+    x = review_priority,
+    y = n,
+    fill = review_priority
+  )
+) +
+  geom_col(width = 0.65) +
   geom_text(
-    aes(label = Label),
-    vjust = -0.35,
+    aes(label = label),
+    vjust = -0.45,
     fontface = "bold",
-    size = 3.4,
-    lineheight = 0.9,
-    color = "#111111"
+    size = 4
   ) +
-  scale_fill_manual(values = c(
-    "Low Risk" = "#2ECC71",
-    "Moderate Risk" = "#F39C12",
-    "High Risk" = "#E74C3C"
-  )) +
+  scale_fill_manual(
+    values = c(
+      "Lower Review Priority" = "#7FBF7F",
+      "Moderate Review Priority" = "#F39C12",
+      "High Review Priority" = "#D35454"
+    )
+  ) +
   scale_y_continuous(
-    expand = expansion(mult = c(0, 0.16))
+    limits = c(0, max(risk_segment_summary$n, na.rm = TRUE) * 1.18),
+    expand = expansion(mult = c(0, 0.05))
   ) +
   labs(
-    title = "Employee Risk Segmentation",
-    subtitle = "Risk tiers translate model scores into intervention priorities",
+    title = "Employee Monitoring-Risk Review-Priority Segmentation",
+    subtitle = "Risk tiers translate model scores into practical privacy and trust review priorities",
     x = NULL,
     y = "Employee Count"
   ) +
@@ -1237,27 +1231,24 @@ p <- ggplot(risk_segments, aes(x = Risk_Level, y = n, fill = Risk_Level)) +
   theme(
     plot.title = element_text(face = "bold", size = 15),
     plot.subtitle = element_text(color = "#5a6b7c", size = 11),
-    axis.text.x = element_text(size = 10),
-    axis.text.y = element_text(size = 9),
-    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10, face = "bold"),
+    legend.position = "none",
     panel.grid.major.x = element_blank(),
     panel.grid.minor = element_blank(),
     plot.margin = margin(10, 18, 18, 10)
   )
 
 print(p)
-save_plot(p, "risk_segments.png", 7.5, 5)
+save_plot(p, "risk_segments.png", 7.8, 5)
 ```
 
-The segmentation view translates predicted probabilities into practical intervention tiers. In this run, most employees fall into the moderate-risk band, suggesting the selected model is better suited for ranking relative monitoring-related risk than for sharply separating employees into extreme categories.
-
-This does not mean the model is wrong. It means the thresholds should be calibrated to the organization’s decision context. In practice, HR and governance teams could adjust these cutoffs based on available review capacity, intervention cost, privacy sensitivity, and tolerance for missed risk.
+For monitoring-related turnover risk, these tiers should be treated as privacy, trust, and governance prioritization signals. Lower-priority employees may require normal monitoring-governance communication, moderate-priority employees may warrant trend monitoring, and high-priority employees may warrant earlier HR or governance review.
 
 # Final Model Summary & Key Takeaways {#model-summary}
 
 The selected model represents the strongest cross-validated F1 Score among configurations that also met minimum holdout stability requirements. This means the final model was not selected only because it performed well during resampling; it also had to produce usable positive-class predictions on unseen data.
 
-While the absolute performance values remain moderate, the model is useful as a **risk prioritization tool** because it helps rank employees by relative likelihood of monitoring-related turnover risk. This distinction is important: the model should not be used to make automatic employment decisions. Instead, it supports earlier review, privacy-aware workforce conversations, and more focused monitoring governance.
+While the absolute performance values remain moderate, the model is useful as a **risk prioritization tool** because it helps rank employees by relative likelihood of monitoring-related turnover risk. This distinction is important: the model should not be used to make automatic employment decisions. Instead, it supports earlier privacy-aware review, monitoring-governance conversations, and more focused workforce trust management.
 
 ## 📊 Key Takeaways
 
@@ -1382,33 +1373,58 @@ top_config_table <- cv_results_all %>%
     by = c("Model", "Sampling")
   ) %>%
   arrange(desc(`CV F1 Score`), desc(`Holdout F1`)) %>%
-  dplyr::slice_head(n = 10)
+  slice_head(n = 10)
 
 top_config_table %>%
   gt() %>%
   tab_header(
     title = "Top Model Configurations",
-    subtitle = "Cross-validation ranking with holdout confirmation metrics"
+    subtitle = "Cross-validated ranking with holdout confirmation"
   ) %>%
   fmt_number(
-    columns = c(
-      `CV F1 Score`,
-      `Holdout Precision`,
-      `Holdout Recall`,
-      `Holdout F1`
-    ),
+    columns = c(`CV F1 Score`, `Holdout Precision`, `Holdout Recall`, `Holdout F1`),
     decimals = 3
   ) %>%
+  sub_missing(
+    columns = c(`Holdout Precision`, `Holdout Recall`, `Holdout F1`),
+    missing_text = "N/A"
+  ) %>%
   cols_align("center") %>%
+  data_color(
+    columns = c(`CV F1 Score`, `Holdout Precision`, `Holdout Recall`, `Holdout F1`),
+    colors = scales::col_numeric(
+      palette = c("#EAF2F8", "#A9CCE3", "#2E86C1"),
+      domain = c(0, 1),
+      na.color = "#F2F4F4"
+    )
+  ) %>%
+  cols_width(
+    Model ~ px(130),
+    Sampling ~ px(150),
+    `CV F1 Score` ~ px(120),
+    `Holdout Precision` ~ px(130),
+    `Holdout Recall` ~ px(120),
+    `Holdout F1` ~ px(110),
+    Status ~ px(220)
+  ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#EBF5FB"),
+      cell_text(weight = "bold")
+    ),
+    locations = cells_body(
+      rows = Status == "Selected Final Model"
+    )
+  ) %>%
   tab_options(
-    table.width = pct(90),
+    table.width = pct(92),
     table.font.size = px(12)
   )
 ```
 
-While model performance identifies *which employees are at risk of monitoring-related turnover*, understanding *why* those predictions occur is critical for meaningful intervention.
+Performance metrics indicate which configurations screen monitoring-related turnover risk most effectively. The next step is to translate those outputs into practical workforce trust, privacy, and monitoring-governance insight by connecting model behavior back to broader organizational patterns.
 
-This section interprets the underlying drivers of monitoring-based turnover risk, connecting statistical patterns to real-world workforce behavior.
+This section interprets the likely drivers of monitoring-related turnover risk and links those patterns to actionable workforce response areas.
 
 # Driver Interpretation {#driver-interpretation}
 
@@ -1470,23 +1486,35 @@ driver_actions %>%
 
 # Business Impact & Decision Guidance {#business-impact}
 
-The model is designed to support workforce decision-making at a strategic level. Rather than functioning as an automated decision system, it should be used as a **risk intelligence layer** that helps HR, leadership, and governance stakeholders prioritize where deeper review may be needed.
+The modeling framework is designed to support workforce decision-making at a strategic level while preserving employee privacy through synthetic data simulation.
+
+Rather than functioning as an automated employment-decision system, the selected model should be interpreted as a workforce intelligence layer that helps HR, leadership, and governance stakeholders prioritize where additional privacy, trust, monitoring-policy, or retention review may be beneficial.
+
+The practical value of the framework lies in its ability to:
+
+- Identify workforce segments that may warrant earlier monitoring-governance review
+- Support proactive privacy and trust risk management
+- Improve allocation of HR, leadership, and governance review resources
+- Enhance organizational visibility into monitoring-related workforce-risk patterns
+- Demonstrate privacy-preserving HR analytics workflows
+
+Importantly, the model is intended to support human decision-making, not replace it. Monitoring-related workforce outcomes remain dependent on organizational context, leadership interpretation, employee communication, governance standards, and ethical review processes.
+
+This project demonstrates how predictive analytics can be integrated into HR environments responsibly using synthetic, research-informed data that protects employee confidentiality while still enabling advanced workforce analysis.
 
 ## Strategic Decision Guidance {#decision-guidance}
 
 ```{=html}
 <div class="decision-box">
 
-<h3>Strategic Decision Guidance</h3>
-
 <p>
 This model is best deployed as a <strong>risk prioritization tool</strong>, not as a standalone decision system.
 </p>
 
 <ul>
-  <li><strong>High-risk employees</strong> → Prioritize for HR, manager, or governance review</li>
-  <li><strong>Moderate-risk employees</strong> → Monitor privacy concerns, workload, trust, and support trends</li>
-  <li><strong>Low-risk employees</strong> → Maintain baseline monitoring governance and communication practices</li>
+  <li><strong>High-priority employees or groups</strong> → Prioritize for HR, manager, privacy, or monitoring-governance review</li>
+  <li><strong>Moderate-priority employees or groups</strong> → Monitor privacy concerns, workload, trust, and support trends</li>
+  <li><strong>Lower-priority employees or groups</strong> → Maintain baseline monitoring communication, trust-building, and governance practices</li>
 </ul>
 
 <p>
@@ -1501,17 +1529,15 @@ The value of the model is not in replacing human judgment, but in helping decisi
 ```{=html}
 <div class="decision-box">
 
-<h3>Model Limitations</h3>
-
 <p>
 The model should be interpreted within the context of synthetic data, simulated workforce patterns, and organizational variability.
 </p>
 
 <ul>
   <li>Predictions reflect patterns in synthetic data, not observed outcomes from a real organization</li>
-  <li>Performance may shift when applied to different employee populations or industries</li>
+  <li>Performance may shift when applied to different employee populations, industries, or monitoring environments</li>
   <li>Risk scores should support review and prioritization, not automatic employment decisions</li>
-  <li>Human context remains essential before any intervention is taken</li>
+  <li>Human context, privacy governance, and ethical review remain essential before any intervention is taken</li>
 </ul>
 
 </div>
@@ -1519,11 +1545,15 @@ The model should be interpreted within the context of synthetic data, simulated 
 
 ## Final Takeaway
 
-Monitoring-based turnover risk is not driven by a single variable. It reflects a network of privacy, trust, monitoring, workload, wellbeing, and organizational support signals that collectively shape how employees experience workplace surveillance.
+This project demonstrates how synthetic, research-informed workforce data can support realistic HR analytics workflows without exposing sensitive employee information.
 
-The modeling framework demonstrates how predictive analytics can move beyond static reporting and support proactive workforce trust management. In this run, the selected model provides a strong prioritization signal: employees flagged by the model are likely to warrant closer review, while lower recall indicates that monitoring-related risk should also be monitored through surveys, manager feedback, privacy complaints, and workforce climate indicators.
+Monitoring-related turnover risk is not driven by a single variable. It reflects a network of privacy, trust, monitoring, workload, wellbeing, and organizational support signals that collectively shape how employees experience workplace surveillance.
 
-Used responsibly, this type of model becomes a decision-support tool: not a replacement for human judgment, but a way to help organizations balance operational visibility with employee trust, privacy, and long-term retention outcomes.
+The modeling framework shows how predictive analytics can move beyond static reporting and contribute to proactive workforce trust management, early risk visibility, and operational prioritization while maintaining strong privacy-preserving principles.
+
+Although predictive performance remains intentionally moderate and realistic, the selected workflow successfully demonstrates how monitoring-related workforce-risk modeling can function as a practical decision-support capability within HR and governance environments.
+
+Used appropriately, this type of framework can help organizations identify emerging monitoring-related workforce patterns earlier, allocate review resources more effectively, strengthen transparency and trust, and support more informed strategic HR decision-making.
 
 ```{r 24-export-final-model-summary, include=FALSE}
 summary_dir <- here::here("data", "processed", "model_summaries")

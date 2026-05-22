@@ -1,5 +1,5 @@
 ---
-title: "Exploratory Data Analysis | Workforce Analytics"
+title: ""
 
 output:
   html_document:
@@ -11,6 +11,7 @@ output:
     highlight: null
     df_print: paged
     fig_caption: true
+    css: "../docs/assets/styles.css"
     includes:
       in_header: "../docs/assets/header.html"
 
@@ -443,11 +444,12 @@ render_dict_table <- function(df, title) {
   htmltools::div(
     class = "table-card",
     htmltools::h4(title),
-    HTML(table_html)
+    htmltools::div(
+      class = "table-scroll",
+      HTML(table_html)
+    )
   )
 }
-
-# Existing Metadata
 
 render_dict_table(employee_data_demo_meta, "1. Data & Demographics")
 render_dict_table(employee_metrics_meta, "2. Metrics")
@@ -471,8 +473,11 @@ library(DT)
 DT::datatable(
   head(base_df, 25),
   options = list(
-    pageLength = 10,
-    scrollX = TRUE
+    pageLength = 8,
+    scrollX = TRUE,
+    scrollY = "360px",
+    autoWidth = TRUE,
+    dom = "tip"
   ),
   class = "stripe hover compact"
 )
@@ -483,39 +488,6 @@ DT::datatable(
 Before performing statistical analysis, it is important to verify the structure and data types of each variable. 
 This step ensures that variables are correctly formatted for modeling and helps identify potential data quality issues such as missing values. 
 A clear understanding of variable types also informs appropriate visualization and transformation strategies.
-
-```{r 02-data-structure, results='asis'}
-library(dplyr)
-library(tidyr)
-library(knitr)
-library(kableExtra)
-
-structure_df <- tibble(
-  Variable = names(base_df),
-  Type = sapply(base_df, class),
-  Missing = sapply(base_df, function(x) sum(is.na(x)))
-)
-
-table_html <- structure_df %>%
-  kable("html") %>%
-  kable_styling(full_width = TRUE, bootstrap_options = c("striped", "hover")) %>%
-  row_spec(0, bold = TRUE, color = "white", background = "#2F5D50") %>%
-  as.character()
-
-htmltools::tagList(
-  htmltools::div(
-    class = "card",
-    htmltools::h4("Dataset Structure"),
-    HTML(table_html)
-  )
-)
-```
-
-### Dataset Summary Statistics
-
-Summary statistics provide insight into the central tendency and variability of numeric variables within the dataset. 
-These metrics help identify potential outliers, skewness, and unusual distributions that may influence modeling performance. 
-Understanding these characteristics is critical for selecting appropriate modeling techniques and transformations.
 
 ```{r summary-stats, results='asis'}
 library(dplyr)
@@ -528,18 +500,26 @@ numeric_data <- safe_numeric(base_df)
 summary_df <- psych::describe(numeric_data) %>%
   as.data.frame() %>%
   tibble::rownames_to_column("Variable") %>%
-  select(Variable, mean, sd, min, max, skew)
+  select(Variable, mean, sd, min, max, skew) %>%
+  mutate(
+    Variable = clean_label(Variable)
+  )
 
 table_html <- summary_df %>%
   kable("html", digits = 2) %>%
-  kable_styling(full_width = TRUE, bootstrap_options = c("striped", "hover")) %>%
+  kable_styling(
+    full_width = TRUE,
+    bootstrap_options = c("striped", "hover", "condensed")
+  ) %>%
   row_spec(0, bold = TRUE, color = "white", background = "#2F5D50") %>%
+  column_spec(1, bold = TRUE) %>%
   as.character()
 
-htmltools::tagList(
+htmltools::div(
+  class = "card",
+  htmltools::h4("Summary Statistics"),
   htmltools::div(
-    class = "card",
-    htmltools::h4("Summary Statistics"),
+    class = "table-scroll",
     HTML(table_html)
   )
 )
@@ -854,30 +834,45 @@ likert_long <- hr_df %>%
     names_to = "name",
     values_to = "value"
   ) %>%
-  filter(!is.na(value))
+  filter(!is.na(value)) %>%
+  mutate(
+    name = wrap_label(clean_label(name), 20)
+  )
 
-p <- ggplot(likert_long, aes(x = value, y = clean_label(name))) +
+p <- ggplot(
+  likert_long,
+  aes(x = value, y = reorder(name, value))
+) +
   geom_boxplot(
-    fill = "#CCCCCC",
-    alpha = 0.4,
-    outlier.shape = NA
+    fill = "#D9EAF4",
+    color = "#1D3557",
+    alpha = 0.75,
+    width = 0.55,
+    outlier.alpha = 0.25
   ) +
   geom_jitter(
     aes(color = value),
-    width = 0.15,
-    alpha = 0.5,
-    size = 1.3
+    width = 0.12,
+    alpha = 0.25,
+    size = 0.9
   ) +
   scale_color_viridis_c(option = "C", end = 0.9) +
-  theme_hr() +
+  theme_hr(10) +
+  theme(
+    axis.text.y = element_text(size = 8),
+    legend.position = "none",
+    plot.margin = margin(10, 15, 10, 10)
+  ) +
   labs(
-    title = "Likert Variable Outliers",
+    title = "Likert Variable Outlier Structure",
+    subtitle = "Distribution spread across high-variance workforce perception variables",
     x = "Response Level",
     y = NULL
   )
 
 print(p)
-save_plot(p, "likert_outliers.png", 8.5, 5.5)
+
+save_plot(p, "likert_outliers.png", width = 8, height = 4.8)
 ```
 
 ### 📊 Key Takeaways
@@ -922,9 +917,12 @@ hr_df <- base_df
 
 numeric_data <- safe_numeric(hr_df)
 
-corr_matrix <- cor(numeric_data, use = "complete.obs")
+corr_matrix <- cor(
+  numeric_data,
+  use = "complete.obs"
+)
 
-# Hierarchical reorder for cleaner structure
+# Cluster ordering
 hc <- hclust(as.dist(1 - abs(corr_matrix)))
 corr_matrix <- corr_matrix[hc$order, hc$order]
 
@@ -941,7 +939,6 @@ corr_df <- as.data.frame(as.table(corr_matrix)) %>%
   ) %>%
   filter(abs_corr >= 0.10)
 
-# Preserve clustered ordering
 var_levels <- clean_label(colnames(corr_matrix))
 
 corr_df <- corr_df %>%
@@ -950,27 +947,41 @@ corr_df <- corr_df %>%
     Var2 = factor(Var2, levels = rev(var_levels))
   )
 
-p <- ggplot(corr_df, aes(x = Var1, y = Var2, fill = Correlation)) +
-  geom_tile(color = "white", linewidth = 0.2) +
+p <- ggplot(
+  corr_df,
+  aes(x = Var1, y = Var2, fill = Correlation)
+) +
+  geom_tile(
+    color = "white",
+    linewidth = 0.15
+  ) +
   scale_fill_gradient2(
     low = "#D7263D",
-    mid = "white",
+    mid = "#F8F9FA",
     high = "#2A9D8F",
     midpoint = 0,
     limits = c(-1, 1)
   ) +
   coord_fixed() +
-  theme_hr(9) +
+  theme_minimal(base_size = 9) +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
-    axis.text.y = element_text(size = 6),
+    axis.text.y = element_text(size = 5.7),
+    panel.grid = element_blank(),
     legend.position = "right",
-    plot.margin = ggplot2::margin(10, 20, 10, 10)
+    plot.title = element_text(
+      face = "bold",
+      size = 14
+    ),
+    plot.subtitle = element_text(
+      size = 10
+    ),
+    plot.margin = margin(10, 15, 10, 10)
   ) +
   labs(
-    title = "Correlation Matrix",
-    subtitle = "Only relationships with |r| ≥ 0.10 are shown; variables are clustered by similarity.",
+    title = "Correlation Structure of Workforce Variables",
+    subtitle = "Displaying only correlations where |r| ≥ 0.10",
     x = NULL,
     y = NULL,
     fill = "Correlation"
@@ -1791,9 +1802,18 @@ core_vars <- c(
   "age_group"
 )
 
-plots_core <- lapply(core_vars, function(v) plot_cat(v, base_df))
+plots_core <- lapply(core_vars, function(v) {
+  plot_cat(v, base_df) +
+    theme(
+      plot.title = element_text(size = 10),
+      axis.text.y = element_text(size = 7)
+    )
+})
 
-p <- patchwork::wrap_plots(plots_core, ncol = 2)
+p <- patchwork::wrap_plots(
+  plots_core,
+  ncol = 2
+)
 
 print(p)
 save_plot(p, "dominant_categories_core.png", 8.5, 5.5)
@@ -1809,9 +1829,20 @@ behavior_vars <- c(
   "surveillance_method_used"
 )
 
-plots_behavior <- lapply(behavior_vars, function(v) plot_cat(v, base_df))
+plots_behavior <- lapply(behavior_vars, function(v) {
 
-p <- patchwork::wrap_plots(plots_behavior, ncol = 2)
+  plot_cat(v, base_df) +
+    theme(
+      plot.title = element_text(size = 9),
+      axis.text.y = element_text(size = 6.5),
+      axis.text.x = element_text(size = 7)
+    )
+})
+
+p <- patchwork::wrap_plots(
+  plots_behavior,
+  ncol = 2
+)
 
 print(p)
 save_plot(p, "dominant_categories_behavior.png", 8.5, 5.5)

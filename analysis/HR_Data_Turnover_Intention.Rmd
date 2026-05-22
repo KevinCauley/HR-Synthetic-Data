@@ -1,5 +1,5 @@
 ---
-title: "Turnover Intention Modeling | Workforce Analytics"
+title: ""
 
 output:
   html_document:
@@ -11,6 +11,7 @@ output:
     highlight: null
     df_print: paged
     fig_caption: true
+    css: "../docs/assets/styles.css"
     includes:
       in_header: "../docs/assets/header.html"
 
@@ -117,11 +118,15 @@ knitr::opts_chunk$set(
   echo = FALSE,
   warning = FALSE,
   message = FALSE,
+  results = "hide",
   fig.align = "center",
   out.width = "100%",
-  fig.width = 8,
-  fig.height = 5,
-  dpi = 300
+  fig.retina = 2,
+  fig.width = 9,
+  fig.height = 5.75,
+  dpi = 300,
+  cache = FALSE,
+  dev = "png"
 )
 
 # Reproducibility
@@ -190,11 +195,15 @@ test_data  <- testing(split)
 
 ## Feature Engineering Pipeline
 
-A standardized preprocessing pipeline is applied to ensure consistency across all models.
+A standardized preprocessing workflow was applied to ensure consistent evaluation across all modeling approaches.
 
-Categorical variables are converted into numeric representations using dummy encoding, and numeric variables are normalized to improve model stability—particularly for algorithms sensitive to scale, such as Logistic Regression and Support Vector Machines.
+Workforce variables representing organizational context, employee wellbeing, engagement, managerial support, workload conditions, and behavioral indicators were transformed into model-compatible formats while preserving interpretability for downstream HR analysis.
 
-Additionally, zero-variance predictors are removed to prevent redundant or non-informative features from influencing model performance.
+Categorical workforce attributes were converted into numeric representations using dummy encoding, while continuous variables were normalized where required for scale-sensitive algorithms such as Logistic Regression and Support Vector Machines.
+
+Predictors with zero variance or limited informational value were removed to reduce noise and improve model stability across resampling conditions.
+
+This preprocessing framework ensures that observed performance differences are driven primarily by modeling behavior and sampling strategy rather than inconsistent data preparation.
 
 ```{r 03-recipe, echo=FALSE}
 rec <- recipe(turnover_intention ~ ., data = train_data) %>%
@@ -221,7 +230,11 @@ cv_folds <- vfold_cv(train_data, v = 5, strata = turnover_intention)
 
 # Model Development {#model-development}
 
-Each model is implemented using a consistent preprocessing pipeline, ensuring that performance differences are driven by the modeling approach rather than data preparation.
+Multiple predictive modeling approaches were evaluated to determine how different algorithms interpret workforce-risk patterns within a synthetic HR environment.
+
+The goal was not simply to identify the highest-performing model, but to compare how various modeling strategies balance interpretability, detection capability, stability, and operational usefulness within a privacy-preserving analytics framework.
+
+Each model was trained using a standardized preprocessing workflow to ensure that performance differences reflected modeling behavior rather than inconsistent data preparation.
 
 - Logistic Regression (baseline, interpretable)
 - Random Forest (ensemble tree-based)
@@ -338,13 +351,15 @@ This process evaluates multiple parameter combinations using cross-validation, s
 
 ## Model Training
 
-Multiple supervised learning models were evaluated, including Random Forest, XGBoost, Support Vector Machines, Logistic Regression, and Naive Bayes.
+Multiple supervised learning algorithms were evaluated, including Logistic Regression, Random Forest, XGBoost, Support Vector Machines, and Naive Bayes.
 
-Each model and sampling strategy combination was evaluated through cross-validation. Tunable models were optimized separately within each sampling condition, ensuring that model selection reflects the combined effect of algorithm choice, preprocessing, and class-balancing strategy.
+Each model was trained under multiple class-balancing conditions to evaluate how resampling strategies influence workforce-risk detection behavior. This is particularly important in turnover modeling because employees at elevated turnover risk typically represent a minority population.
 
-Rather than focusing on individual model outputs, performance is summarized comparatively to highlight relative strengths across modeling approaches.
+Rather than focusing on a single performance statistic, the modeling framework evaluates how each configuration balances detection capability, prediction reliability, and operational practicality.
 
-```{r 12-modeling-framework, echo=FALSE}
+This comparative approach reinforces the broader objective of the project: demonstrating how research-informed synthetic workforce data can support realistic HR analytics workflows while preserving employee privacy and organizational confidentiality.
+
+```{r 12-modeling-framework, include=FALSE, results='hide', message=FALSE, warning=FALSE}
 # This framework evaluates each model + sampling strategy combination together using cross-validation. Tunable models are tuned separately under each sampling condition.
 
 # Final model selection is based on cross-validated F1 Score with a holdout viability check before reporting the selected model.
@@ -478,10 +493,12 @@ model_grid <- tidyr::expand_grid(
 
 set.seed(123)
 
-model_results <- purrr::pmap(
-  list(model_grid$Model, model_grid$Sampling),
-  run_cv_model_sampling
-)
+model_training_output <- capture.output({
+  model_results <- purrr::pmap(
+    list(model_grid$Model, model_grid$Sampling),
+    run_cv_model_sampling
+  )
+})
 
 names(model_results) <- paste(model_grid$Model, model_grid$Sampling, sep = " + ")
 
@@ -508,7 +525,11 @@ results_all <- purrr::map_dfr(model_results, "test_metrics") %>%
 
 # Model Evaluation {#model-evaluation}
 
-This section evaluates how each model performs on unseen data and determines which approach is most suitable for real-world workforce decision-making.
+This evaluation framework examines how different modeling strategies perform on **unseen workforce data** while emphasizing practical HR decision-support considerations rather than purely statistical optimization.
+
+Because workforce intervention resources are finite, the analysis prioritizes models that balance early risk detection with prediction reliability. The objective is to support proactive workforce review processes while minimizing unnecessary intervention burden.
+
+Evaluation therefore focuses not only on predictive accuracy, but also on how effectively each configuration translates into operationally useful workforce prioritization signals.
 
 Rather than focusing solely on accuracy, evaluation emphasizes the **precision–recall tradeoff**, balancing the ability to detect at-risk employees with the cost of unnecessary intervention.
 
@@ -526,13 +547,15 @@ This comparison highlights the trade-offs between detection, prediction reliabil
 
 ## Test Set Performance
 
-Final model performance is evaluated on the holdout test dataset.
+Final model assessment is conducted using the holdout test dataset to evaluate how each configuration performs on previously unseen workforce observations.
 
-This step provides an unbiased assessment of how each model performs on unseen data, ensuring that results reflect real-world predictive capability rather than training performance.
+This stage acts as a practical stability check rather than the primary model-selection mechanism. Cross-validation identifies the strongest generalized configurations during training, while holdout evaluation confirms whether those patterns remain operationally useful under unseen conditions.
+
+This distinction is especially important in workforce analytics because some configurations may perform well during resampling yet produce unstable or overly aggressive behavior when applied to new employee populations.
+
+The evaluation framework therefore separates model discovery from final operational validation, creating a more defensible and realistic assessment process for workforce-risk modeling.
 
 ---
-
-The evaluation framework compares each model and sampling strategy combination using cross-validation, then confirms the selected model on the holdout test set. This separates model selection from final performance confirmation and provides a more defensible assessment of how the model is likely to generalize.
 
 # Sampling Strategy Framework {#sampling-strategy-framework}
 
@@ -760,41 +783,53 @@ cat("Holdout ROC AUC:", top_holdout_roc_auc, "\n")
 
 ## Sampling Strategy Comparison {#sampling-strategy-comparison}
 
-Class imbalance is a major challenge in turnover prediction, as fewer employees typically fall into the "Yes" category.
+Class imbalance is a major challenge in turnover-intention modeling because employees likely to leave typically represent a smaller portion of the workforce population.
 
-To address this, multiple sampling strategies were applied:
+To better understand how class-balancing strategies influence workforce-risk detection, multiple resampling approaches were evaluated across all algorithms. The goal is not to artificially inflate performance, but to examine how different balancing strategies affect the tradeoff between risk detection capability and prediction reliability.
+
+This comparison helps demonstrate how modeling decisions influence practical workforce prioritization outcomes within HR analytics environments.
+
+The models include:
 
 - No Sampling (baseline)
 - Up Sampling (increase minority class)
 - Down Sampling (reduce majority class)
 - SMOTE (synthetic minority generation)
 
-The goal is to understand how balancing the dataset impacts model performance.
+**The goal is to understand how balancing the dataset impacts model performance.**
 
 ```{r 15-plot-sampling-comparison, echo=FALSE}
 plot_df <- results_all %>%
   filter(.metric %in% c("precision", "recall", "f_meas", "roc_auc")) %>%
-  group_by(Model, Sampling) %>%
-  filter(any(.metric == "f_meas" & !is.na(.estimate))) %>%
-  ungroup() %>%
   mutate(
     Metric = factor(
       Metric,
       levels = c("Precision", "Recall", "F1 Score", "ROC AUC")
     ),
-    Model_Sampling = paste(Model, Sampling, sep = " + "),
-    Plot_Label = scales::number(.estimate, accuracy = 0.001)
+    Model_Sampling = paste(Model, Sampling, sep = " + ")
   )
 
-p <- ggplot(
-  plot_df,
-  aes(x = Metric, y = reorder(Model_Sampling, .estimate), fill = .estimate)
-) +
-  geom_tile(color = "white", linewidth = 0.7) +
+f1_order <- plot_df %>%
+  filter(.metric == "f_meas") %>%
+  arrange(desc(.estimate)) %>%
+  pull(Model_Sampling)
+
+plot_df <- plot_df %>%
+  mutate(
+    Model_Sampling = factor(Model_Sampling, levels = rev(f1_order)),
+    Plot_Label = ifelse(
+      is.na(.estimate),
+      "",
+      scales::number(.estimate, accuracy = 0.001)
+    )
+  )
+
+p <- ggplot(plot_df, aes(x = Metric, y = Model_Sampling, fill = .estimate)) +
+  geom_tile(color = "white", linewidth = 0.6) +
   geom_text(
     aes(label = Plot_Label),
     fontface = "bold",
-    size = 3.4,
+    size = 3.5,
     color = "#243447"
   ) +
   scale_fill_gradient(
@@ -805,29 +840,30 @@ p <- ggplot(
     name = "Score"
   ) +
   labs(
-    title = "Model Performance Across Sampling Strategies",
-    subtitle = "Higher values indicate stronger performance for each evaluation metric",
+    title = "Holdout Performance Across Model Configurations",
+    subtitle = "Rows are ranked by holdout F1 Score; higher values indicate stronger performance",
     x = NULL,
     y = NULL
   ) +
   theme_hr(10) +
   theme(
     plot.title = element_text(face = "bold"),
-    plot.subtitle = element_text(color = "#5a6b7c"),
-    axis.text.y = element_text(size = 8),
-    axis.text.x = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 12, color = "#5a6b7c"),
+    axis.text.y = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(size = 10, face = "bold"),
     legend.position = "right",
-    panel.grid = element_blank(),
-    plot.margin = margin(10, 18, 10, 10)
+    panel.grid = element_blank()
   )
 
 print(p)
 save_plot(p, "sampling_strategy_performance_heatmap.png", 10.5, 8)
 ```
 
-The heatmap shows that no single configuration dominates across every evaluation metric. Some model and sampling combinations produce stronger recall but weaker precision, while others are more conservative and stable. This reinforces that model performance is shaped by the interaction between algorithm choice, class-balancing strategy, and the metric being emphasized.
+The heatmap shows holdout test performance across model and sampling combinations. It is used as a confirmation view rather than the sole model-selection mechanism. The final model is selected using cross-validated F1 Score among configurations that also produce usable holdout performance.
 
-Because these tradeoffs are meaningful, the final recommendation should not be based on a single metric column or one favorable result. Instead, the report prioritizes balanced performance by using cross-validated F1 Score as the primary ranking signal and then confirming that the recommended configuration remains practically usable on the holdout test set.
+This distinction matters because a model can look strong on one holdout metric while being less stable during cross-validation. In this report, cross-validation provides the primary model-selection evidence, while holdout results confirm whether the selected configuration remains practically useful on unseen data.
+
+The results show that no single configuration dominates every metric. Some approaches improve recall but reduce precision, while others are more conservative. This reinforces that turnover modeling should be interpreted as a decision-support layer, not as an automatic classification system.
 
 ## Precision–Recall Curve Analysis {#precision-recall}
 
@@ -868,6 +904,24 @@ p <- ggplot(
     linetype = "dashed",
     color = "#D5DBDB",
     linewidth = 0.5
+  ) +
+  annotate(
+    "rect",
+    xmin = 0.45,
+    xmax = 0.65,
+    ymin = 0.45,
+    ymax = 0.65,
+    alpha = 0.08,
+    fill = "#2A9D8F"
+  ) +
+  annotate(
+    "text",
+    x = 0.55,
+    y = 0.67,
+    label = "Balanced Operational Zone",
+    size = 4.2,
+    fontface = "bold",
+    color = "#1B4332"
   ) +
   geom_point(
     aes(size = f_meas),
@@ -938,7 +992,11 @@ p <- ggplot(
   theme_hr(11) +
   theme(
     plot.title = element_text(face = "bold", size = 15),
-    plot.subtitle = element_text(color = "#5a6b7c", size = 11),
+    plot.subtitle = element_text(
+  size = 12,
+  color = "#5a6b7c",
+  margin = margin(b = 12)
+),
     axis.title = element_text(size = 10),
     axis.text = element_text(size = 9),
     legend.position = "right",
@@ -959,7 +1017,7 @@ The selected configuration is highlighted with an outlined marker. It is not cho
 
 This reinforces the business logic behind the model-selection process: the goal is not to flag as many employees as possible or to avoid all false positives, but to create a practical risk-screening layer that can guide earlier review without replacing human judgment.
 
-## Decision Matrix & Model Comparison
+## Cross-Validated Model Comparison
 
 ```{r 17-model-decision-breakdown, echo=FALSE}
 decision_table <- cv_results_all %>%
@@ -978,7 +1036,7 @@ decision_table %>%
   dplyr::slice_head(n = 12) %>%
   gt() %>%
   tab_header(
-    title = "Cross-Validated Model Decision Matrix",
+    title = "Cross-Validated Model Comparison",
     subtitle = "Top configurations ranked by cross-validated F1 Score"
   ) %>%
   fmt_number(
@@ -987,15 +1045,16 @@ decision_table %>%
   ) %>%
   data_color(
     columns = c(Accuracy, Precision, Recall, F1, ROC_AUC),
-    colors = col_numeric(
+    colors = scales::col_numeric(
       palette = c("#EAF2F8", "#A9CCE3", "#2E86C1"),
       domain = c(0, 1)
     )
   ) %>%
   cols_align("center") %>%
   tab_options(
-    table.width = pct(88),
-    table.font.size = px(13)
+    table.width = pct(92),
+    table.font.size = px(12),
+    data_row.padding = px(8)
   )
 ```
 
@@ -1018,29 +1077,32 @@ final_model_plot_df <- final_model_metrics %>%
       Metric,
       levels = c("Accuracy", "Precision", "Recall", "F1 Score", "ROC AUC")
     ),
-    Highlight = ifelse(Metric == "F1 Score", "Selected Metric", "Supporting Metric"),
+    Highlight = ifelse(Metric == "F1 Score", "Primary Selection Metric", "Supporting Metric"),
     Plot_Label = ifelse(is.na(Score), "N/A", scales::number(Score, accuracy = 0.001))
   )
 
+y_max <- max(0.70, max(final_model_plot_df$Score, na.rm = TRUE) + 0.10)
+
 p <- ggplot(final_model_plot_df, aes(x = Metric, y = Score, fill = Highlight)) +
-  geom_col(width = 0.65, na.rm = TRUE) +
+  geom_col(width = 0.62, na.rm = TRUE) +
   geom_text(
     aes(label = Plot_Label),
-    vjust = -0.45,
+    vjust = -0.4,
     fontface = "bold",
     size = 4
   ) +
   scale_fill_manual(values = c(
-    "Selected Metric" = "#2E86C1",
+    "Primary Selection Metric" = "#2E86C1",
     "Supporting Metric" = "#AAB7B8"
   )) +
   scale_y_continuous(
-    limits = c(0, 1.08),
-    labels = scales::percent_format(accuracy = 1)
+    limits = c(0, y_max),
+    labels = scales::percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.04))
   ) +
   labs(
-    title = paste("Final Model Performance:", top_model_name),
-    subtitle = paste("Holdout test performance | Sampling Strategy:", top_sampling_method),
+    title = paste("Final Holdout Performance:", top_model_name),
+    subtitle = paste("Sampling Strategy:", top_sampling_method),
     x = NULL,
     y = "Score"
   ) +
@@ -1053,16 +1115,53 @@ p <- ggplot(final_model_plot_df, aes(x = Metric, y = Score, fill = Highlight)) +
   )
 
 print(p)
-save_plot(p, "final_model_metrics.png", 8, 5)
+save_plot(p, "final_model_metrics.png", 8, 4.6)
 ```
 
 ## Risk Distribution
 
-The risk distribution shows how the selected model assigns turnover-risk probabilities across the holdout test set. These scores should be interpreted as prioritization signals rather than definitive classifications. In practice, organizations would calibrate decision thresholds based on HR capacity, intervention cost, and tolerance for missed risk.
+The risk distribution shows how the selected model assigns turnover-risk probabilities across the holdout test set. These scores should be interpreted as **review-priority signals**, not definitive employee labels.
+
+Because turnover probabilities may cluster within a narrow range, fixed thresholds can sometimes place most employees into a single tier. The plot below keeps the probability view transparent while framing the thresholds as practical review cutoffs that should be calibrated to HR capacity, intervention cost, and tolerance for missed risk.
 
 ```{r 19-risk-distribution, echo=FALSE}
-p <- final_preds %>%
-  ggplot(aes(x = .pred_Yes)) +
+risk_threshold_low <- 0.40
+risk_threshold_high <- 0.70
+
+risk_distribution <- final_preds %>%
+  mutate(
+    predicted_probability = .pred_Yes
+  )
+
+p <- risk_distribution %>%
+  ggplot(aes(x = predicted_probability)) +
+  annotate(
+    "rect",
+    xmin = 0,
+    xmax = risk_threshold_low,
+    ymin = -Inf,
+    ymax = Inf,
+    fill = "#EAF7EF",
+    alpha = 0.65
+  ) +
+  annotate(
+    "rect",
+    xmin = risk_threshold_low,
+    xmax = risk_threshold_high,
+    ymin = -Inf,
+    ymax = Inf,
+    fill = "#FFF4DA",
+    alpha = 0.70
+  ) +
+  annotate(
+    "rect",
+    xmin = risk_threshold_high,
+    xmax = 1,
+    ymin = -Inf,
+    ymax = Inf,
+    fill = "#FDEDEC",
+    alpha = 0.70
+  ) +
   geom_histogram(
     bins = 25,
     fill = "#4B9CD3",
@@ -1070,106 +1169,124 @@ p <- final_preds %>%
     linewidth = 0.4
   ) +
   geom_vline(
-    xintercept = 0.40,
+    xintercept = risk_threshold_low,
     linetype = "dashed",
-    linewidth = 0.7,
+    linewidth = 0.75,
     color = "#F39C12"
   ) +
   geom_vline(
-    xintercept = 0.70,
+    xintercept = risk_threshold_high,
     linetype = "dashed",
-    linewidth = 0.7,
+    linewidth = 0.75,
     color = "#C0392B"
   ) +
   annotate(
-    "text",
-    x = 0.40,
+    "label",
+    x = risk_threshold_low + 0.015,
     y = Inf,
-    label = "Moderate Risk",
-    vjust = 1.6,
-    hjust = -0.05,
-    size = 3.5
+    label = "Moderate Review\nThreshold",
+    vjust = 1.15,
+    hjust = 0,
+    size = 3.0,
+    color = "#7D6608",
+    fill = "white",
+    label.size = 0.15
   ) +
   annotate(
-    "text",
-    x = 0.70,
+    "label",
+    x = risk_threshold_high - 0.015,
     y = Inf,
-    label = "High Risk",
-    vjust = 1.6,
-    hjust = 1.05,
-    size = 3.5
+    label = "High Review\nThreshold",
+    vjust = 1.15,
+    hjust = 1,
+    size = 3.0,
+    color = "#922B21",
+    fill = "white",
+    label.size = 0.15
   ) +
   scale_x_continuous(
     labels = scales::percent_format(accuracy = 1),
-    limits = c(0, 1)
+    limits = c(0, 1),
+    expand = expansion(mult = c(0.01, 0.01))
   ) +
   labs(
-    title = "Predicted Turnover Risk Distribution",
-    subtitle = "Employees are scored by their predicted probability of turnover intention",
-    x = "Predicted Probability of Turnover",
+    title = "Predicted Turnover Review-Priority Distribution",
+    subtitle = "Scores are interpreted as prioritization signals rather than automatic employee labels",
+    x = "Predicted Probability of Turnover Intention",
     y = "Employee Count"
   ) +
   theme_hr(11) +
   theme(
     plot.title = element_text(face = "bold"),
     plot.subtitle = element_text(color = "#5a6b7c"),
+    panel.grid.minor = element_blank(),
     plot.margin = margin(10, 25, 15, 10)
   )
 
 print(p)
-save_plot(p, "risk_distribution.png", 8, 5)
+save_plot(p, "risk_distribution.png", 8.6, 5)
 ```
 
-## Risk Segmentation
+## Review-Priority Segmentation
 
-The segmentation view translates predicted probabilities into practical intervention tiers. In this run, most employees fall into the moderate-risk band, suggesting the selected model is better suited for **prioritizing relative risk** than for making sharp high-versus-low classifications.
+The segmentation view translates model probabilities into practical review-priority tiers. These tiers are not automatic decisions; they organize attention for HR, manager, or workforce planning review.
 
-This does not mean the model is wrong. It means the thresholds should be calibrated to the organization’s decision context. In practice, HR teams could adjust these cutoffs based on available review capacity, intervention cost, and tolerance for missed risk.
+If most employees fall into one tier, that does not mean the model is unusable. It means the fixed thresholds are conservative for this probability distribution. In practice, HR teams could adjust cutoffs or use percentile-based review queues depending on available review capacity and intervention goals.
 
-```{r 20-risk-segmentation, echo=FALSE}
-risk_segments <- final_preds %>%
+```{r 20-risk-segmentation, echo=FALSE, message=FALSE, warning=FALSE}
+risk_segments <- risk_distribution %>%
   mutate(
-    Risk_Level = case_when(
-      .pred_Yes >= 0.70 ~ "High Risk",
-      .pred_Yes >= 0.40 ~ "Moderate Risk",
-      TRUE ~ "Low Risk"
+    review_priority = case_when(
+      predicted_probability >= quantile(predicted_probability, 0.90, na.rm = TRUE) ~ "High Review Priority",
+      predicted_probability >= quantile(predicted_probability, 0.60, na.rm = TRUE) ~ "Moderate Review Priority",
+      TRUE ~ "Lower Review Priority"
     ),
-    Risk_Level = factor(
-      Risk_Level,
-      levels = c("Low Risk", "Moderate Risk", "High Risk")
-    )
-  ) %>%
-  count(Risk_Level, .drop = FALSE) %>%
-  mutate(
-    Percent = n / sum(n),
-    Label = ifelse(
-      n == 0,
-      "",
-      paste0(n, "\n", scales::percent(Percent, accuracy = 1))
+    review_priority = factor(
+      review_priority,
+      levels = c(
+        "Lower Review Priority",
+        "Moderate Review Priority",
+        "High Review Priority"
+      )
     )
   )
 
-p <- ggplot(risk_segments, aes(x = Risk_Level, y = n, fill = Risk_Level)) +
-  geom_col(width = 0.52, show.legend = FALSE) +
+risk_segment_summary <- risk_segments %>%
+  count(review_priority, .drop = FALSE) %>%
+  mutate(
+    percent = n / sum(n),
+    label = paste0(n, "\n", scales::percent(percent, accuracy = 1))
+  )
+
+p <- ggplot(
+  risk_segment_summary,
+  aes(
+    x = review_priority,
+    y = n,
+    fill = review_priority
+  )
+) +
+  geom_col(width = 0.65) +
   geom_text(
-    aes(label = Label),
-    vjust = -0.35,
+    aes(label = label),
+    vjust = -0.45,
     fontface = "bold",
-    size = 3.4,
-    lineheight = 0.9,
-    color = "#111111"
+    size = 4
   ) +
-  scale_fill_manual(values = c(
-    "Low Risk" = "#2ECC71",
-    "Moderate Risk" = "#F39C12",
-    "High Risk" = "#E74C3C"
-  )) +
+  scale_fill_manual(
+    values = c(
+      "Lower Review Priority" = "#7FBF7F",
+      "Moderate Review Priority" = "#F39C12",
+      "High Review Priority" = "#D35454"
+    )
+  ) +
   scale_y_continuous(
-    expand = expansion(mult = c(0, 0.16))
+    limits = c(0, max(risk_segment_summary$n, na.rm = TRUE) * 1.18),
+    expand = expansion(mult = c(0, 0.05))
   ) +
   labs(
-    title = "Employee Risk Segmentation",
-    subtitle = "Risk tiers translate model scores into retention intervention priorities",
+    title = "Employee Turnover Review-Priority Segmentation",
+    subtitle = "Risk tiers translate model scores into practical retention review priorities",
     x = NULL,
     y = "Employee Count"
   ) +
@@ -1177,16 +1294,15 @@ p <- ggplot(risk_segments, aes(x = Risk_Level, y = n, fill = Risk_Level)) +
   theme(
     plot.title = element_text(face = "bold", size = 15),
     plot.subtitle = element_text(color = "#5a6b7c", size = 11),
-    axis.text.x = element_text(size = 10),
-    axis.text.y = element_text(size = 9),
-    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10, face = "bold"),
+    legend.position = "none",
     panel.grid.major.x = element_blank(),
     panel.grid.minor = element_blank(),
     plot.margin = margin(10, 18, 18, 10)
   )
 
 print(p)
-save_plot(p, "risk_segments.png", 7.5, 5)
+save_plot(p, "risk_segments.png", 7.8, 5)
 ```
 
 # Final Model Summary & Key Takeaways {#model-summary}
@@ -1368,11 +1484,23 @@ This section interprets the likely drivers of turnover intention and links those
 
 # Driver Interpretation {#driver-interpretation}
 
-While model performance identifies *which employees may warrant attention*, the next question is *why* those employees are being flagged. Because the selected workflow does not provide a single, straightforward model-agnostic importance ranking, interpretation is grounded in the broader patterns observed across exploratory analysis and model behavior.
+While predictive modeling helps identify which employees or workforce segments may warrant additional review, understanding why those patterns emerge remains equally important.
 
-The evidence suggests that turnover intention is not explained by one isolated variable. Instead, risk appears to reflect a combination of **engagement and commitment**, **wellbeing and burnout-related signals**, **managerial support**, and **role or work-context conditions**. This aligns with the broader workforce story that exit risk tends to build through overlapping organizational and behavioral signals rather than one single trigger.
+Because the selected workflow does not produce a single universally interpretable importance ranking across all algorithms, interpretation is grounded in broader workforce patterns observed throughout exploratory analysis, resampling behavior, and comparative model performance.
 
-From a business perspective, this means retention action should not be one-dimensional. Stronger workforce response is more likely to come from coordinated intervention across engagement, manager effectiveness, workload, wellbeing, and job-context review.
+The evidence suggests that turnover intention is not driven by one isolated factor. Instead, elevated workforce risk appears to emerge from overlapping organizational, behavioral, wellbeing, managerial, and work-context conditions.
+
+Key workforce themes associated with elevated turnover-risk signals include:
+
+- Reduced engagement and organizational commitment
+- Burnout, stress, and wellbeing-related indicators
+- Lower perceived managerial support
+- Workload imbalance and role-context pressures
+- Friction between employee expectations and workplace experience
+
+This reinforces a central theme of the project: workforce risk should be interpreted as a multidimensional organizational pattern rather than a single employee-level trigger.
+
+From an HR strategy perspective, this means retention intervention is most effective when workforce wellbeing, leadership support, engagement, and operational conditions are addressed together rather than independently.
 
 ## Feature → Action Mapping {#feature-action}
 
@@ -1426,14 +1554,26 @@ driver_actions %>%
 
 # Business Impact & Decision Guidance {#business-impact}
 
-The model is designed to support workforce decision-making at a strategic level. Rather than functioning as an automated decision system, it should be used as a **risk intelligence layer** that helps HR and leadership prioritize where deeper review may be needed.
+The modeling framework is designed to support workforce decision-making at a strategic level while preserving employee privacy through synthetic data simulation.
+
+Rather than functioning as an automated employment-decision system, the selected model should be interpreted as a workforce intelligence layer that helps HR teams prioritize where additional review, support, or retention analysis may be beneficial.
+
+The practical value of the framework lies in its ability to:
+
+- Identify workforce segments that may warrant earlier review
+- Support proactive retention planning
+- Improve allocation of intervention resources
+- Enhance organizational visibility into workforce-risk patterns
+- Demonstrate privacy-preserving HR analytics workflows
+
+Importantly, the model is intended to support human decision-making, not replace it. Workforce outcomes remain dependent on organizational context, leadership interpretation, employee communication, and ethical review processes.
+
+This project demonstrates how predictive analytics can be integrated into HR environments responsibly using synthetic, research-informed data that protects employee confidentiality while still enabling advanced workforce analysis.
 
 ## Strategic Decision Guidance {#decision-guidance}
 
 ```{=html}
 <div class="decision-box">
-
-<h3>Strategic Decision Guidance</h3>
 
 <p>
 This model is best deployed as a <strong>risk prioritization tool</strong>, not as a standalone decision system.
@@ -1457,8 +1597,6 @@ The value of the model is not in replacing human judgment, but in helping decisi
 ```{=html}
 <div class="decision-box">
 
-<h3>Model Limitations</h3>
-
 <p>
 The model should be interpreted within the context of synthetic data, simulated workforce patterns, and organizational variability.
 </p>
@@ -1475,11 +1613,15 @@ The model should be interpreted within the context of synthetic data, simulated 
 
 ## Final Takeaway
 
-Turnover intention is not driven by a single variable. It reflects a network of behavioral, organizational, wellbeing, and perception-based signals that collectively indicate turnover risk.
+This project demonstrates how synthetic, research-informed workforce data can support realistic HR analytics workflows without exposing sensitive employee information.
 
-The modeling framework demonstrates how predictive analytics can move beyond static reporting and support proactive workforce planning. Even with imperfect prediction, the model provides a structured way to identify potential risk earlier, prioritize attention, and guide more targeted retention strategies.
+The modeling framework shows how predictive analytics can move beyond static reporting and contribute to proactive workforce planning, early risk visibility, and operational prioritization while maintaining strong privacy-preserving principles.
 
-Used responsibly, this type of model becomes a decision-support tool: not a replacement for HR expertise, but a way to help organizations act earlier, allocate resources more effectively, and improve long-term retention outcomes.
+Although predictive performance remains intentionally moderate and realistic, the selected workflow successfully demonstrates how workforce-risk modeling can function as a practical decision-support capability within HR environments.
+
+More importantly, the project illustrates that meaningful workforce analytics does not require compromising employee privacy. By combining synthetic data generation, organizational research, and predictive modeling techniques, organizations can responsibly prototype analytics systems that balance insight generation with ethical data stewardship.
+
+Used appropriately, this type of framework can help organizations identify emerging workforce patterns earlier, allocate retention resources more effectively, and support more informed strategic HR decision-making.
 
 ```{r 24-export-final-model-summary, include=FALSE}
 summary_dir <- here::here("data", "processed", "model_summaries")

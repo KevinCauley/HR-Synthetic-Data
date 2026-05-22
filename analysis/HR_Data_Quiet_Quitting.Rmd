@@ -1,5 +1,5 @@
 ---
-title: "Quiet Quitting Modeling | Workforce Analytics"
+title: ""
 
 output:
   html_document:
@@ -11,6 +11,7 @@ output:
     highlight: null
     df_print: paged
     fig_caption: true
+    css: "../docs/assets/styles.css"
     includes:
       in_header: "../docs/assets/header.html"
 
@@ -117,11 +118,15 @@ knitr::opts_chunk$set(
   echo = FALSE,
   warning = FALSE,
   message = FALSE,
+  results = "hide",
   fig.align = "center",
   out.width = "100%",
-  fig.width = 8,
-  fig.height = 5,
-  dpi = 300
+  fig.retina = 2,
+  fig.width = 9,
+  fig.height = 5.75,
+  dpi = 300,
+  cache = FALSE,
+  dev = "png"
 )
 
 # Reproducibility
@@ -137,17 +142,19 @@ base_df <- df %>%
 
 # Executive Summary {#executive-summary}
 
-This analysis develops a predictive modeling framework to identify employees at risk of quiet quitting using a synthetic, research-informed HR dataset.
+This analysis develops a privacy-preserving predictive analytics framework designed to identify workforce disengagement patterns associated with quiet quitting using a synthetic, research-informed HR dataset.
 
-Multiple machine learning models—including Logistic Regression, Random Forest, XGBoost, Support Vector Machines, and Naive Bayes—were evaluated under varying sampling strategies to address class imbalance and improve predictive performance.
+Rather than modeling resignation behavior directly, this framework focuses on identifying employees who may demonstrate reduced discretionary effort, lower engagement, or elevated disengagement risk while remaining employed.
 
-Results show that **model effectiveness is driven as much by data strategy as algorithm selection**. Sampling strategies such as up-sampling, down-sampling, and SMOTE changed model behavior in meaningful ways, demonstrating that class-balancing choices can materially affect precision, recall, and F1 Score.
+Multiple machine learning workflows—including Logistic Regression, Random Forest, XGBoost, Support Vector Machines, and Naive Bayes—were evaluated under varying sampling strategies to assess how workforce-risk detection changes under different modeling conditions.
 
-The final model-selection process uses **cross-validated F1 Score** to identify strong candidate configurations, with holdout performance used as a stability check to confirm whether those candidates remain practically usable on unseen data.
+Results show that disengagement-risk modeling is influenced as much by workforce-data strategy as by algorithm selection. Resampling techniques materially changed detection behavior, precision, recall, and operational usability across model configurations.
 
-Rather than relying on a single predictive signal, quiet-quitting risk is influenced by a **combination of behavioral, organizational, wellbeing, and perception-based factors**, including engagement, burnout, role clarity, managerial support, and discretionary effort.
+The final model-selection framework prioritizes balanced workforce-risk detection while confirming that selected configurations remain practically usable when applied to unseen workforce patterns.
 
-From a business perspective, this framework enables a shift from **reactive disengagement response to proactive workforce engagement management**, supporting earlier intervention, better resource allocation, and improved employee experience outcomes.
+Importantly, this project demonstrates how synthetic workforce data can support advanced HR analytics experimentation without exposing sensitive employee information or requiring access to confidential organizational records.
+
+From a business perspective, the framework supports earlier workforce-risk visibility, more targeted engagement review, improved intervention prioritization, and stronger organizational decision support.
 
 # Modeling Overview {#modeling-overview}
 
@@ -163,9 +170,13 @@ The objective is not only to identify the most accurate model, but to determine 
 
 ## Target Definition
 
-The target variable for this analysis is **quiet quitting**, representing whether an employee is likely to demonstrate disengagement behavior while remaining employed.
+The target variable for this analysis is **quiet quitting**, representing elevated disengagement-risk behavior while employees remain organizationally active.
 
-This binary outcome is structured as a classification problem, with levels defined as **"No" (not flagged for quiet quitting)** and **"Yes" (at risk of quiet quitting)**. Establishing a consistent target structure ensures that all models are trained and evaluated under the same conditions.
+Within this framework, quiet quitting should not be interpreted as a formally observable employment event. Instead, it reflects a collection of behavioral, engagement, wellbeing, role clarity, discretionary-effort, and organizational-risk indicators associated with declining workforce connection.
+
+This distinction is important because HR analytics often focuses on identifying emerging workforce-risk patterns before they become visible through turnover, burnout, performance decline, or employee-relations concerns.
+
+The outcome is structured as a binary classification target with levels defined as **"No"** and **"Yes"**, where **"Yes"** represents employees flagged as higher risk for quiet-quitting behavior in the synthetic dataset.
 
 ```{r 01-target, echo=FALSE}
 # Ensure correct factor levels
@@ -190,11 +201,15 @@ test_data  <- testing(split)
 
 ## Feature Engineering Pipeline
 
-A standardized preprocessing pipeline is applied to ensure consistency across all models.
+A standardized preprocessing workflow was applied to ensure consistent evaluation across all modeling approaches.
 
-Categorical variables are converted into numeric representations using dummy encoding, and numeric variables are normalized to improve model stability—particularly for algorithms sensitive to scale, such as Logistic Regression and Support Vector Machines.
+Workforce variables representing organizational context, employee wellbeing, engagement, managerial support, workload conditions, role clarity, and behavioral indicators were transformed into model-compatible formats while preserving interpretability for downstream HR analysis.
 
-Additionally, zero-variance predictors are removed to prevent redundant or non-informative features from influencing model performance.
+Categorical workforce attributes were converted into numeric representations using dummy encoding, while continuous variables were normalized where required for scale-sensitive algorithms such as Logistic Regression and Support Vector Machines.
+
+Predictors with zero variance or limited informational value were removed to reduce noise and improve model stability across resampling conditions.
+
+This preprocessing framework ensures that observed performance differences are driven primarily by modeling behavior and sampling strategy rather than inconsistent data preparation.
 
 ```{r 03-recipe, echo=FALSE}
 rec <- recipe(quiet_quitting ~ ., data = train_data) %>%
@@ -221,7 +236,11 @@ cv_folds <- vfold_cv(train_data, v = 5, strata = quiet_quitting)
 
 # Model Development {#model-development}
 
-Each model is implemented using a consistent preprocessing pipeline, ensuring that performance differences are driven by the modeling approach rather than data preparation.
+Multiple predictive modeling approaches were evaluated to determine how different algorithms interpret disengagement-risk patterns within a synthetic HR environment.
+
+The goal was not simply to identify the highest-performing model, but to compare how various modeling strategies balance interpretability, detection capability, stability, and operational usefulness within a privacy-preserving analytics framework.
+
+Each model was trained using a standardized preprocessing workflow to ensure that performance differences reflected modeling behavior rather than inconsistent data preparation.
 
 - Logistic Regression (baseline, interpretable)
 - Random Forest (ensemble tree-based)
@@ -338,13 +357,15 @@ This process evaluates multiple parameter combinations using cross-validation, s
 
 ## Model Training
 
-Multiple supervised learning models were evaluated, including Random Forest, XGBoost, Support Vector Machines, Logistic Regression, and Naive Bayes.
+Multiple supervised learning algorithms were evaluated, including Logistic Regression, Random Forest, XGBoost, Support Vector Machines, and Naive Bayes.
 
-Each model and sampling strategy combination was evaluated through cross-validation. Tunable models were optimized separately within each sampling condition, ensuring that model selection reflects the combined effect of algorithm choice, preprocessing, and class-balancing strategy.
+Each model was trained under multiple class-balancing conditions to evaluate how resampling strategies influence disengagement-risk detection behavior. This is particularly important in quiet quitting modeling because employees exhibiting elevated disengagement patterns often represent a smaller portion of the workforce population.
 
-Rather than focusing on individual model outputs, performance is summarized comparatively to highlight relative strengths across modeling approaches.
+Rather than focusing on a single performance statistic, the modeling framework evaluates how each configuration balances detection capability, prediction reliability, and operational practicality.
 
-```{r 12-modeling-framework, echo=FALSE}
+This comparative approach reinforces the broader objective of the project: demonstrating how research-informed synthetic workforce data can support realistic HR analytics workflows while preserving employee privacy and organizational confidentiality.
+
+```{r 12-modeling-framework, include=FALSE, results='hide', message=FALSE, warning=FALSE}
 # This framework evaluates each model + sampling strategy combination together using cross-validation. Tunable models are tuned separately under each sampling condition.
 
 # Final model selection is based on cross-validated F1 Score with a holdout viability check before reporting the selected model.
@@ -478,10 +499,12 @@ model_grid <- tidyr::expand_grid(
 
 set.seed(123)
 
-model_results <- purrr::pmap(
-  list(model_grid$Model, model_grid$Sampling),
-  run_cv_model_sampling
-)
+model_training_output <- capture.output({
+  model_results <- purrr::pmap(
+    list(model_grid$Model, model_grid$Sampling),
+    run_cv_model_sampling
+  )
+})
 
 names(model_results) <- paste(model_grid$Model, model_grid$Sampling, sep = " + ")
 
@@ -508,7 +531,11 @@ results_all <- purrr::map_dfr(model_results, "test_metrics") %>%
 
 # Model Evaluation {#model-evaluation}
 
-This section evaluates how each model performs on unseen data and determines which approach is most suitable for real-world workforce decision-making.
+This evaluation framework examines how different modeling strategies perform on unseen workforce data while emphasizing practical HR decision-support considerations rather than purely statistical optimization.
+
+Because workforce intervention resources are finite, the analysis prioritizes models that balance early disengagement-risk detection with prediction reliability. The objective is to support proactive engagement review processes while minimizing unnecessary intervention burden.
+
+Evaluation therefore focuses not only on predictive accuracy, but also on how effectively each configuration translates into operationally useful workforce prioritization signals.
 
 Rather than focusing solely on accuracy, evaluation emphasizes the **precision–recall tradeoff**, balancing the ability to detect at-risk employees with the cost of unnecessary intervention.
 
@@ -526,13 +553,15 @@ This comparison highlights the trade-offs between detection, prediction reliabil
 
 ## Test Set Performance
 
-Final model performance is evaluated on the holdout test dataset.
+Final model assessment is conducted using the holdout test dataset to evaluate how each configuration performs on previously unseen workforce observations.
 
-This step provides an unbiased assessment of how each model performs on unseen data, ensuring that results reflect real-world predictive capability rather than training performance.
+This stage acts as a practical stability check rather than the primary model-selection mechanism. Cross-validation identifies the strongest generalized configurations during training, while holdout evaluation confirms whether those patterns remain operationally useful under unseen conditions.
+
+This distinction is especially important in workforce analytics because some configurations may perform well during resampling yet produce unstable or overly aggressive behavior when applied to new employee populations.
+
+The evaluation framework therefore separates model discovery from final operational validation, creating a more defensible and realistic assessment process for workforce-risk modeling.
 
 ---
-
-The evaluation framework compares each model and sampling strategy combination using cross-validation, then confirms the selected model on the holdout test set. This separates model selection from final performance confirmation and provides a more defensible assessment of how the model is likely to generalize.
 
 # Sampling Strategy Framework {#sampling-strategy-framework}
 
@@ -565,16 +594,14 @@ stopifnot(all(c("Model", "Sampling", ".metric", "mean") %in% names(cv_results_al
 # -------------------------------------------------------------------
 # Final model selection
 # -------------------------------------------------------------------
-# Gold-standard selection is based on cross-validated F1 Score, but the
-# selected model must also produce usable positive-class predictions on
-# the holdout test set.
+# Gold-standard selection is based primarily on cross-validated F1 Score,
+# but the selected model must also meet minimum holdout stability checks.
 #
-# Quiet quitting is a behavioral and perception-based outcome, so this
-# selection logic avoids over-claiming when strong cross-validation
-# performance does not fully transfer to unseen data.
+# This prevents a model from being selected if it performs well in CV
+# but fails to produce usable positive-class predictions on the holdout set.
 # -------------------------------------------------------------------
 
-# Minimum holdout requirements for a model to be considered strongly stable
+# Minimum holdout requirements for a model to be considered usable
 min_holdout_f1 <- 0.40
 min_holdout_recall <- 0.30
 min_holdout_precision <- 0.20
@@ -587,19 +614,37 @@ holdout_screen <- results_all %>%
   mutate(
     Model = as.character(Model),
     Sampling = as.character(Sampling),
-
     viable_holdout = !is.na(precision) &
       !is.na(recall) &
       !is.na(f_meas) &
       precision > 0 &
       recall > 0 &
       f_meas > 0,
-
     stable_holdout = viable_holdout &
       f_meas >= min_holdout_f1 &
       recall >= min_holdout_recall &
       precision >= min_holdout_precision
   )
+
+# Prefer models that meet the stronger holdout stability screen.
+eligible_configs <- holdout_screen %>%
+  dplyr::filter(stable_holdout) %>%
+  dplyr::select(Model, Sampling)
+
+# Fallback: if no model meets the stronger screen, use basic viability.
+if (nrow(eligible_configs) == 0) {
+  eligible_configs <- holdout_screen %>%
+    dplyr::filter(viable_holdout) %>%
+    dplyr::select(Model, Sampling)
+}
+
+# Stop if no model is even viable on the holdout set.
+if (nrow(eligible_configs) == 0) {
+  stop(
+    "No model configuration produced viable positive-class holdout predictions. ",
+    "Review class balance, sampling methods, thresholding, and model specifications before selecting a final model."
+  )
+}
 
 # Cross-validated F1 table
 cv_f1_table <- cv_results_all %>%
@@ -610,11 +655,12 @@ cv_f1_table <- cv_results_all %>%
   ) %>%
   select(Model, Sampling, cv_f1 = mean)
 
-# Combine CV and holdout evidence
-selection_pool <- cv_f1_table %>%
+# Select the best cross-validated model among eligible holdout configurations
+top_model_cv <- cv_f1_table %>%
+  inner_join(eligible_configs, by = c("Model", "Sampling")) %>%
   left_join(
     holdout_screen %>%
-      select(
+      dplyr::select(
         Model,
         Sampling,
         holdout_precision = precision,
@@ -626,45 +672,8 @@ selection_pool <- cv_f1_table %>%
       ),
     by = c("Model", "Sampling")
   ) %>%
-  mutate(
-    selection_status = case_when(
-      stable_holdout ~ "Stable holdout candidate",
-      viable_holdout ~ "Viable holdout candidate",
-      TRUE ~ "Not viable on holdout"
-    )
-  )
-
-# Stop if no model is even viable on the holdout set
-if (!any(selection_pool$viable_holdout, na.rm = TRUE)) {
-  stop(
-    "No model configuration produced viable positive-class holdout predictions. ",
-    "Review class balance, sampling methods, thresholding, and model specifications before selecting a final model."
-  )
-}
-
-# Selection rule:
-# 1. Prefer strongest CV F1 among holdout-stable configurations.
-# 2. If none meet stability thresholds, select the strongest viable holdout performer.
-if (any(selection_pool$stable_holdout, na.rm = TRUE)) {
-
-  top_model_cv <- selection_pool %>%
-    dplyr::filter(stable_holdout) %>%
-    dplyr::arrange(dplyr::desc(cv_f1), dplyr::desc(holdout_f1)) %>%
-    utils::head(1)
-
-  selection_rule_note <- "The selected model met the holdout stability screen and ranked strongly by cross-validated F1 Score."
-  selection_strategy_label <- "Holdout-Stable Risk Prioritization"
-
-} else {
-
-  top_model_cv <- selection_pool %>%
-    dplyr::filter(viable_holdout) %>%
-    dplyr::arrange(dplyr::desc(holdout_f1), dplyr::desc(cv_f1)) %>%
-    utils::head(1)
-
-  selection_rule_note <- "No configuration met the full holdout stability screen, so the selected model is the strongest viable holdout performer among cross-validated candidates."
-  selection_strategy_label <- "Holdout-Viable Risk Prioritization"
-}
+  dplyr::arrange(dplyr::desc(cv_f1), dplyr::desc(holdout_f1)) %>%
+  utils::head(1)
 
 top_model_name <- as.character(top_model_cv$Model)
 top_sampling_method <- as.character(top_model_cv$Sampling)
@@ -675,6 +684,18 @@ top_holdout_f1 <- round(top_model_cv$holdout_f1, 3)
 top_holdout_precision <- round(top_model_cv$holdout_precision, 3)
 top_holdout_recall <- round(top_model_cv$holdout_recall, 3)
 top_holdout_roc_auc <- round(top_model_cv$holdout_roc_auc, 3)
+
+selection_strategy_label <- ifelse(
+  isTRUE(top_model_cv$stable_holdout),
+  "Holdout-Stable Risk Prioritization",
+  "Holdout-Viable Risk Prioritization"
+)
+
+selection_rule_note <- ifelse(
+  isTRUE(top_model_cv$stable_holdout),
+  "The selected model met the holdout stability screen and ranked strongest by cross-validated F1 Score among stable candidates.",
+  "No configuration met the full holdout stability screen, so the selected model is the strongest viable holdout performer among cross-validated candidates."
+)
 
 # Retrieve selected model object from saved model results
 selected_result <- model_results[[top_model_config]]
@@ -697,36 +718,20 @@ final_model_metrics <- results_all %>%
 ```
 
 ```{r 14b-selected-model-consistency-check, include=FALSE}
-# -------------------------------------------------------------------
-# Selected model consistency check
-# -------------------------------------------------------------------
-
+# Final selected model consistency check
 stopifnot(exists("top_model_name"))
 stopifnot(exists("top_sampling_method"))
 stopifnot(exists("top_model_config"))
-stopifnot(exists("top_f1"))
-stopifnot(exists("top_holdout_f1"))
-stopifnot(exists("top_holdout_precision"))
-stopifnot(exists("top_holdout_recall"))
-stopifnot(exists("top_holdout_roc_auc"))
-stopifnot(exists("selection_rule_note"))
-stopifnot(exists("selection_strategy_label"))
 stopifnot(exists("final_model_metrics"))
 stopifnot(exists("final_preds"))
 
 stopifnot(length(top_model_name) == 1)
 stopifnot(length(top_sampling_method) == 1)
-stopifnot(length(top_model_config) == 1)
-
 stopifnot(nrow(final_model_metrics) == 5)
 
 stopifnot(
   all(c("Accuracy", "Precision", "Recall", "F1 Score", "ROC AUC") %in% final_model_metrics$Metric)
 )
-
-if (!top_model_config %in% names(model_results)) {
-  stop("Selected model configuration does not exist in model_results: ", top_model_config)
-}
 ```
 
 ```{r 14c-final-consistency-lock, include=FALSE}
@@ -784,19 +789,20 @@ cat("Holdout ROC AUC:", top_holdout_roc_auc, "\n")
 
 ## Sampling Strategy Comparison {#sampling-strategy-comparison}
 
-Class imbalance is a major challenge in quiet quitting prediction, as fewer employees typically fall into the "Yes" category.
+Class imbalance is a major challenge in quiet-quitting prediction because employees flagged for disengagement risk typically represent a smaller portion of the workforce population.
 
-To address this, multiple sampling strategies were applied:
+To better understand how class-balancing strategies influence disengagement-risk detection, multiple resampling approaches were evaluated across all algorithms. The goal is not to artificially inflate performance, but to examine how different balancing strategies affect the tradeoff between detection capability and prediction reliability.
+
+The models include:
 
 - No Sampling (baseline)
 - Up Sampling (increase minority class)
 - Down Sampling (reduce majority class)
 - SMOTE (synthetic minority generation)
 
-The goal is to understand how balancing the dataset impacts model performance.
+**The goal is to understand how balancing the dataset impacts model performance.**
 
 ```{r 15-plot-sampling-comparison, echo=FALSE}
-# Build holdout metric table for heatmap
 plot_df <- results_all %>%
   filter(.metric %in% c("precision", "recall", "f_meas", "roc_auc")) %>%
   mutate(
@@ -804,32 +810,30 @@ plot_df <- results_all %>%
       Metric,
       levels = c("Precision", "Recall", "F1 Score", "ROC AUC")
     ),
-    Model = as.character(Model),
-    Sampling = as.character(Sampling),
     Model_Sampling = paste(Model, Sampling, sep = " + ")
   )
 
-# Rank rows by holdout F1 Score for cleaner storytelling
-model_order <- plot_df %>%
+f1_order <- plot_df %>%
   filter(.metric == "f_meas") %>%
   arrange(desc(.estimate)) %>%
   pull(Model_Sampling)
 
 plot_df <- plot_df %>%
   mutate(
-    Model_Sampling = factor(Model_Sampling, levels = rev(model_order)),
-    Plot_Label = scales::number(.estimate, accuracy = 0.001)
+    Model_Sampling = factor(Model_Sampling, levels = rev(f1_order)),
+    Plot_Label = ifelse(
+      is.na(.estimate),
+      "",
+      scales::number(.estimate, accuracy = 0.001)
+    )
   )
 
-p <- ggplot(
-  plot_df,
-  aes(x = Metric, y = Model_Sampling, fill = .estimate)
-) +
-  geom_tile(color = "white", linewidth = 0.75) +
+p <- ggplot(plot_df, aes(x = Metric, y = Model_Sampling, fill = .estimate)) +
+  geom_tile(color = "white", linewidth = 0.6) +
   geom_text(
     aes(label = Plot_Label),
     fontface = "bold",
-    size = 3.4,
+    size = 3.5,
     color = "#243447"
   ) +
   scale_fill_gradient(
@@ -840,31 +844,33 @@ p <- ggplot(
     name = "Score"
   ) +
   labs(
-    title = "Model Performance Across Sampling Strategies",
-    subtitle = "Holdout performance ranked by F1 Score",
+    title = "Holdout Performance Across Model Configurations",
+    subtitle = "Rows are ranked by holdout F1 Score; higher values indicate stronger performance",
     x = NULL,
     y = NULL
   ) +
   theme_hr(10) +
   theme(
     plot.title = element_text(face = "bold"),
-    plot.subtitle = element_text(color = "#5a6b7c"),
-    axis.text.y = element_text(size = 8),
-    axis.text.x = element_text(face = "bold"),
+    plot.subtitle = element_text(
+      size = 12,
+      color = "#5a6b7c"
+    ),
+    axis.text.y = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(size = 10, face = "bold"),
     legend.position = "right",
-    panel.grid = element_blank(),
-    plot.margin = margin(10, 18, 10, 10)
+    panel.grid = element_blank()
   )
 
 print(p)
 save_plot(p, "sampling_strategy_performance_heatmap.png", 10.5, 8)
 ```
 
-The sampling comparison shows that quiet quitting model performance changes meaningfully depending on how class imbalance is handled. Some configurations improve recall, while others preserve precision or overall discrimination.
+The heatmap shows holdout test performance across model and sampling combinations. It is used as a confirmation view rather than the sole model-selection mechanism.
 
-In this analysis, several configurations performed strongly during cross-validation but weakened on the holdout test set. This reinforces why model selection should not rely on one metric or one evaluation split. The final recommendation therefore uses cross-validation to identify promising candidates, then uses holdout performance to confirm whether those candidates remain practically useful on unseen data.
+The final model is selected using cross-validated F1 Score among configurations that also produce usable holdout performance. This distinction matters because a model can look strong on one metric during development but still weaken when applied to new workforce observations.
 
-For quiet quitting, the results suggest that prediction is more challenging than turnover intention. The model should therefore be interpreted as an early-warning prioritization tool rather than a definitive classifier.
+The results show that no single configuration dominates every metric. Some approaches improve recall but reduce precision, while others are more conservative. This reinforces that quiet-quitting modeling should be interpreted as a decision-support layer rather than as an automatic classification system.
 
 ## Precision–Recall Curve Analysis {#precision-recall}
 
@@ -905,6 +911,24 @@ p <- ggplot(
     linetype = "dashed",
     color = "#D5DBDB",
     linewidth = 0.5
+  ) +
+  annotate(
+    "rect",
+    xmin = 0.45,
+    xmax = 0.65,
+    ymin = 0.45,
+    ymax = 0.65,
+    alpha = 0.08,
+    fill = "#2A9D8F"
+  ) +
+  annotate(
+    "text",
+    x = 0.55,
+    y = 0.67,
+    label = "Balanced Operational Zone",
+    size = 4.2,
+    fontface = "bold",
+    color = "#1B4332"
   ) +
   geom_point(
     aes(size = f_meas),
@@ -975,7 +999,11 @@ p <- ggplot(
   theme_hr(11) +
   theme(
     plot.title = element_text(face = "bold", size = 15),
-    plot.subtitle = element_text(color = "#5a6b7c", size = 11),
+    plot.subtitle = element_text(
+  size = 12,
+  color = "#5a6b7c",
+  margin = margin(b = 12)
+),
     axis.title = element_text(size = 10),
     axis.text = element_text(size = 9),
     legend.position = "right",
@@ -996,7 +1024,7 @@ For this target, the holdout results show a difficult tradeoff: models that dete
 
 The selected configuration is highlighted on the plot. It was not chosen from holdout results alone; it was chosen through a two-step process that compares cross-validated performance and then confirms that the selected workflow remains practically usable on unseen data.
 
-## Decision Matrix & Model Comparison
+## Cross-Validated Model Comparison
 
 ```{r 17-model-decision-breakdown, echo=FALSE}
 decision_table <- cv_results_all %>%
@@ -1015,7 +1043,7 @@ decision_table %>%
   dplyr::slice_head(n = 12) %>%
   gt() %>%
   tab_header(
-    title = "Cross-Validated Model Decision Matrix",
+    title = "Cross-Validated Model Comparison",
     subtitle = "Top configurations ranked by cross-validated F1 Score"
   ) %>%
   fmt_number(
@@ -1024,37 +1052,30 @@ decision_table %>%
   ) %>%
   data_color(
     columns = c(Accuracy, Precision, Recall, F1, ROC_AUC),
-    colors = col_numeric(
+    colors = scales::col_numeric(
       palette = c("#EAF2F8", "#A9CCE3", "#2E86C1"),
       domain = c(0, 1)
     )
   ) %>%
   cols_align("center") %>%
   tab_options(
-    table.width = pct(88),
-    table.font.size = px(13)
+    table.width = pct(92),
+    table.font.size = px(12),
+    data_row.padding = px(8)
   )
 ```
 
-The cross-validated decision matrix ranks model configurations by F1 Score, showing which combinations performed strongest during resampling. Several configurations may appear highly competitive during cross-validation, especially when recall is high.
-
-However, cross-validation alone is not sufficient for final selection. Because quiet quitting is a behavioral and perception-based outcome, a model can perform strongly during resampling but still weaken when applied to the holdout test set.
-
-For this reason, the final model is selected using a two-step rule: first, configurations are evaluated using cross-validated F1 Score; second, the leading candidates are checked against holdout performance to confirm that they still produce usable positive-class predictions on unseen data.
+### Model Selection {#model-selection}
 
 ### Model Selection {#model-selection}
 
-Model selection was guided by practical decision tradeoffs rather than raw performance alone.
+Model selection was guided by a two-step rule designed to balance statistical rigor with business usefulness.
 
-For quiet quitting prediction, the cost of missing a disengagement signal must be balanced against the cost of unnecessary follow-up. A model with very high recall may identify more potential quiet-quitting cases, but it can also create operational noise by flagging too many employees. A model with higher precision may reduce false alarms, but it may fail to detect enough meaningful disengagement risk.
+First, candidate configurations were ranked by cross-validated F1 Score, which serves as the primary model-selection metric because it balances precision and recall under class imbalance. Second, the leading candidates were reviewed on the holdout test set to confirm that they still produced usable positive-class predictions on unseen data.
 
-For this reason, **cross-validated F1 Score was used as the primary model-selection metric** because it balances precision and recall while reducing the risk of selecting a model based on one favorable test split.
-
-However, cross-validation alone is not enough. The holdout test set is also used as a stability check to confirm that the selected model produces usable positive-class predictions on unseen data.
+This second step matters. A configuration can rank highly during resampling yet behave too aggressively or too weakly on the holdout set. For this reason, the final model is selected as the strongest cross-validated configuration that also satisfies minimum holdout stability requirements.
 
 In this run, the recommended configuration was **`r top_model_name` with `r top_sampling_method`**. The model should be interpreted as a **risk prioritization tool**, meaning it helps identify employees or workforce segments that may warrant earlier engagement review, while leaving final decisions to HR leaders, managers, and organizational context.
-
-The chart below reports the selected configuration’s final holdout performance. These values should be interpreted as practical confirmation metrics rather than proof of definitive individual-level prediction.
 
 ## Selected Model Holdout Performance
 
@@ -1069,6 +1090,11 @@ final_model_plot_df <- final_model_metrics %>%
     Plot_Label = ifelse(is.na(Score), "N/A", scales::number(Score, accuracy = 0.001))
   )
 
+y_max <- min(
+  1.08,
+  max(final_model_plot_df$Score, na.rm = TRUE) + 0.12
+)
+
 p <- ggplot(final_model_plot_df, aes(x = Metric, y = Score, fill = Highlight)) +
   geom_col(width = 0.65, na.rm = TRUE) +
   geom_text(
@@ -1082,12 +1108,12 @@ p <- ggplot(final_model_plot_df, aes(x = Metric, y = Score, fill = Highlight)) +
     "Supporting Metric" = "#AAB7B8"
   )) +
   scale_y_continuous(
-    limits = c(0, 1.08),
+    limits = c(0, y_max),
     labels = scales::percent_format(accuracy = 1)
   ) +
   labs(
-    title = paste("Final Model Performance:", top_model_name),
-    subtitle = paste("Holdout test performance | Sampling Strategy:", top_sampling_method),
+    title = paste("Final Holdout Performance:", top_model_name),
+    subtitle = paste("Sampling Strategy:", top_sampling_method),
     x = NULL,
     y = "Score"
   ) +
@@ -1101,124 +1127,121 @@ p <- ggplot(final_model_plot_df, aes(x = Metric, y = Score, fill = Highlight)) +
   )
 
 print(p)
-save_plot(p, "final_model_metrics.png", 8, 5)
+save_plot(p, "final_model_metrics.png", 8, 4.6)
 ```
 
 ## Risk Distribution
 
-The risk distribution shows how the selected model assigns quiet-quitting risk probabilities across the holdout test set. These scores should be interpreted as prioritization signals rather than definitive classifications.
+The selected model assigns relative disengagement-risk scores across the workforce population.
 
-Because quiet quitting is a behavioral and perception-based outcome, probability thresholds should be calibrated carefully. In practice, organizations would adjust risk thresholds based on HR capacity, intervention cost, employee-relations sensitivity, and tolerance for missed disengagement risk.
+Rather than interpreting probabilities as deterministic outcomes, this framework treats prediction scores as workforce-prioritization signals that help HR teams identify where additional engagement review may be warranted.
+
+Because quiet quitting reflects behavioral and perception-based disengagement patterns, risk interpretation should emphasize relative prioritization rather than absolute certainty.
 
 ```{r 19-risk-distribution, echo=FALSE}
-moderate_threshold <- 0.40
-high_threshold <- 0.70
+risk_distribution <- final_preds %>%
+  mutate(
+    predicted_probability = .pred_Yes,
+    risk_percentile = percent_rank(predicted_probability),
+    review_priority = case_when(
+      risk_percentile >= 0.90 ~ "High Review Priority",
+      risk_percentile >= 0.60 ~ "Moderate Review Priority",
+      TRUE ~ "Lower Review Priority"
+    ),
+    review_priority = factor(
+      review_priority,
+      levels = c(
+        "Lower Review Priority",
+        "Moderate Review Priority",
+        "High Review Priority"
+      )
+    )
+  )
 
-p <- final_preds %>%
-  ggplot(aes(x = .pred_Yes)) +
+p <- ggplot(
+  risk_distribution,
+  aes(x = predicted_probability, fill = review_priority)
+) +
   geom_histogram(
-    bins = 25,
-    fill = "#4B9CD3",
+    bins = 28,
     color = "white",
-    linewidth = 0.4
+    alpha = 0.90
   ) +
-  geom_vline(
-    xintercept = moderate_threshold,
-    linetype = "dashed",
-    linewidth = 0.7,
-    color = "#F39C12"
-  ) +
-  geom_vline(
-    xintercept = high_threshold,
-    linetype = "dashed",
-    linewidth = 0.7,
-    color = "#C0392B"
-  ) +
-  annotate(
-    "text",
-    x = moderate_threshold,
-    y = Inf,
-    label = "Moderate Risk",
-    vjust = 1.6,
-    hjust = -0.05,
-    size = 3.5
-  ) +
-  annotate(
-    "text",
-    x = high_threshold,
-    y = Inf,
-    label = "High Risk",
-    vjust = 1.6,
-    hjust = 1.05,
-    size = 3.5
+  scale_fill_manual(
+    values = c(
+      "Lower Review Priority" = "#D5E8D4",
+      "Moderate Review Priority" = "#F9E79F",
+      "High Review Priority" = "#F5B7B1"
+    )
   ) +
   scale_x_continuous(
     labels = scales::percent_format(accuracy = 1),
-    limits = c(0, 1)
+    limits = c(0, 1),
+    expand = expansion(mult = c(0.01, 0.01))
   ) +
   labs(
-    title = "Predicted Quiet Quitting Risk Distribution",
-    subtitle = "Employees are scored by their predicted probability of quiet quitting intention",
+    title = "Predicted Quiet Quitting Review-Priority Distribution",
+    subtitle = "Relative disengagement-risk signals across the workforce population",
     x = "Predicted Probability of Quiet Quitting",
-    y = "Employee Count"
+    y = "Employee Count",
+    fill = "Review Priority"
   ) +
   theme_hr(11) +
   theme(
-    plot.title = element_text(face = "bold"),
-    plot.subtitle = element_text(color = "#5a6b7c"),
-    plot.margin = margin(10, 25, 15, 10)
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = "#5a6b7c", size = 11),
+    legend.position = "top",
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(10, 20, 15, 10)
   )
 
 print(p)
-save_plot(p, "risk_distribution.png", 8, 5)
+save_plot(p, "risk_distribution.png", 8.2, 5.2)
 ```
 
-## Risk Segmentation
+## Review-Priority Segmentation
 
-```{r 20-risk-segmentation, echo=FALSE}
-risk_segments <- final_preds %>%
+The segmentation view translates model probabilities into practical review-priority tiers. These tiers are not automatic decisions; they organize attention for HR, manager, or workforce planning review.
+
+Because quiet quitting probabilities may cluster within a narrow range, relative ranking is more useful than fixed cutoffs. In practice, HR teams could adjust review queues based on available capacity, intervention goals, employee-relations sensitivity, and tolerance for missed disengagement risk.
+
+```{r 20-risk-segmentation, echo=FALSE, message=FALSE, warning=FALSE}
+risk_segment_summary <- risk_distribution %>%
+  count(review_priority, .drop = FALSE) %>%
   mutate(
-    Risk_Level = case_when(
-      .pred_Yes >= 0.70 ~ "High Risk",
-      .pred_Yes >= 0.40 ~ "Moderate Risk",
-      TRUE ~ "Low Risk"
-    ),
-    Risk_Level = factor(
-      Risk_Level,
-      levels = c("Low Risk", "Moderate Risk", "High Risk")
-    )
-  ) %>%
-  count(Risk_Level, .drop = FALSE) %>%
-  mutate(
-    Percent = n / sum(n),
-    Label = ifelse(
-      n == 0,
-      "",
-      paste0(n, "\n", scales::percent(Percent, accuracy = 1))
-    )
+    percent = n / sum(n),
+    label = paste0(n, "\n", scales::percent(percent, accuracy = 1))
   )
 
-p <- ggplot(risk_segments, aes(x = Risk_Level, y = n, fill = Risk_Level)) +
-  geom_col(width = 0.52, show.legend = FALSE) +
+p <- ggplot(
+  risk_segment_summary,
+  aes(
+    x = review_priority,
+    y = n,
+    fill = review_priority
+  )
+) +
+  geom_col(width = 0.65) +
   geom_text(
-    aes(label = Label),
-    vjust = -0.35,
+    aes(label = label),
+    vjust = -0.45,
     fontface = "bold",
-    size = 3.4,
-    lineheight = 0.9,
-    color = "#111111"
+    size = 4
   ) +
-  scale_fill_manual(values = c(
-    "Low Risk" = "#2ECC71",
-    "Moderate Risk" = "#F39C12",
-    "High Risk" = "#E74C3C"
-  )) +
+  scale_fill_manual(
+    values = c(
+      "Lower Review Priority" = "#7FBF7F",
+      "Moderate Review Priority" = "#F39C12",
+      "High Review Priority" = "#D35454"
+    )
+  ) +
   scale_y_continuous(
-    expand = expansion(mult = c(0, 0.16))
+    limits = c(0, max(risk_segment_summary$n, na.rm = TRUE) * 1.18),
+    expand = expansion(mult = c(0, 0.05))
   ) +
   labs(
-    title = "Employee Risk Segmentation",
-    subtitle = "Risk tiers translate model scores into intervention priorities",
+    title = "Employee Engagement Review-Priority Segmentation",
+    subtitle = "Risk tiers translate model scores into practical engagement review priorities",
     x = NULL,
     y = "Employee Count"
   ) +
@@ -1226,21 +1249,18 @@ p <- ggplot(risk_segments, aes(x = Risk_Level, y = n, fill = Risk_Level)) +
   theme(
     plot.title = element_text(face = "bold", size = 15),
     plot.subtitle = element_text(color = "#5a6b7c", size = 11),
-    axis.text.x = element_text(size = 10),
-    axis.text.y = element_text(size = 9),
-    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10, face = "bold"),
+    legend.position = "none",
     panel.grid.major.x = element_blank(),
     panel.grid.minor = element_blank(),
     plot.margin = margin(10, 18, 18, 10)
   )
 
 print(p)
-save_plot(p, "risk_segments.png", 7.5, 5)
+save_plot(p, "risk_segments.png", 7.8, 5)
 ```
 
-The segmentation view translates model probabilities into practical intervention tiers. If employees cluster heavily within one tier, that does not mean the model is wrong; it means the thresholds may need to be calibrated for the organization’s decision context.
-
-For quiet quitting, these tiers should be treated as engagement-prioritization signals. Low-risk employees may require normal engagement maintenance, moderate-risk employees may warrant trend monitoring, and high-risk employees may warrant earlier manager or HR review.
+For quiet quitting, these tiers should be treated as engagement-prioritization signals. Lower-priority employees may require normal engagement maintenance, moderate-priority employees may warrant trend monitoring, and high-priority employees may warrant earlier manager or HR review.
 
 # Final Model Summary & Key Takeaways {#model-summary}
 
@@ -1455,7 +1475,9 @@ Used responsibly, this type of model becomes a decision-support tool: not a repl
 
 ## Feature → Action Mapping {#feature-action}
 
-To translate model insights into practical action, key risk areas are mapped to targeted workforce interventions. This bridges the gap between predictive analytics and real-world decision-making by connecting model interpretation to practical HR response strategies.
+To translate model insights into practical action, key quiet-quitting risk areas are mapped to targeted workforce interventions.
+
+This bridges the gap between predictive analytics and real-world decision-making by connecting model interpretation to practical HR response strategies focused on engagement, discretionary effort, role clarity, wellbeing, and manager support.
 
 ```{r 23-driver-action-table, echo=FALSE}
 driver_actions <- tibble::tribble(
@@ -1505,14 +1527,26 @@ driver_actions %>%
 
 # Business Impact & Decision Guidance {#business-impact}
 
-The model is designed to support workforce decision-making at a strategic level. Rather than functioning as an automated decision system, it should be used as a **risk intelligence layer** that helps HR and leadership prioritize where deeper review may be needed.
+The modeling framework is designed to support workforce decision-making at a strategic level while preserving employee privacy through synthetic data simulation.
+
+Rather than functioning as an automated employment-decision system, the selected model should be interpreted as a workforce intelligence layer that helps HR teams prioritize where additional engagement review, manager follow-up, or workforce support analysis may be beneficial.
+
+The practical value of the framework lies in its ability to:
+
+- Identify workforce segments that may warrant earlier engagement review
+- Support proactive disengagement-risk monitoring
+- Improve allocation of HR and manager follow-up resources
+- Enhance organizational visibility into workforce experience patterns
+- Demonstrate privacy-preserving HR analytics workflows
+
+Importantly, the model is intended to support human decision-making, not replace it. Quiet-quitting risk remains dependent on organizational context, leadership interpretation, employee communication, and ethical review processes.
+
+This project demonstrates how predictive analytics can be integrated into HR environments responsibly using synthetic, research-informed data that protects employee confidentiality while still enabling advanced workforce analysis.
 
 ## Strategic Decision Guidance {#decision-guidance}
 
 ```{=html}
 <div class="decision-box">
-
-<h3>Strategic Decision Guidance</h3>
 
 <p>
 This model is best deployed as a <strong>risk prioritization tool</strong>, not as a standalone decision system.
@@ -1544,7 +1578,7 @@ The model should be interpreted within the context of synthetic data, simulated 
 
 <ul>
   <li>Predictions reflect patterns in synthetic data, not observed outcomes from a real organization</li>
-  <li>Performance may shift when applied to different employee populations or industries</li>
+  <li>Performance may shift when applied to different employee populations, industries, or engagement cultures</li>
   <li>Risk scores should support review and prioritization, not automatic employment decisions</li>
   <li>Human context remains essential before any intervention is taken</li>
 </ul>
@@ -1554,7 +1588,7 @@ The model should be interpreted within the context of synthetic data, simulated 
 
 ## Final Takeaway
 
-Quiet quitting intention is not driven by a single variable. It reflects a network of behavioral, organizational, wellbeing, and perception-based signals that collectively indicate disengagement risk.
+Quiet quitting is not driven by a single variable. It reflects a network of behavioral, organizational, wellbeing, engagement, role clarity, and perception-based signals that collectively indicate disengagement risk.
 
 The modeling framework demonstrates how predictive analytics can move beyond static reporting and support proactive workforce engagement planning. Even with imperfect prediction, the model provides a structured way to identify potential disengagement risk earlier, prioritize attention, and guide more targeted engagement strategies.
 
