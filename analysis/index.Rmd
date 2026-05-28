@@ -40,7 +40,7 @@ knitr::opts_chunk$set(
 
 ```{=html}
 <div class="main-container">
-  <div class="index-wrapper">
+  <div class="index-container">
 
   <div class="hero-section">
 
@@ -104,7 +104,7 @@ knitr::opts_chunk$set(
         Identify patterns of disengagement and reduced discretionary effort using behavioral, performance, and satisfaction indicators.
       </p>
       <div class="center-block">
-        <a href="HR_Data_Quiet_Quitting_Results.html" class="cta-btn btn-purple">View Results</a>
+        <a href="HR_Data_Quiet_Quitting.html" class="cta-btn btn-purple">View Results</a>
       </div>
     </div>
 
@@ -114,7 +114,7 @@ knitr::opts_chunk$set(
         Examine how workplace monitoring, trust, and privacy concerns influence employee behavior, engagement, and turnover risk.
       </p>
       <div class="center-block">
-        <a href="HR_Data_Monitoring_Turnover_Risk_Results.html" class="cta-btn btn-gold">View Results</a>
+        <a href="HR_Data_Monitoring_Privacy.html" class="cta-btn btn-orange">View Results</a>
       </div>
     </div>
 

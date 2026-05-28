@@ -16,10 +16,5 @@ render_report <- function(input_file, output_file) {
 }
 
 render_report("index.Rmd", "index.html")
-render_report("HR_Data_EDA.Rmd", "hr_data_eda.html")
-render_report("HR_Data_Turnover_Intention.Rmd", "hr_data_turnover_intention.html")
-render_report("HR_Data_Quiet_Quitting.Rmd", "hr_data_quiet_quitting.html")
-render_report("HR_Data_Monitoring_Privacy.Rmd", "hr_data_monitoring_privacy.html")
-render_report("HR_Data_Insights_Gleaned.Rmd", "hr_data_insights_gleaned.html")
 
 message("Done. HTML files were rendered to docs/.")
