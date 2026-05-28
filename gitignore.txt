@@ -1,0 +1,18 @@
+# ---------- R / RStudio ----------
+.Rproj.user/
+.Rhistory
+.RData
+*.Rproj
+
+# ---------- Knitr / RMarkdown ----------
+analysis/*.html
+analysis/*_files/
+analysis/*_cache/
+
+# ---------- Existing Project Ignores ----------
+outputs/plots/
+outputs/figures/
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db

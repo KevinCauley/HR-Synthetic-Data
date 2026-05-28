@@ -11,9 +11,9 @@ output:
     highlight: null
     df_print: paged
     fig_caption: true
-    css: "../docs/assets/styles.css"
+    css: assets/styles.css
     includes:
-      in_header: "../docs/assets/header.html"
+      in_header: ../docs/assets/header.html
 
 number_sections: true
 ---

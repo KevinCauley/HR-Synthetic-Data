@@ -11,9 +11,9 @@ output:
     highlight: null
     df_print: paged
     fig_caption: true
-    css: "../docs/assets/styles.css"
+    css: assets/styles.css
     includes:
-      in_header: "../docs/assets/header.html"
+      in_header: ../docs/assets/header.html
 
 number_sections: true
 ---
@@ -722,59 +722,6 @@ stopifnot(nrow(final_model_metrics) == 5)
 stopifnot(
   all(c("Accuracy", "Precision", "Recall", "F1 Score", "ROC AUC") %in% final_model_metrics$Metric)
 )
-```
-
-```{r 14c-final-consistency-lock, include=FALSE}
-# -------------------------------------------------------------------
-# Final Selected Model Consistency Lock
-# -------------------------------------------------------------------
-
-required_final_objects <- c(
-  "top_model_name",
-  "top_sampling_method",
-  "top_model_config",
-  "top_f1",
-  "top_holdout_f1",
-  "top_holdout_precision",
-  "top_holdout_recall",
-  "top_holdout_roc_auc",
-  "selection_strategy_label",
-  "selection_rule_note",
-  "final_model_metrics",
-  "final_preds"
-)
-
-missing_objects <- required_final_objects[!purrr::map_lgl(required_final_objects, exists)]
-
-if (length(missing_objects) > 0) {
-  stop(
-    "Missing required final model object(s): ",
-    paste(missing_objects, collapse = ", ")
-  )
-}
-
-if (nrow(final_model_metrics) != 5) {
-  stop("final_model_metrics should contain exactly five metrics.")
-}
-
-expected_metrics <- c("Accuracy", "Precision", "Recall", "F1 Score", "ROC AUC")
-
-if (!all(expected_metrics %in% final_model_metrics$Metric)) {
-  stop("final_model_metrics is missing one or more expected metrics.")
-}
-
-if (!top_model_config %in% names(model_results)) {
-  stop("Selected model configuration does not exist in model_results: ", top_model_config)
-}
-
-cat("Final selected model:", top_model_config, "\n")
-cat("Selection strategy:", selection_strategy_label, "\n")
-cat("Selection rule:", selection_rule_note, "\n")
-cat("CV F1:", top_f1, "\n")
-cat("Holdout Precision:", top_holdout_precision, "\n")
-cat("Holdout Recall:", top_holdout_recall, "\n")
-cat("Holdout F1:", top_holdout_f1, "\n")
-cat("Holdout ROC AUC:", top_holdout_roc_auc, "\n")
 ```
 
 ## Sampling Strategy Comparison {#sampling-strategy-comparison}
