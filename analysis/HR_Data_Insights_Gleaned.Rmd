@@ -1,6 +1,5 @@
 ---
-title: ""
-
+title: "Insights and Recommendations | HR Workforce Analytics"
 output:
   html_document:
     always_allow_html: true
@@ -12,10 +11,7 @@ output:
     df_print: paged
     fig_caption: true
     css: assets/styles.css
-    includes:
-      in_header: ../docs/assets/header.html
-
-number_sections: true
+number_sections: false
 ---
 
 ```{=html}
@@ -32,7 +28,7 @@ number_sections: true
           <a href="#modeling-results">Portfolio-Level Modeling Results</a>
           <a href="#workforce-patterns">Cross-Model Workforce Patterns</a>
           <a href="#strategic-recommendations">Strategic Workforce Recommendations</a>
-          <a href="#responsible-governance">Responsible Use & Governance</a>
+          <a href="#responsible-use">Responsible Use & Governance</a>
           <a href="#executive-action-roadmap">Roadmap Timeline View</a>
           <a href="#final-takeaway">Final Takeaway</a>
         </nav>
@@ -57,7 +53,7 @@ number_sections: true
 
       <!-- REPLACED page-nav WITH cta-row -->
       <div class="cta-row">
-        <a href="HR_Data_Monitoring_Privacy.html" class="cta-btn btn-blue">← Back</a>
+        <a href="hr_data_monitoring_privacy.html" class="cta-btn btn-blue">← Back</a>
         <a href="index.html" class="cta-btn btn-teal">Home</a>
       </div>
 ```
@@ -267,13 +263,80 @@ lowest_holdout_model <- model_summaries %>%
 
 # Executive Summary {#executive-summary}
 
-This final section synthesizes the full workforce analytics pipeline, moving from exploratory analysis and predictive modeling into executive-level interpretation.
+This final section brings the HR workforce analytics portfolio together by translating the modeling results into executive-level insight.
 
-Across the three modeling tracks, the project evaluates turnover intention, quiet quitting, and monitoring-related turnover risk using a consistent modeling framework. Together, these outcomes show that workforce risk is not one-dimensional. Each target reflects a different business problem, requires a different interpretation strategy, and supports a different type of workforce decision.
+Across the three modeling tracks, the project evaluates **turnover intention**, **quiet quitting**, and **monitoring-related turnover risk** using a consistent modeling framework. Together, these outcomes show that workforce risk is not one-dimensional. Each target reflects a different business problem, requires a different interpretation strategy, and supports a different type of decision.
 
 The strongest holdout model was **`r strongest_holdout_model$Model_Config`** for **`r strongest_holdout_model$Outcome`**, with a holdout F1 Score of **`r round(strongest_holdout_model$Holdout_F1, 3)`**. The strongest precision result was **`r highest_precision_model$Model_Config`** for **`r highest_precision_model$Outcome`**, indicating the most reliable review queue among flagged cases.
 
-The main business takeaway is that these models should be used as **risk prioritization tools**, not automated decision systems. Their value is in helping HR, leadership, and governance teams focus attention earlier, identify patterns across workforce signals, and guide more targeted human review.
+The biggest project insight is not that one model “wins.” The more important takeaway is that each model supports a different business use case:
+
+- **Turnover Intention** is best used for retention-risk prioritization.
+- **Quiet Quitting** is best used as a cautious early engagement signal.
+- **Monitoring & Privacy Risk** is best used for privacy-aware governance and workforce trust review.
+
+These models should be used as **risk prioritization tools**, not automated decision systems. Their value is in helping HR, leadership, and governance teams focus attention earlier, identify patterns across workforce signals, and guide more targeted human review.
+
+## Portfolio-Level Takeaways
+
+```{=html}
+<div class="model-highlight-card">
+
+  <div class="model-badge">Executive Portfolio Summary</div>
+
+  <h3 class="model-title">
+    Three Workforce Risk Models, Three Different Decision Uses
+  </h3>
+
+  <p class="model-subtitle">
+    The final portfolio shows how predictive modeling can support retention, engagement, and governance review without replacing human judgment.
+  </p>
+
+  <div class="model-metrics">
+    <div class="metric-box">
+      <span class="metric-label">Most Balanced</span>
+      <span class="metric-value">
+        `r strongest_holdout_model$Outcome`
+      </span>
+    </div>
+
+    <div class="metric-box">
+      <span class="metric-label">Most Reliable Flags</span>
+      <span class="metric-value">
+        `r highest_precision_model$Outcome`
+      </span>
+    </div>
+
+    <div class="metric-box">
+      <span class="metric-label">Use Case</span>
+      <span class="metric-value">
+        Human-in-the-Loop Risk Prioritization
+      </span>
+    </div>
+  </div>
+
+</div>
+```
+
+```{=html}
+<div class="decision-box">
+
+<h3>How to Interpret the Three Outcomes</h3>
+
+<p>
+<strong>Turnover intention</strong> is most useful for identifying employees or workforce groups that may require retention conversations, manager follow-up, workload review, or career-pathing support.
+</p>
+
+<p>
+<strong>Quiet quitting</strong> is more ambiguous because disengagement can be behavioral, emotional, or contextual. It is better suited for engagement monitoring and qualitative follow-up than direct intervention.
+</p>
+
+<p>
+<strong>Monitoring-related risk</strong> is the clearest governance signal because it connects workforce risk to privacy, trust, surveillance, and policy design.
+</p>
+
+</div>
+```
 
 # Final Modeling Results {#modeling-results}
 
@@ -351,7 +414,7 @@ model_summaries %>%
 ## Executive Model Scorecard
 
 ```{r 01b-executive-model-scorecard, echo=FALSE}
-scorecard_df <- model_summaries %>%
+scorecard_long <- model_summaries %>%
   mutate(
     Outcome = factor(
       as.character(Outcome),
@@ -362,80 +425,104 @@ scorecard_df <- model_summaries %>%
       )
     )
   ) %>%
-  select(
+  transmute(
     Outcome,
-    Holdout_F1,
-    Holdout_Precision,
-    Holdout_Recall
+    `F1 Score` = Holdout_F1,
+    Precision = Holdout_Precision,
+    Recall = Holdout_Recall
+  ) %>%
+  tidyr::pivot_longer(
+    cols = c(`F1 Score`, Precision, Recall),
+    names_to = "Metric",
+    values_to = "Score"
+  ) %>%
+  mutate(
+    Metric = factor(
+      Metric,
+      levels = c("F1 Score", "Precision", "Recall")
+    ),
+    Outcome = forcats::fct_rev(Outcome),
+    Score_Label = scales::number(Score, accuracy = 0.001)
   )
 
-p <- ggplot(scorecard_df, aes(x = Outcome, y = Holdout_F1, fill = Outcome)) +
-  geom_col(
-    width = 0.60,
-    alpha = 0.95,
+p <- ggplot(
+  scorecard_long,
+  aes(
+    x = Score,
+    y = Outcome,
+    color = Outcome
+  )
+) +
+  geom_segment(
+    aes(
+      x = 0,
+      xend = Score,
+      yend = Outcome
+    ),
+    linewidth = 5.2,
+    alpha = 0.24,
     show.legend = FALSE
   ) +
   geom_point(
-    aes(y = Holdout_Precision, shape = "Precision"),
-    size = 4.8,
-    stroke = 1.4,
-    color = outline_color,
-    fill = "white"
-  ) +
-  geom_point(
-    aes(y = Holdout_Recall, shape = "Recall"),
-    size = 5.1,
-    stroke = 1.4,
-    color = outline_color,
-    fill = "white"
+    size = 5.4,
+    show.legend = FALSE
   ) +
   geom_text(
-    aes(
-      y = Holdout_F1,
-      label = paste0("F1\n", scales::number(Holdout_F1, accuracy = 0.001))
-    ),
-    vjust = -0.35,
+    aes(label = Score_Label),
+    hjust = -0.22,
+    size = 3.8,
     fontface = "bold",
-    size = 4.1,
-    color = outline_color
+    color = outline_color,
+    show.legend = FALSE
   ) +
-  scale_fill_manual(values = portfolio_colors) +
-  scale_shape_manual(
-    name = "Supporting Metric",
-    values = c("Precision" = 21, "Recall" = 24)
+  facet_wrap(
+    ~ Metric,
+    nrow = 1
   ) +
-  scale_y_continuous(
+  scale_color_manual(values = portfolio_colors) +
+  scale_x_continuous(
     labels = scales::percent_format(accuracy = 1),
-    limits = c(0, 1.12),
-    breaks = c(0, 0.30, 0.60, 0.90, 1.20),
-    expand = expansion(mult = c(0, 0.02))
+    limits = c(0, 1.10),
+    breaks = c(0, 0.25, 0.50, 0.75, 1.00),
+    expand = expansion(mult = c(0.01, 0.02))
   ) +
   labs(
     title = "Executive Model Scorecard",
-    subtitle = "Bars show holdout F1; markers show whether the selected model is stronger in precision or recall",
-    x = NULL,
-    y = "Holdout Score",
-    shape = "Supporting Metric"
+    subtitle = "Selected models compared by balance, reliability, and detection coverage",
+    x = "Holdout score",
+    y = NULL
   ) +
   coord_cartesian(clip = "off") +
   theme_hr(11) +
   theme(
     plot.title = element_text(face = "bold", size = 16),
     plot.subtitle = element_text(color = subtitle_color, size = 11.5),
-    axis.text.x = element_text(face = "bold", size = 11),
-    legend.position = "top",
-    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 11.5),
+    axis.text.y = element_text(face = "bold", size = 10.5),
+    axis.text.x = element_text(size = 9.5),
+    legend.position = "none",
     panel.grid.minor = element_blank(),
-    plot.margin = margin(12, 24, 18, 12)
+    panel.grid.major.y = element_blank(),
+    plot.margin = margin(12, 38, 16, 12)
   )
 
 print(p)
-save_plot(p, "executive_model_scorecard.png", 10.2, 6.0)
+
+save_plot(
+  p,
+  "executive_model_scorecard.png",
+  width = 11.2,
+  height = 5.8
+)
 ```
 
-The scorecard gives a compact executive view of the selected models. Holdout **F1 Score** summarizes overall balance, while the marker positions show whether each model leans more toward **precision** (reliability of flagged cases) or **recall** (coverage of true risk cases).
+The scorecard gives a compact executive view of how the selected models behave in practice. **F1 Score** represents overall balance, **precision** represents reliability of flagged cases, and **recall** represents detection coverage.
 
-Monitoring & Privacy Risk shows the strongest overall balance and the strongest precision profile. Turnover Intention remains reasonably balanced for prioritization use. Quiet Quitting is materially weaker on holdout F1, indicating that it should be interpreted more cautiously and paired with additional qualitative context.
+Monitoring & Privacy Risk shows the strongest portfolio profile, especially on precision and overall balance. This makes it most appropriate for a focused governance review queue where false positives could create unnecessary privacy or trust concerns.
+
+Turnover Intention remains a usable retention-prioritization signal because its precision and recall are relatively balanced. It should be used to help HR and managers identify employees or groups that may warrant earlier retention review.
+
+Quiet Quitting is the most caution-sensitive model. Its weaker precision and F1 Score mean it should be treated as an early engagement signal, not a standalone intervention trigger.
 
 ## Final Model Comparison
 
@@ -529,6 +616,28 @@ save_plot(p, "portfolio_holdout_metric_heatmap.png", 11, 6)
 The portfolio comparison shows that monitoring-related turnover risk produced the strongest overall holdout profile, especially in precision and F1 Score. This suggests the monitoring/privacy model is the most reliable for identifying a focused review queue.
 
 Turnover intention produced moderate but usable holdout performance, making it appropriate for retention-risk prioritization rather than definitive classification. Quiet quitting showed weaker transfer from cross-validation to holdout performance, meaning it should be interpreted more cautiously as an early-warning engagement screen.
+
+```{=html}
+<div class="decision-box">
+
+<h3>Portfolio Interpretation</h3>
+
+<p>
+The three outcomes should not be ranked as if they represent the same business problem. Each model answers a different workforce question.
+</p>
+
+<ul>
+  <li><strong>Turnover Intention:</strong> Who may need earlier retention review?</li>
+  <li><strong>Quiet Quitting:</strong> Where might disengagement risk be emerging?</li>
+  <li><strong>Monitoring & Privacy Risk:</strong> Where might monitoring practices, privacy concerns, or trust signals require governance review?</li>
+</ul>
+
+<p>
+The strongest portfolio insight is that predictive modeling is most useful when the model output is matched to the right decision context.
+</p>
+
+</div>
+```
 
 ## Prediction Confidence & Practical Use
 
@@ -685,8 +794,9 @@ p <- ggplot(tradeoff_df, aes(x = Recall, y = Precision)) +
   ) +
   scale_y_continuous(
     labels = scales::percent_format(accuracy = 1),
-    limits = c(0, 1.05),
-    expand = expansion(mult = c(0.01, 0.02))
+    limits = c(0, 1.08),
+    breaks = c(0, 0.25, 0.50, 0.75, 1.00),
+    expand = expansion(mult = c(0, 0.02))
   ) +
   labs(
     title = "Prediction Confidence and Detection Tradeoffs",
@@ -903,26 +1013,95 @@ The three outcomes represent distinct forms of workforce vulnerability:
 
 Together, these outcomes show that employee risk should be interpreted as a portfolio of signals rather than a single prediction.
 
+```{=html}
+<div class="decision-box">
+
+<h3>Shared Workforce Risk Pattern</h3>
+
+<p>
+Across the portfolio, the strongest theme is that workforce risk is not isolated. Retention, disengagement, wellbeing, trust, manager support, workload pressure, and monitoring perceptions interact with each other.
+</p>
+
+<p>
+This means HR analytics should not stop at prediction. The more valuable step is translating model outputs into better questions for leaders, managers, HR partners, and governance stakeholders.
+</p>
+
+</div>
+```
+
 ## Shared Risk Themes
 
 Across the project, the strongest workforce-risk story is not that one model is universally best. Instead, the results show that each outcome captures a different part of the employee experience.
 
 Common themes include:
 
-- **Trust and support** shape whether employees stay connected to the organization.
-- **Workload and wellbeing** influence both withdrawal risk and retention risk.
-- **Role clarity and manager support** affect how employees interpret their work environment.
-- **Monitoring and privacy perceptions** add a governance layer to workforce analytics.
+- Trust and support shape whether employees stay connected to the organization.
+- Workload and wellbeing influence both withdrawal risk and retention risk.
+- Role clarity and manager support affect how employees interpret their work environment.
+- Monitoring and privacy perceptions add a governance layer to workforce analytics.
 
 ## Outcome-Specific Risk Differences
 
 Although the models share common workforce themes, each outcome requires a different business response.
 
-Turnover intention is most useful for identifying employees who may require retention conversations, manager follow-up, workload review, or career-pathing support.
+```{=html}
+<div class="model-highlight-card">
 
-Quiet quitting is more ambiguous because disengagement can be behavioral, emotional, or contextual. It is better suited for engagement monitoring and qualitative follow-up than direct intervention.
+  <div class="model-badge">Outcome-Specific Decision Use</div>
 
-Monitoring-related risk is the clearest governance signal because it connects workforce risk to privacy, trust, surveillance, and policy design.
+  <h3 class="model-title">
+    Different Signals Require Different Responses
+  </h3>
+
+  <p class="model-subtitle">
+    Each model should be interpreted according to the type of workforce decision it supports.
+  </p>
+
+  <div class="model-metrics">
+    <div class="metric-box">
+      <span class="metric-label">Turnover Intention</span>
+      <span class="metric-value">
+        Retention Review
+      </span>
+    </div>
+
+    <div class="metric-box">
+      <span class="metric-label">Quiet Quitting</span>
+      <span class="metric-value">
+        Engagement Review
+      </span>
+    </div>
+
+    <div class="metric-box">
+      <span class="metric-label">Monitoring & Privacy Risk</span>
+      <span class="metric-value">
+        Governance Review
+      </span>
+    </div>
+  </div>
+
+</div>
+```
+
+```{=html}
+<div class="decision-box">
+
+<h3>Decision Context Matters</h3>
+
+<p>
+<strong>Turnover intention</strong> supports retention review by helping HR and managers identify where earlier follow-up, workload review, or career-pathing support may be useful.
+</p>
+
+<p>
+<strong>Quiet quitting</strong> should be treated as a cautious engagement signal because disengagement can be behavioral, emotional, or contextual.
+</p>
+
+<p>
+<strong>Monitoring-related risk</strong> is best suited for governance review because it connects workforce risk to privacy, trust, surveillance, and policy design.
+</p>
+
+</div>
+```
 
 # Strategic Workforce Recommendations {#strategic-recommendations}
 
@@ -986,9 +1165,25 @@ recommendations %>%
 
 # Responsible Use & Governance {#responsible-use}
 
-Because these models deal with workforce risk, responsible use is central to the project. The models should support better questions, earlier review, and more consistent prioritization. They should not be used as automated decision systems.
+Given that these models deal with workforce risk, responsible use is central to the project. The models should support better questions, earlier review, and more consistent prioritization. They should not be used as automated decision systems.
 
-The strongest governance principle is simple: model outputs should inform human review, not replace it.
+The strongest governance principle is simple: **model outputs should inform human review, not replace it.**
+
+```{=html}
+<div class="decision-box">
+
+<h3>Responsible Use Principle</h3>
+
+<p>
+The appropriate use case is human-in-the-loop prioritization. Model outputs can help identify where review may be needed, but final interpretation should include employee context, manager knowledge, organizational conditions, privacy considerations, and ethical review.
+</p>
+
+<p>
+This is especially important for monitoring-related risk, where model outputs may reflect employee trust and privacy concerns. In that context, the goal is not to increase surveillance, but to improve transparency, governance, and workforce support.
+</p>
+
+</div>
+```
 
 ## What the Models Can Do
 
@@ -1012,9 +1207,53 @@ These models should not be used to:
 
 ## Human-in-the-Loop Decision Guidance
 
-The appropriate use case is **human-in-the-loop prioritization**. Model outputs can help identify where review may be needed, but final interpretation should include employee context, manager knowledge, organizational conditions, privacy considerations, and ethical review.
+The recommended workflow is:
 
-This is especially important for monitoring-related risk, where model outputs may reflect employee trust and privacy concerns. In that context, the goal is not to increase surveillance, but to improve transparency, governance, and workforce support.
+1. Use model output to identify where review may be useful.
+2. Add manager, HR, survey, workload, and employee-context evidence.
+3. Evaluate whether the signal reflects an individual issue, a team-level pattern, or a broader organizational condition.
+4. Decide whether action should involve support, communication, governance review, or further analysis.
+
+This approach keeps the models in the right role: supporting better decision-making without replacing human judgment.
+
+```{=html}
+<div class="model-highlight-card">
+
+  <div class="model-badge">From Insight to Action</div>
+
+  <h3 class="model-title">
+    The Next Step Is Operationalizing Responsible Review
+  </h3>
+
+  <p class="model-subtitle">
+    The portfolio results are most useful when translated into a repeatable review process, not a one-time report.
+  </p>
+
+  <div class="model-metrics">
+    <div class="metric-box">
+      <span class="metric-label">Immediate</span>
+      <span class="metric-value">
+        Clarify Use Cases
+      </span>
+    </div>
+
+    <div class="metric-box">
+      <span class="metric-label">30–60 Days</span>
+      <span class="metric-value">
+        Build Dashboard
+      </span>
+    </div>
+
+    <div class="metric-box">
+      <span class="metric-label">Long Term</span>
+      <span class="metric-value">
+        Monitor Drift
+      </span>
+    </div>
+  </div>
+
+</div>
+```
 
 ## Roadmap Timeline View {#executive-action-roadmap}
 
@@ -1122,7 +1361,48 @@ save_plot(p, "executive_action_roadmap_timeline.png", 11.0, 6.6)
 
 This project demonstrates how synthetic HR data can support a realistic workforce analytics pipeline, from data preparation and exploratory analysis to predictive modeling and executive decision support.
 
-The strongest insight is not that one model solves workforce risk. Instead, the results show that different workforce outcomes require different interpretations. Turnover intention is useful for retention-risk prioritization, quiet quitting is best treated as an early engagement signal, and monitoring/privacy risk provides the clearest governance-focused review signal.
+The final value of the project is not just predictive performance. It is the end-to-end demonstration of how synthetic data, responsible modeling, executive visualization, and human-in-the-loop governance can work together in a realistic HR analytics workflow.
+
+```{=html}
+<div class="model-highlight-card">
+
+  <div class="model-badge">Final Portfolio Takeaway</div>
+
+  <h3 class="model-title">
+    Predictive HR Analytics Works Best as Decision Support
+  </h3>
+
+  <p class="model-subtitle">
+    The models help leaders prioritize attention earlier, but they do not replace human judgment, employee context, or responsible governance.
+  </p>
+
+  <div class="model-metrics">
+    <div class="metric-box">
+      <span class="metric-label">Retention</span>
+      <span class="metric-value">
+        Prioritize Review
+      </span>
+    </div>
+
+    <div class="metric-box">
+      <span class="metric-label">Engagement</span>
+      <span class="metric-value">
+        Add Context
+      </span>
+    </div>
+
+    <div class="metric-box">
+      <span class="metric-label">Monitoring</span>
+      <span class="metric-value">
+        Govern Responsibly
+      </span>
+    </div>
+  </div>
+
+</div>
+```
+
+Turnover intention is useful for retention-risk prioritization. Quiet quitting is best treated as an early engagement signal that requires additional context. Monitoring and privacy risk provides the clearest governance-focused review signal because it connects workforce risk to trust, transparency, surveillance, and policy design.
 
 Used responsibly, this framework helps organizations move from reactive reporting to proactive workforce intelligence. The models do not replace human judgment; they help leaders ask better questions, prioritize attention, and respond earlier to patterns that may affect retention, engagement, trust, and organizational effectiveness.
 
@@ -1132,7 +1412,7 @@ Used responsibly, this framework helps organizations move from reactive reportin
 <div class="page-nav">
 
   <div class="nav-left">
-    <a href="HR_Data_Monitoring_Privacy.html" class="cta-btn btn-blue">← Back</a>
+    <a href="hr_data_monitoring_privacy.html" class="cta-btn btn-blue">← Back</a>
   </div>
 
   <div class="nav-center">

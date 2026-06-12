@@ -1,0 +1,1116 @@
+---
+title: "Data Modeling Baseline | HR Workforce Analytics"
+
+output:
+  html_document:
+    always_allow_html: true
+    self_contained: false
+    toc: false
+    toc_float: false
+    theme: null
+    highlight: null
+    df_print: paged
+    fig_caption: true
+    css: assets/styles.css
+
+number_sections: false
+---
+
+```{=html}
+<div class="report-container">
+
+  <div class="page-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-card">
+        <div class="sidebar-label">On this page</div>
+        <nav class="sidebar-nav">
+          <a href="#executive-summary">Executive Summary</a>
+          <a href="#why-baseline">Why a Baseline Matters</a>
+          <a href="#modeling-overview">Modeling Overview</a>
+          <a href="#data-prep-framework">Data Preparation</a>
+          <a href="#baseline-models">Baseline Models</a>
+          <a href="#evaluation-framework">Evaluation Framework</a>
+          <a href="#baseline-results">Baseline Results</a>
+          <a href="#cross-outcome-comparison">Cross-Outcome Comparison</a>
+          <a href="#precision-recall">Precision–Recall View</a>
+          <a href="#baseline-takeaways">Baseline Takeaways</a>
+          <a href="#transition">Transition to Outcome Modeling</a>
+        </nav>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="page-content">
+
+      <div class="hero-section">
+        <p class="hero-meta">
+          Kevin Allen Cauley • `r format(Sys.Date(), '%B %d, %Y')`
+        </p>
+
+        <h1 class="hero-title">Predictive Modeling Baseline</h1>
+
+        <p class="hero-subtitle">
+          This section establishes a no-sampling baseline across five supervised learning models and three workforce outcomes, creating a clear reference point before testing outcome-specific sampling strategies.
+        </p>
+      </div>
+
+      <div class="cta-row">
+        <a href="hr_data_eda.html" class="cta-btn btn-blue">← Back</a>
+        <a href="index.html" class="cta-btn btn-teal">Home</a>
+        <a href="hr_data_turnover_intention.html" class="cta-btn btn-red">Next →</a>
+      </div>
+```
+
+```{r 00-setup, include=FALSE}
+source(here::here("analysis", "helper.R"))
+
+PLOT_SUBFOLDER <- "baseline"
+
+cat("Using plot folder:", PLOT_SUBFOLDER, "\n")
+
+# Required packages
+required_pkgs <- c(
+  "conflicted",
+  "tidyverse",
+  "tidymodels",
+  "here",
+  "klaR",
+  "discrim",
+  "ranger",
+  "kernlab",
+  "xgboost",
+  "gt",
+  "scales",
+  "glue",
+  "patchwork"
+)
+
+missing_pkgs <- required_pkgs[
+  !required_pkgs %in% rownames(installed.packages())
+]
+
+if (length(missing_pkgs) > 0) {
+  stop(
+    "Missing required package(s): ",
+    paste(missing_pkgs, collapse = ", "),
+    ". Install them before rendering the report."
+  )
+}
+
+library(conflicted)
+library(tidyverse)
+library(tidymodels)
+library(here)
+library(klaR)
+library(discrim)
+library(gt)
+library(scales)
+library(glue)
+library(patchwork)
+
+conflicted::conflicts_prefer(
+  dplyr::filter,
+  dplyr::select,
+  dplyr::mutate,
+  dplyr::summarise,
+  dplyr::arrange,
+  dplyr::slice,
+  dplyr::slice_head,
+  dplyr::slice_max,
+  dplyr::slice_min,
+  dplyr::recode,
+  dplyr::rename,
+  dplyr::lag,
+  yardstick::accuracy,
+  yardstick::precision,
+  yardstick::recall,
+  yardstick::f_meas,
+  yardstick::roc_auc
+)
+
+knitr::opts_knit$set(root.dir = here::here())
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  results = "hide",
+  fig.align = "center",
+  out.width = "100%",
+  fig.retina = 2,
+  fig.width = 9.5,
+  fig.height = 5.75,
+  dpi = 300,
+  cache = FALSE,
+  dev = "png"
+)
+
+set.seed(123)
+
+# Load cleaned dataset created by EDA
+df <- readRDS(here::here("data", "processed", "hr_dataset_clean.rds"))
+
+base_df <- df %>%
+  mutate(across(where(is.character), as.factor)) %>%
+  mutate(
+    turnover_intention = factor(turnover_intention, levels = c("No", "Yes")),
+    quiet_quitting = factor(quiet_quitting, levels = c("No", "Yes")),
+    monitoring_turnover_risk = factor(monitoring_turnover_risk, levels = c("No", "Yes"))
+  )
+
+# Positive class is "Yes"
+options(yardstick.event_first = FALSE)
+target_event_level <- "second"
+
+baseline_metrics <- metric_set(
+  accuracy,
+  precision,
+  recall,
+  f_meas,
+  roc_auc
+)
+
+metric_labels <- c(
+  accuracy = "Accuracy",
+  precision = "Precision",
+  recall = "Recall",
+  f_meas = "F1 Score",
+  roc_auc = "ROC AUC"
+)
+
+model_colors <- c(
+  "Logistic Regression" = "#4B9CD3",
+  "Random Forest" = "#3FA34D",
+  "XGBoost" = "#E87461",
+  "Naive Bayes" = "#F4D03F",
+  "SVM" = "#9370DB"
+)
+
+outcome_colors <- c(
+  "Turnover Intention" = "#4B9CD3",
+  "Quiet Quitting" = "#7B61FF",
+  "Monitoring & Privacy Risk" = "#F4A261"
+)
+
+target_lookup <- tibble::tribble(
+  ~Outcome, ~Target,
+  "Turnover Intention", "turnover_intention",
+  "Quiet Quitting", "quiet_quitting",
+  "Monitoring & Privacy Risk", "monitoring_turnover_risk"
+)
+```
+
+# Executive Summary {#executive-summary}
+
+This page establishes the baseline modeling layer for the HR workforce analytics portfolio.
+
+Before testing sampling strategies such as up-sampling, down-sampling, or SMOTE, I first evaluated each workforce outcome under the same **no-sampling condition**. This gives the project a clear starting point and makes the later modeling pages easier to interpret.
+
+The baseline comparison focuses on three workforce outcomes:
+
+- **Turnover Intention**
+- **Quiet Quitting**
+- **Monitoring & Privacy Risk**
+
+Each outcome is evaluated using the same five supervised learning models:
+
+- **Logistic Regression**
+- **Random Forest**
+- **XGBoost**
+- **Naive Bayes**
+- **Support Vector Machine**
+
+The goal of this page is not to select the final model for each outcome. Instead, it answers a practical question: before adjusting the data strategy, how well do the models perform on their own?
+
+This baseline step helps separate model performance from sampling effects and provides a reference point for the outcome-specific reports that follow.
+
+# Why a Baseline Matters {#why-baseline}
+
+A baseline model gives the analysis something to compare against.
+
+Without a baseline, it would be difficult to know whether later sampling strategies actually improve model performance or simply change the way the model behaves. This matters because workforce-risk outcomes often involve uneven class distributions, moderate signal strength, and tradeoffs between detecting risk and avoiding false positives.
+
+<div class="takeaway-box">
+  <b>Baseline question:</b> How well do the models perform before class balancing or outcome-specific sampling strategies are introduced?
+</div>
+
+For this project, the baseline is especially useful because it shows where the original data structure already supports prediction and where additional modeling strategy is needed.
+
+For example, a model may produce acceptable accuracy while still failing to detect employees in the positive-risk class. That kind of result would not be useful for workforce decision support, even if the accuracy score looks reasonable.
+
+# Modeling Overview {#modeling-overview}
+
+This baseline analysis compares five supervised learning models across three workforce outcomes using a consistent modeling workflow.
+
+For each outcome, the data is split into training and testing sets using stratified sampling. The same preprocessing approach is applied across models so that performance differences are easier to compare.
+
+The workflow includes:
+
+- Dummy encoding for categorical predictors
+- Normalization for numeric predictors
+- Removal of zero-variance predictors
+- Consistent factor-level handling for each target variable
+- No sampling or class balancing during baseline training
+
+Only **No Sampling** is used on this page. The original class distribution is preserved so the baseline reflects how each model performs before additional intervention.
+
+The outcome-specific pages that follow build from this starting point by testing whether sampling strategies improve precision, recall, F1 Score, or overall practical usefulness.
+
+# Data Preparation Framework {#data-prep-framework}
+
+The cleaned dataset from the exploratory analysis is used as the modeling input.
+
+Each target variable is converted into a two-level factor with **"No"** as the first level and **"Yes"** as the positive event class. This keeps evaluation consistent across all three outcomes and ensures that precision, recall, F1 Score, and ROC AUC are interpreted the same way throughout the project.
+
+This step is important because the positive class represents the workforce-risk condition of interest:
+
+- Employees with turnover intention
+- Employees flagged for quiet quitting risk
+- Employees flagged for monitoring-related turnover risk
+
+By standardizing the target structure before modeling, the baseline results are easier to compare across outcomes.
+
+# Baseline Models {#baseline-models}
+
+Five supervised learning models are used to establish the baseline comparison.
+
+Each model contributes a different type of benchmark:
+
+- **Logistic Regression** provides an interpretable statistical baseline.
+- **Random Forest** captures non-linear patterns through ensemble decision trees.
+- **XGBoost** tests boosted tree performance under the original class distribution.
+- **Naive Bayes** provides a simple probabilistic benchmark.
+- **Support Vector Machine** evaluates a flexible boundary-based classifier.
+
+Using the same five-model structure across all outcomes keeps the comparison consistent. It also helps show whether performance differences are driven by the outcome itself, the algorithm, or the need for additional sampling strategies.
+
+# Evaluation Framework {#evaluation-framework}
+
+Model performance is evaluated using five classification metrics:
+
+- **Accuracy**: overall prediction correctness
+- **Precision**: reliability of positive-risk predictions
+- **Recall**: ability to detect actual positive-risk cases
+- **F1 Score**: balance between precision and recall
+- **ROC AUC**: overall class-separation strength
+
+Accuracy is included, but it is not treated as the main decision metric. In workforce-risk modeling, accuracy can be misleading when one class is easier to predict than the other.
+
+For this baseline page, the most useful metrics are **precision**, **recall**, and **F1 Score**.
+
+Precision shows whether flagged cases are reliable. Recall shows whether the model is detecting the actual risk cases. F1 Score provides a balanced view of both.
+
+This evaluation framework supports the broader goal of the project: building models that are not only statistically valid, but also useful for practical HR decision support.
+
+# Baseline Results {#baseline-results}
+
+The baseline analysis evaluates each workforce outcome using the same five models under a no-sampling condition.
+
+This creates a consistent starting benchmark before the outcome-specific reports test whether up-sampling, down-sampling, or SMOTE improve practical model performance.
+
+```{r 01-baseline-model-engine, include=FALSE}
+# -------------------------------------------------------------------
+# Baseline modeling engine
+# -------------------------------------------------------------------
+# Purpose:
+# Compare five supervised learning models across three workforce outcomes
+# using No Sampling only.
+# -------------------------------------------------------------------
+
+baseline_model_specs <- list(
+  "Logistic Regression" = logistic_reg() %>%
+    set_engine("glm") %>%
+    set_mode("classification"),
+
+  "Random Forest" = rand_forest(
+    trees = 500,
+    mtry = 10,
+    min_n = 5
+  ) %>%
+    set_engine("ranger") %>%
+    set_mode("classification"),
+
+  "XGBoost" = boost_tree(
+    trees = 300,
+    tree_depth = 4,
+    learn_rate = 0.05,
+    min_n = 5,
+    loss_reduction = 0
+  ) %>%
+    set_engine("xgboost") %>%
+    set_mode("classification"),
+
+  "Naive Bayes" = naive_Bayes() %>%
+    set_engine("klaR") %>%
+    set_mode("classification"),
+
+  "SVM" = svm_rbf(
+    cost = 1,
+    rbf_sigma = 0.05
+  ) %>%
+    set_engine("kernlab") %>%
+    set_mode("classification")
+)
+
+target_vars <- target_lookup$Target
+
+run_single_baseline <- function(outcome_label, target_col, model_name, model_spec) {
+
+  other_targets <- setdiff(target_vars, target_col)
+
+  modeling_df <- base_df %>%
+    dplyr::select(-dplyr::all_of(other_targets)) %>%
+    dplyr::rename(outcome_flag = dplyr::all_of(target_col)) %>%
+    dplyr::filter(!is.na(outcome_flag)) %>%
+    dplyr::mutate(
+      outcome_flag = factor(
+        trimws(as.character(outcome_flag)),
+        levels = c("No", "Yes")
+      )
+    )
+
+  set.seed(123)
+
+  split <- initial_split(
+    modeling_df,
+    prop = 0.80,
+    strata = outcome_flag
+  )
+
+  train_data <- training(split)
+  test_data  <- testing(split)
+
+  baseline_recipe <- recipe(outcome_flag ~ ., data = train_data) %>%
+    step_dummy(all_nominal_predictors()) %>%
+    step_zv(all_predictors()) %>%
+    step_normalize(all_numeric_predictors())
+
+  baseline_workflow <- workflow() %>%
+    add_model(model_spec) %>%
+    add_recipe(baseline_recipe)
+
+  fit_result <- tryCatch(
+    {
+      fitted_workflow <- fit(
+        baseline_workflow,
+        data = train_data
+      )
+
+      preds <- predict(fitted_workflow, test_data, type = "prob") %>%
+        dplyr::bind_cols(
+          predict(fitted_workflow, test_data, type = "class")
+        ) %>%
+        dplyr::bind_cols(
+          test_data %>% dplyr::select(outcome_flag)
+        )
+
+      metric_results <- baseline_metrics(
+        preds,
+        truth = outcome_flag,
+        estimate = .pred_class,
+        .pred_Yes,
+        event_level = target_event_level
+      ) %>%
+        dplyr::mutate(
+          Outcome = outcome_label,
+          Target = target_col,
+          Model = model_name,
+          Sampling = "No Sampling",
+          Fit_Status = "Success",
+          Error_Message = NA_character_
+        )
+
+      list(
+        metrics = metric_results,
+        predictions = preds %>%
+          dplyr::mutate(
+            Outcome = outcome_label,
+            Target = target_col,
+            Model = model_name,
+            Sampling = "No Sampling"
+          )
+      )
+    },
+    error = function(e) {
+
+      failed_metrics <- tibble::tibble(
+        .metric = c(
+          "accuracy",
+          "precision",
+          "recall",
+          "f_meas",
+          "roc_auc"
+        ),
+        .estimator = "binary",
+        .estimate = NA_real_,
+        Outcome = outcome_label,
+        Target = target_col,
+        Model = model_name,
+        Sampling = "No Sampling",
+        Fit_Status = "Failed",
+        Error_Message = as.character(e$message)
+      )
+
+      list(
+        metrics = failed_metrics,
+        predictions = tibble::tibble()
+      )
+    }
+  )
+
+  fit_result
+}
+
+baseline_grid <- tidyr::crossing(
+  target_lookup,
+  Model = names(baseline_model_specs)
+)
+
+baseline_outputs <- purrr::pmap(
+  list(
+    baseline_grid$Outcome,
+    baseline_grid$Target,
+    baseline_grid$Model
+  ),
+  function(Outcome, Target, Model) {
+    run_single_baseline(
+      outcome_label = Outcome,
+      target_col = Target,
+      model_name = Model,
+      model_spec = baseline_model_specs[[Model]]
+    )
+  }
+)
+
+baseline_results_all <- purrr::map_dfr(
+  baseline_outputs,
+  "metrics"
+) %>%
+  dplyr::mutate(
+    Metric = dplyr::recode(.metric, !!!metric_labels),
+    Outcome = factor(
+      Outcome,
+      levels = c(
+        "Turnover Intention",
+        "Quiet Quitting",
+        "Monitoring & Privacy Risk"
+      )
+    ),
+    Model = factor(
+      Model,
+      levels = names(model_colors)
+    ),
+    Sampling = factor(Sampling, levels = "No Sampling")
+  )
+
+baseline_predictions_all <- purrr::map_dfr(
+  baseline_outputs,
+  "predictions"
+)
+
+baseline_results_wide <- baseline_results_all %>%
+  dplyr::select(
+    Outcome,
+    Target,
+    Model,
+    Sampling,
+    Fit_Status,
+    Error_Message,
+    .metric,
+    .estimate
+  ) %>%
+  tidyr::pivot_wider(
+    names_from = .metric,
+    values_from = .estimate
+  ) %>%
+  dplyr::mutate(
+    Model_Config = paste(Model, Sampling, sep = " + ")
+  )
+
+best_baseline_by_outcome <- baseline_results_wide %>%
+  dplyr::filter(Fit_Status == "Success") %>%
+  dplyr::group_by(Outcome) %>%
+  dplyr::arrange(
+    dplyr::desc(f_meas),
+    dplyr::desc(precision),
+    dplyr::desc(recall)
+  ) %>%
+  dplyr::slice(1) %>%
+  dplyr::ungroup()
+
+baseline_failure_log <- baseline_results_wide %>%
+  dplyr::filter(Fit_Status == "Failed") %>%
+  dplyr::distinct(
+    Outcome,
+    Model,
+    Error_Message
+  )
+
+summary_dir <- here::here("data", "processed", "model_summaries")
+
+dir.create(
+  summary_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+saveRDS(
+  list(
+    baseline_results_all = baseline_results_all,
+    baseline_results_wide = baseline_results_wide,
+    best_baseline_by_outcome = best_baseline_by_outcome,
+    baseline_predictions_all = baseline_predictions_all
+  ),
+  here::here(
+    "data",
+    "processed",
+    "model_summaries",
+    "baseline_model_comparison.rds"
+  )
+)
+```
+
+```{r 02-baseline-validation-check, include=FALSE}
+stopifnot(exists("baseline_results_all"))
+stopifnot(exists("baseline_results_wide"))
+stopifnot(exists("best_baseline_by_outcome"))
+
+stopifnot(nrow(baseline_results_all) > 0)
+stopifnot(nrow(baseline_results_wide) > 0)
+
+stopifnot(
+  all(
+    c(
+      "Turnover Intention",
+      "Quiet Quitting",
+      "Monitoring & Privacy Risk"
+    ) %in% as.character(baseline_results_all$Outcome)
+  )
+)
+```
+
+## Baseline Model Summary Table
+
+The table below compares all no-sampling baseline models across the three workforce outcomes.
+
+```{r 03-baseline-model-summary-table, echo=FALSE}
+baseline_results_wide %>%
+  dplyr::filter(Fit_Status == "Success") %>%
+  dplyr::mutate(
+    Outcome = as.character(Outcome),
+    Model = as.character(Model)
+  ) %>%
+  dplyr::arrange(
+    Outcome,
+    dplyr::desc(f_meas)
+  ) %>%
+  dplyr::transmute(
+    Outcome,
+    Model,
+    Sampling,
+    Accuracy = accuracy,
+    Precision = precision,
+    Recall = recall,
+    `F1 Score` = f_meas,
+    `ROC AUC` = roc_auc
+  ) %>%
+  gt() %>%
+  tab_header(
+    title = "No-Sampling Baseline Model Comparison",
+    subtitle = "Five supervised learning models evaluated across three workforce outcomes"
+  ) %>%
+  fmt_number(
+    columns = c(
+      Accuracy,
+      Precision,
+      Recall,
+      `F1 Score`,
+      `ROC AUC`
+    ),
+    decimals = 3
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = c(
+      Sampling,
+      Accuracy,
+      Precision,
+      Recall,
+      `F1 Score`,
+      `ROC AUC`
+    )
+  ) %>%
+  data_color(
+    columns = c(
+      Accuracy,
+      Precision,
+      Recall,
+      `F1 Score`,
+      `ROC AUC`
+    ),
+    colors = scales::col_numeric(
+      palette = c("#F4F8FB", "#A9CCE3", "#2E86C1"),
+      domain = c(0, 1)
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#EBF5FB"),
+      cell_text(weight = "bold")
+    ),
+    locations = cells_body(
+      rows = `F1 Score` == max(`F1 Score`, na.rm = TRUE)
+    )
+  ) %>%
+  tab_options(
+    table.width = pct(96),
+    table.font.size = px(12),
+    data_row.padding = px(8)
+  )
+```
+
+# Cross-Outcome Comparison {#cross-outcome-comparison}
+
+The baseline comparison shows how model behavior changes across different workforce outcomes before any class balancing is introduced.
+
+This is important because a model that performs well for one outcome may not transfer cleanly to another. Turnover intention, quiet quitting, and monitoring-related risk represent different organizational signals, so their baseline performance should be interpreted separately.
+
+```{r 04-baseline-heatmap, echo=FALSE}
+heatmap_df <- baseline_results_all %>%
+  dplyr::filter(
+    Fit_Status == "Success",
+    .metric %in% c(
+      "accuracy",
+      "precision",
+      "recall",
+      "f_meas",
+      "roc_auc"
+    )
+  ) %>%
+  dplyr::mutate(
+    Metric = factor(
+      Metric,
+      levels = c(
+        "Accuracy",
+        "Precision",
+        "Recall",
+        "F1 Score",
+        "ROC AUC"
+      )
+    ),
+    Outcome_Model = paste(
+      as.character(Outcome),
+      as.character(Model),
+      sep = " | "
+    ),
+    Plot_Label = dplyr::case_when(
+      is.na(.estimate) ~ "N/A",
+      TRUE ~ scales::number(.estimate, accuracy = 0.001)
+    )
+  )
+
+f1_order <- heatmap_df %>%
+  dplyr::filter(Metric == "F1 Score") %>%
+  dplyr::mutate(order_score = dplyr::coalesce(.estimate, -1)) %>%
+  dplyr::arrange(dplyr::desc(order_score)) %>%
+  dplyr::pull(Outcome_Model)
+
+heatmap_df <- heatmap_df %>%
+  dplyr::mutate(
+    Outcome_Model = factor(
+      Outcome_Model,
+      levels = rev(unique(f1_order))
+    )
+  )
+
+p <- ggplot(
+  heatmap_df,
+  aes(
+    x = Metric,
+    y = Outcome_Model,
+    fill = .estimate
+  )
+) +
+  geom_tile(
+    color = "white",
+    linewidth = 0.9
+  ) +
+  geom_text(
+    aes(label = Plot_Label),
+    fontface = "bold",
+    size = 3.2,
+    color = "#243447"
+  ) +
+  scale_fill_gradientn(
+    colors = c("#F4F8FB", "#D6EAF8", "#85C1E9", "#2E86C1", "#1F618D"),
+    limits = c(0, 1),
+    na.value = "#ECEFF1",
+    name = "Score"
+  ) +
+  labs(
+    title = "No-Sampling Baseline Performance Heatmap",
+    subtitle = "Model-outcome combinations ranked by baseline F1 Score; N/A indicates undefined positive-class performance",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_hr(10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15),
+    plot.subtitle = element_text(color = "#5a6b7c", size = 10.5),
+    axis.text.x = element_text(face = "bold", size = 10.5),
+    axis.text.y = element_text(size = 8.8),
+    legend.position = "right",
+    panel.grid = element_blank(),
+    plot.margin = margin(10, 22, 12, 10)
+  )
+
+print(p)
+
+save_plot(
+  p,
+  "baseline_performance_heatmap.png",
+  width = 11,
+  height = 8.5
+)
+```
+
+The `N/A` cells are analytically meaningful. They indicate cases where a no-sampling model produced undefined positive-class metrics, usually because it failed to generate usable positive predictions. This reinforces why the later outcome-specific reports test sampling strategies rather than relying on accuracy alone.
+
+## Best Baseline Model by Outcome
+
+The plot below identifies the strongest no-sampling baseline model for each workforce outcome based on F1 Score.
+
+```{r 05-best-baseline-by-outcome, echo=FALSE}
+best_plot_df <- best_baseline_by_outcome %>%
+  dplyr::mutate(
+    Outcome = factor(
+      as.character(Outcome),
+      levels = c(
+        "Turnover Intention",
+        "Quiet Quitting",
+        "Monitoring & Privacy Risk"
+      )
+    ),
+    Model = as.character(Model),
+    Outcome_Short = dplyr::case_when(
+      Outcome == "Turnover Intention" ~ "Turnover Intention",
+      Outcome == "Quiet Quitting" ~ "Quiet Quitting",
+      TRUE ~ "Monitoring & Privacy Risk"
+    ),
+    Label = paste0(
+      Model,
+      "\nF1 = ", scales::number(f_meas, accuracy = 0.001),
+      "\nPrecision = ", scales::number(precision, accuracy = 0.001),
+      " | Recall = ", scales::number(recall, accuracy = 0.001)
+    )
+  )
+
+p <- ggplot(
+  best_plot_df,
+  aes(
+    x = Outcome,
+    y = f_meas,
+    fill = Outcome
+  )
+) +
+  geom_col(
+    width = 0.62,
+    show.legend = FALSE
+  ) +
+  geom_text(
+    aes(label = Label),
+    vjust = -0.20,
+    fontface = "bold",
+    size = 3.7,
+    color = "#243447",
+    lineheight = 1.05
+  ) +
+  scale_fill_manual(values = outcome_colors) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, max(0.80, max(best_plot_df$f_meas, na.rm = TRUE) + 0.18)),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    title = "Best No-Sampling Baseline Model by Outcome",
+    subtitle = "Top baseline model for each workforce outcome using F1 Score as the primary balance metric",
+    x = NULL,
+    y = "Baseline F1 Score"
+  ) +
+  theme_hr(11) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15),
+    plot.subtitle = element_text(color = "#5a6b7c", size = 11),
+    axis.text.x = element_text(face = "bold", size = 10.5),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(10, 18, 18, 10)
+  )
+
+print(p)
+
+save_plot(
+  p,
+  "best_baseline_model_by_outcome.png",
+  width = 9.5,
+  height = 5.8
+)
+```
+
+# Precision–Recall View {#precision-recall}
+
+Precision and recall provide a more practical view of baseline model behavior than accuracy alone.
+
+For workforce risk modeling, precision shows how reliable the model’s positive flags are, while recall shows how much actual risk the model detects.
+
+```{r 06-precision-recall-baseline, echo=FALSE}
+library(ggrepel)
+
+pr_df <- baseline_results_wide %>%
+  dplyr::filter(
+    Fit_Status == "Success",
+    !is.na(precision),
+    !is.na(recall),
+    !is.na(f_meas)
+  ) %>%
+  dplyr::mutate(
+    Outcome = factor(
+      as.character(Outcome),
+      levels = c(
+        "Turnover Intention",
+        "Quiet Quitting",
+        "Monitoring & Privacy Risk"
+      )
+    ),
+    Model = factor(
+      as.character(Model),
+      levels = names(model_colors)
+    )
+  )
+
+best_points <- pr_df %>%
+  dplyr::semi_join(
+    best_baseline_by_outcome %>%
+      dplyr::select(Outcome, Model),
+    by = c("Outcome", "Model")
+  ) %>%
+  dplyr::mutate(
+    label = glue::glue(
+      "{Outcome}\n{Model}\nF1 = {scales::number(f_meas, accuracy = 0.001)}"
+    )
+  )
+
+p <- ggplot(
+  pr_df,
+  aes(
+    x = recall,
+    y = precision
+  )
+) +
+  annotate(
+    "rect",
+    xmin = 0.45,
+    xmax = 0.70,
+    ymin = 0.45,
+    ymax = 0.70,
+    alpha = 0.08,
+    fill = "#2A9D8F"
+  ) +
+  annotate(
+    "text",
+    x = 0.575,
+    y = 0.715,
+    label = "Balanced Baseline Zone",
+    size = 4.1,
+    fontface = "bold",
+    color = "#1B4332"
+  ) +
+  geom_vline(
+    xintercept = 0.50,
+    linetype = "dashed",
+    color = "#D5DBDB",
+    linewidth = 0.6
+  ) +
+  geom_hline(
+    yintercept = 0.50,
+    linetype = "dashed",
+    color = "#D5DBDB",
+    linewidth = 0.6
+  ) +
+  geom_point(
+    aes(color = Outcome, shape = Model),
+    size = 4.4,
+    alpha = 0.82,
+    stroke = 1
+  ) +
+  geom_point(
+    data = best_points,
+    aes(x = recall, y = precision),
+    inherit.aes = FALSE,
+    shape = 21,
+    size = 8.5,
+    stroke = 1.5,
+    color = "#1F2D3D",
+    fill = "white"
+  ) +
+  geom_point(
+    data = best_points,
+    aes(color = Outcome, shape = Model),
+    size = 4.8,
+    stroke = 1.1,
+    show.legend = FALSE
+  ) +
+  ggrepel::geom_label_repel(
+    data = best_points,
+    aes(
+      x = recall,
+      y = precision,
+      label = label
+    ),
+    size = 3.7,
+    fontface = "bold",
+    color = "#243447",
+    fill = "white",
+    label.size = 0.25,
+    label.r = unit(0.18, "lines"),
+    box.padding = 0.45,
+    point.padding = 0.35,
+    segment.color = "#7A8A99",
+    segment.size = 0.5,
+    min.segment.length = 0,
+    seed = 123,
+    show.legend = FALSE
+  ) +
+  scale_color_manual(values = outcome_colors) +
+  scale_shape_manual(
+    values = c(
+      "Logistic Regression" = 16,
+      "Random Forest" = 17,
+      "XGBoost" = 15,
+      "Naive Bayes" = 3,
+      "SVM" = 8
+    )
+  ) +
+  scale_x_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1.08),
+    breaks = c(0, 0.25, 0.50, 0.75, 1.00),
+    expand = expansion(mult = c(0.02, 0.02))
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1.05),
+    breaks = c(0, 0.25, 0.50, 0.75, 1.00),
+    expand = expansion(mult = c(0.02, 0.02))
+  ) +
+  coord_cartesian(clip = "off") +
+  labs(
+    title = "Baseline Precision–Recall Tradeoff",
+    subtitle = "No-sampling models compared before outcome-specific sampling strategies",
+    x = "Recall: Share of actual risk cases detected",
+    y = "Precision: Reliability of positive predictions",
+    color = "Outcome",
+    shape = "Model"
+  ) +
+  theme_hr(11) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15),
+    plot.subtitle = element_text(color = "#5A6B7C", size = 11),
+    legend.position = "right",
+    legend.box = "vertical",
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = 8.8),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(12, 70, 16, 10)
+  ) +
+  guides(
+    color = guide_legend(
+      order = 1,
+      override.aes = list(size = 4.5, alpha = 1)
+    ),
+    shape = guide_legend(order = 2)
+  )
+
+print(p)
+
+save_plot(
+  p,
+  "baseline_precision_recall_tradeoff.png",
+  width = 11.2,
+  height = 6.8
+)
+```
+
+# Baseline Takeaways {#baseline-takeaways}
+
+```{r 07-baseline-dynamic-takeaways, echo=FALSE, results='asis'}
+best_takeaway_items <- best_baseline_by_outcome %>%
+  dplyr::mutate(
+    item = glue::glue(
+      "<li><strong>{Outcome}</strong>: strongest no-sampling baseline was <strong>{Model}</strong> with F1 = <strong>{scales::number(f_meas, accuracy = 0.001)}</strong>, precision = <strong>{scales::number(precision, accuracy = 0.001)}</strong>, and recall = <strong>{scales::number(recall, accuracy = 0.001)}</strong>.</li>"
+    )
+  ) %>%
+  dplyr::pull(item) %>%
+  paste(collapse = "\n")
+
+baseline_takeaway_html <- glue::glue("
+<div class='takeaway-box'>
+
+<p>
+The no-sampling baseline provides a reference point for evaluating whether later sampling strategies improve workforce-risk detection.
+</p>
+
+<ul>
+{best_takeaway_items}
+</ul>
+
+<p>
+These results should not be treated as final model selections. Instead, they establish the starting performance level for each outcome before testing whether up-sampling, down-sampling, or SMOTE improves the balance between precision, recall, and F1 Score.
+</p>
+
+</div>
+")
+
+cat(baseline_takeaway_html)
+```
+
+The baseline results highlight why the later outcome-specific modeling pages are necessary. Some outcomes may perform reasonably well without sampling, while others may require additional data strategy adjustments to produce usable positive-class predictions.
+
+The next reports build from this baseline by testing whether sampling strategies improve model performance for each workforce outcome.
+
+# Transition to Outcome Modeling {#transition}
+
+The baseline page creates a consistent reference point for the rest of the portfolio.
+
+The outcome-specific modeling reports now answer a more focused question:
+
+<div class="takeaway-box">
+  <b>Compared with the no-sampling baseline, does an outcome-specific sampling strategy improve the practical usefulness of the model?</b>
+</div>
+
+The next section begins with **Turnover Intention Modeling**, where baseline performance is compared against sampling-based model configurations to identify the most useful retention-risk prioritization approach.
+
+```{=html}
+<hr class="section-divider">
+
+<div class="page-nav">
+
+  <div class="nav-left">
+    <a href="hr_data_eda.html" class="cta-btn btn-blue">← Back</a>
+  </div>
+
+  <div class="nav-center">
+    <a href="index.html" class="cta-btn btn-teal">Home</a>
+  </div>
+
+  <div class="nav-right">
+    <a href="hr_data_turnover_intention.html" class="cta-btn btn-red">Next →</a>
+  </div>
+
+</div>
+
+</div> <!-- page-content -->
+</div> <!-- page-layout -->
+</div> <!-- report-container -->
+```

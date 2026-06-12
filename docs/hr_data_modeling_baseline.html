@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Data Modeling Baseline | HR Workforce Analytics</title>
+
+<script src="hr_data_modeling_baseline_files/header-attrs-2.31/header-attrs.js"></script>
+<link href="hr_data_modeling_baseline_files/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
+<script src="hr_data_modeling_baseline_files/pagedtable-1.1/js/pagedtable.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+
+
+
+
+
+<link rel="stylesheet" href="assets/styles.css" type="text/css" />
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Data Modeling Baseline | HR Workforce
+Analytics</h1>
+
+
+
+<div class="report-container">
+
+  <div class="page-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-card">
+        <div class="sidebar-label">On this page</div>
+        <nav class="sidebar-nav">
+          <a href="#executive-summary">Executive Summary</a>
+          <a href="#why-baseline">Why a Baseline Matters</a>
+          <a href="#modeling-overview">Modeling Overview</a>
+          <a href="#data-prep-framework">Data Preparation</a>
+          <a href="#baseline-models">Baseline Models</a>
+          <a href="#evaluation-framework">Evaluation Framework</a>
+          <a href="#baseline-results">Baseline Results</a>
+          <a href="#cross-outcome-comparison">Cross-Outcome Comparison</a>
+          <a href="#precision-recall">Precision–Recall View</a>
+          <a href="#baseline-takeaways">Baseline Takeaways</a>
+          <a href="#transition">Transition to Outcome Modeling</a>
+        </nav>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="page-content">
+
+      <div class="hero-section">
+        <p class="hero-meta">
+          Kevin Allen Cauley • June 11, 2026
+        </p>
+
+        <h1 class="hero-title">Predictive Modeling Baseline</h1>
+
+        <p class="hero-subtitle">
+          This section establishes a no-sampling baseline across five supervised learning models and three workforce outcomes, creating a clear reference point before testing outcome-specific sampling strategies.
+        </p>
+      </div>
+
+      <div class="cta-row">
+        <a href="hr_data_eda.html" class="cta-btn btn-blue">← Back</a>
+        <a href="index.html" class="cta-btn btn-teal">Home</a>
+        <a href="hr_data_turnover_intention.html" class="cta-btn btn-red">Next →</a>
+      </div>
+<div id="executive-summary" class="section level1">
+<h1>Executive Summary</h1>
+<p>This page establishes the baseline modeling layer for the HR
+workforce analytics portfolio.</p>
+<p>Before testing sampling strategies such as up-sampling,
+down-sampling, or SMOTE, I first evaluated each workforce outcome under
+the same <strong>no-sampling condition</strong>. This gives the project
+a clear starting point and makes the later modeling pages easier to
+interpret.</p>
+<p>The baseline comparison focuses on three workforce outcomes:</p>
+<ul>
+<li><strong>Turnover Intention</strong></li>
+<li><strong>Quiet Quitting</strong></li>
+<li><strong>Monitoring &amp; Privacy Risk</strong></li>
+</ul>
+<p>Each outcome is evaluated using the same five supervised learning
+models:</p>
+<ul>
+<li><strong>Logistic Regression</strong></li>
+<li><strong>Random Forest</strong></li>
+<li><strong>XGBoost</strong></li>
+<li><strong>Naive Bayes</strong></li>
+<li><strong>Support Vector Machine</strong></li>
+</ul>
+<p>The goal of this page is not to select the final model for each
+outcome. Instead, it answers a practical question: before adjusting the
+data strategy, how well do the models perform on their own?</p>
+<p>This baseline step helps separate model performance from sampling
+effects and provides a reference point for the outcome-specific reports
+that follow.</p>
+</div>
+<div id="why-baseline" class="section level1">
+<h1>Why a Baseline Matters</h1>
+<p>A baseline model gives the analysis something to compare against.</p>
+<p>Without a baseline, it would be difficult to know whether later
+sampling strategies actually improve model performance or simply change
+the way the model behaves. This matters because workforce-risk outcomes
+often involve uneven class distributions, moderate signal strength, and
+tradeoffs between detecting risk and avoiding false positives.</p>
+<div class="takeaway-box">
+<p><b>Baseline question:</b> How well do the models perform before class
+balancing or outcome-specific sampling strategies are introduced?</p>
+</div>
+<p>For this project, the baseline is especially useful because it shows
+where the original data structure already supports prediction and where
+additional modeling strategy is needed.</p>
+<p>For example, a model may produce acceptable accuracy while still
+failing to detect employees in the positive-risk class. That kind of
+result would not be useful for workforce decision support, even if the
+accuracy score looks reasonable.</p>
+</div>
+<div id="modeling-overview" class="section level1">
+<h1>Modeling Overview</h1>
+<p>This baseline analysis compares five supervised learning models
+across three workforce outcomes using a consistent modeling
+workflow.</p>
+<p>For each outcome, the data is split into training and testing sets
+using stratified sampling. The same preprocessing approach is applied
+across models so that performance differences are easier to compare.</p>
+<p>The workflow includes:</p>
+<ul>
+<li>Dummy encoding for categorical predictors</li>
+<li>Normalization for numeric predictors</li>
+<li>Removal of zero-variance predictors</li>
+<li>Consistent factor-level handling for each target variable</li>
+<li>No sampling or class balancing during baseline training</li>
+</ul>
+<p>Only <strong>No Sampling</strong> is used on this page. The original
+class distribution is preserved so the baseline reflects how each model
+performs before additional intervention.</p>
+<p>The outcome-specific pages that follow build from this starting point
+by testing whether sampling strategies improve precision, recall, F1
+Score, or overall practical usefulness.</p>
+</div>
+<div id="data-prep-framework" class="section level1">
+<h1>Data Preparation Framework</h1>
+<p>The cleaned dataset from the exploratory analysis is used as the
+modeling input.</p>
+<p>Each target variable is converted into a two-level factor with
+<strong>“No”</strong> as the first level and <strong>“Yes”</strong> as
+the positive event class. This keeps evaluation consistent across all
+three outcomes and ensures that precision, recall, F1 Score, and ROC AUC
+are interpreted the same way throughout the project.</p>
+<p>This step is important because the positive class represents the
+workforce-risk condition of interest:</p>
+<ul>
+<li>Employees with turnover intention</li>
+<li>Employees flagged for quiet quitting risk</li>
+<li>Employees flagged for monitoring-related turnover risk</li>
+</ul>
+<p>By standardizing the target structure before modeling, the baseline
+results are easier to compare across outcomes.</p>
+</div>
+<div id="baseline-models" class="section level1">
+<h1>Baseline Models</h1>
+<p>Five supervised learning models are used to establish the baseline
+comparison.</p>
+<p>Each model contributes a different type of benchmark:</p>
+<ul>
+<li><strong>Logistic Regression</strong> provides an interpretable
+statistical baseline.</li>
+<li><strong>Random Forest</strong> captures non-linear patterns through
+ensemble decision trees.</li>
+<li><strong>XGBoost</strong> tests boosted tree performance under the
+original class distribution.</li>
+<li><strong>Naive Bayes</strong> provides a simple probabilistic
+benchmark.</li>
+<li><strong>Support Vector Machine</strong> evaluates a flexible
+boundary-based classifier.</li>
+</ul>
+<p>Using the same five-model structure across all outcomes keeps the
+comparison consistent. It also helps show whether performance
+differences are driven by the outcome itself, the algorithm, or the need
+for additional sampling strategies.</p>
+</div>
+<div id="evaluation-framework" class="section level1">
+<h1>Evaluation Framework</h1>
+<p>Model performance is evaluated using five classification metrics:</p>
+<ul>
+<li><strong>Accuracy</strong>: overall prediction correctness</li>
+<li><strong>Precision</strong>: reliability of positive-risk
+predictions</li>
+<li><strong>Recall</strong>: ability to detect actual positive-risk
+cases</li>
+<li><strong>F1 Score</strong>: balance between precision and recall</li>
+<li><strong>ROC AUC</strong>: overall class-separation strength</li>
+</ul>
+<p>Accuracy is included, but it is not treated as the main decision
+metric. In workforce-risk modeling, accuracy can be misleading when one
+class is easier to predict than the other.</p>
+<p>For this baseline page, the most useful metrics are
+<strong>precision</strong>, <strong>recall</strong>, and <strong>F1
+Score</strong>.</p>
+<p>Precision shows whether flagged cases are reliable. Recall shows
+whether the model is detecting the actual risk cases. F1 Score provides
+a balanced view of both.</p>
+<p>This evaluation framework supports the broader goal of the project:
+building models that are not only statistically valid, but also useful
+for practical HR decision support.</p>
+</div>
+<div id="baseline-results" class="section level1">
+<h1>Baseline Results</h1>
+<p>The baseline analysis evaluates each workforce outcome using the same
+five models under a no-sampling condition.</p>
+<p>This creates a consistent starting benchmark before the
+outcome-specific reports test whether up-sampling, down-sampling, or
+SMOTE improve practical model performance.</p>
+<div id="baseline-model-summary-table" class="section level2">
+<h2>Baseline Model Summary Table</h2>
+<p>The table below compares all no-sampling baseline models across the
+three workforce outcomes.</p>
+</div>
+</div>
+<div id="cross-outcome-comparison" class="section level1">
+<h1>Cross-Outcome Comparison</h1>
+<p>The baseline comparison shows how model behavior changes across
+different workforce outcomes before any class balancing is
+introduced.</p>
+<p>This is important because a model that performs well for one outcome
+may not transfer cleanly to another. Turnover intention, quiet quitting,
+and monitoring-related risk represent different organizational signals,
+so their baseline performance should be interpreted separately.</p>
+<p><img src="hr_data_modeling_baseline_files/figure-html/04-baseline-heatmap-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+<p>The <code>N/A</code> cells are analytically meaningful. They indicate
+cases where a no-sampling model produced undefined positive-class
+metrics, usually because it failed to generate usable positive
+predictions. This reinforces why the later outcome-specific reports test
+sampling strategies rather than relying on accuracy alone.</p>
+<div id="best-baseline-model-by-outcome" class="section level2">
+<h2>Best Baseline Model by Outcome</h2>
+<p>The plot below identifies the strongest no-sampling baseline model
+for each workforce outcome based on F1 Score.</p>
+<p><img src="hr_data_modeling_baseline_files/figure-html/05-best-baseline-by-outcome-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+</div>
+</div>
+<div id="precision-recall" class="section level1">
+<h1>Precision–Recall View</h1>
+<p>Precision and recall provide a more practical view of baseline model
+behavior than accuracy alone.</p>
+<p>For workforce risk modeling, precision shows how reliable the model’s
+positive flags are, while recall shows how much actual risk the model
+detects.</p>
+<p><img src="hr_data_modeling_baseline_files/figure-html/06-precision-recall-baseline-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+</div>
+<div id="baseline-takeaways" class="section level1">
+<h1>Baseline Takeaways</h1>
+<div class="takeaway-box">
+<p>
+The no-sampling baseline provides a reference point for evaluating
+whether later sampling strategies improve workforce-risk detection.
+</p>
+<ul>
+<li>
+<strong>Turnover Intention</strong>: strongest no-sampling baseline was
+<strong>SVM</strong> with F1 = <strong>0.703</strong>, precision =
+<strong>0.542</strong>, and recall = <strong>1.000</strong>.
+</li>
+<li>
+<strong>Quiet Quitting</strong>: strongest no-sampling baseline was
+<strong>Logistic Regression</strong> with F1 = <strong>0.203</strong>,
+precision = <strong>0.375</strong>, and recall = <strong>0.140</strong>.
+</li>
+<li>
+<strong>Monitoring &amp; Privacy Risk</strong>: strongest no-sampling
+baseline was <strong>XGBoost</strong> with F1 = <strong>0.619</strong>,
+precision = <strong>0.929</strong>, and recall = <strong>0.464</strong>.
+</li>
+</ul>
+<p>
+These results should not be treated as final model selections. Instead,
+they establish the starting performance level for each outcome before
+testing whether up-sampling, down-sampling, or SMOTE improves the
+balance between precision, recall, and F1 Score.
+</p>
+</div>
+<p>The baseline results highlight why the later outcome-specific
+modeling pages are necessary. Some outcomes may perform reasonably well
+without sampling, while others may require additional data strategy
+adjustments to produce usable positive-class predictions.</p>
+<p>The next reports build from this baseline by testing whether sampling
+strategies improve model performance for each workforce outcome.</p>
+</div>
+<div id="transition" class="section level1">
+<h1>Transition to Outcome Modeling</h1>
+<p>The baseline page creates a consistent reference point for the rest
+of the portfolio.</p>
+<p>The outcome-specific modeling reports now answer a more focused
+question:</p>
+<div class="takeaway-box">
+<p><b>Compared with the no-sampling baseline, does an outcome-specific
+sampling strategy improve the practical usefulness of the model?</b></p>
+</div>
+<p>The next section begins with <strong>Turnover Intention
+Modeling</strong>, where baseline performance is compared against
+sampling-based model configurations to identify the most useful
+retention-risk prioritization approach.</p>
+<hr class="section-divider">
+
+<div class="page-nav">
+
+  <div class="nav-left">
+    <a href="hr_data_eda.html" class="cta-btn btn-blue">← Back</a>
+  </div>
+
+  <div class="nav-center">
+    <a href="index.html" class="cta-btn btn-teal">Home</a>
+  </div>
+
+  <div class="nav-right">
+    <a href="hr_data_turnover_intention.html" class="cta-btn btn-red">Next →</a>
+  </div>
+
+</div>
+
+</div> <!-- page-content -->
+</div> <!-- page-layout -->
+</div> <!-- report-container -->
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

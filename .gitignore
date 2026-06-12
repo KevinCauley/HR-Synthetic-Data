@@ -16,3 +16,4 @@ outputs/figures/
 # ---------- OS ----------
 .DS_Store
 Thumbs.db
+.positai

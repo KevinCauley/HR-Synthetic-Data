@@ -12,12 +12,11 @@
 
 
 
-<title>HR_Data_Monitoring_Privacy.knit</title>
+<title>Monitoring and Privacy Risk | HR Workforce Analytics</title>
 
-<script src="HR_Data_Monitoring_Privacy_files/header-attrs-2.31/header-attrs.js"></script>
-<link href="HR_Data_Monitoring_Privacy_files/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
-<script src="HR_Data_Monitoring_Privacy_files/pagedtable-1.1/js/pagedtable.js"></script>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="hr_data_monitoring_privacy_files/header-attrs-2.31/header-attrs.js"></script>
+<link href="hr_data_monitoring_privacy_files/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
+<script src="hr_data_monitoring_privacy_files/pagedtable-1.1/js/pagedtable.js"></script>
 
 <style type="text/css">
   code{white-space: pre-wrap;}
@@ -46,6 +45,8 @@
 
 
 
+<h1 class="title toc-ignore">Monitoring and Privacy Risk | HR Workforce
+Analytics</h1>
 
 
 
@@ -81,63 +82,89 @@
       <!-- MATCH EDA STRUCTURE -->
       <div class="hero-section">
         <p class="hero-meta">
-          Kevin Allen Cauley • May 28, 2026
+          Kevin Allen Cauley • June 10, 2026
         </p>
 
         <h1 class="hero-title">Monitoring & Privacy Risk Modeling</h1>
 
         <p class="hero-subtitle">
-  This section develops and evaluates predictive models to identify employees at risk of monitoring-related turnover, interpret key privacy and surveillance risk patterns, and translate model outputs into executive-level workforce trust recommendations.
+  This section builds from the baseline modeling comparison to evaluate whether outcome-specific sampling strategies improve monitoring-related turnover-risk detection while supporting responsible privacy, trust, and governance review.
         </p>
       </div>
 
       <!-- REPLACED page-nav WITH cta-row -->
       <div class="cta-row">
-        <a href="HR_Data_Quiet_Quitting.html" class="cta-btn btn-blue">← Back</a>
+        <a href="hr_data_quiet_quitting.html" class="cta-btn btn-blue">← Back</a>
         <a href="index.html" class="cta-btn btn-teal">Home</a>
-        <a href="HR_Data_Insights_Gleaned.html" class="cta-btn btn-red">Next →</a>
+        <a href="hr_data_insights_gleaned.html" class="cta-btn btn-red">Next →</a>
       </div>
 <div id="executive-summary" class="section level1">
 <h1>Executive Summary</h1>
-<p>This analysis develops a predictive modeling framework to identify
-employees at risk of monitoring-related turnover using a synthetic,
-research-informed HR dataset.</p>
-<p>Multiple machine learning models—including Logistic Regression,
-Random Forest, XGBoost, Support Vector Machines, and Naive Bayes—were
-evaluated across multiple sampling strategies to address class imbalance
-and compare predictive performance under different modeling
-conditions.</p>
-<p>Results show that <strong>model effectiveness is shaped by both
-algorithm choice and data strategy</strong>. Sampling strategies such as
-up-sampling, down-sampling, and SMOTE changed model behavior in
-meaningful ways, demonstrating that class-balancing choices can
-materially affect precision, recall, F1 Score, and overall
-usability.</p>
-<p>The final model-selection process uses <strong>cross-validated F1
-Score</strong> as the primary ranking metric, while holdout test
-performance is used as a stability check to confirm that the selected
-configuration remains practically usable on unseen data.</p>
-<p>Rather than relying on a single predictive signal, monitoring-related
-turnover risk is influenced by a <strong>combination of privacy
-perceptions, monitoring intensity, workplace trust, workload pressure,
-wellbeing, and organizational support factors</strong>.</p>
-<p>From a business perspective, this framework enables a shift from
-<strong>reactive privacy concern response to proactive workforce trust
-and monitoring-risk management</strong>, supporting earlier
-intervention, better governance, and improved retention outcomes.</p>
+<p>This page builds on the baseline modeling comparison by focusing
+specifically on <strong>monitoring-related turnover risk</strong>.</p>
+<p>The baseline page established how five supervised learning models
+performed under the same no-sampling condition. This report takes the
+next step by testing whether outcome-specific sampling strategies
+improve monitoring-risk detection, model balance, and practical
+usefulness.</p>
+<p>This outcome is different from the other modeling targets because it
+is both a workforce-risk issue and a governance issue.
+Monitoring-related turnover risk reflects patterns tied to privacy
+concern, perceived surveillance, monitoring transparency, trust,
+workload pressure, and employee experience.</p>
+<p>Because of that sensitivity, the goal is not to use the model to
+label employees. The goal is to identify where HR, leadership, or
+governance stakeholders may need to review monitoring practices, privacy
+communication, workload conditions, or workforce trust signals more
+closely.</p>
+<p>Multiple model configurations were evaluated across four data
+strategies:</p>
+<ul>
+<li><strong>No Sampling</strong></li>
+<li><strong>Up Sampling</strong></li>
+<li><strong>Down Sampling</strong></li>
+<li><strong>SMOTE</strong></li>
+</ul>
+<p>Final model selection is based primarily on <strong>cross-validated
+F1 Score</strong>, with holdout performance used as a practical
+stability check. This keeps the analysis grounded in both
+model-development evidence and unseen test-set behavior.</p>
+<p>From a business perspective, the selected model should be interpreted
+as a <strong>privacy-aware risk prioritization tool</strong>. It can
+support earlier review of monitoring-related workforce patterns, but it
+should not replace employee context, governance standards, manager
+judgment, or human review.</p>
 </div>
 <div id="modeling-overview" class="section level1">
 <h1>Modeling Overview</h1>
-<p>This section builds on the exploratory analysis by applying
-predictive modeling techniques to identify employees at risk of
-monitoring-related turnover.</p>
-<p>Rather than relying on a single model, multiple algorithms are
-evaluated and compared to determine the most effective approach for
-workforce decision-making.</p>
-<p>Each model is assessed using cross-validation and evaluated across
-multiple sampling strategies to address class imbalance.</p>
-<p>The objective is not only to identify the most accurate model, but to
-determine which approach best aligns with organizational priorities.</p>
+<p>This report evaluates monitoring-related turnover risk as a binary
+classification problem, where <strong>“Yes”</strong> represents
+employees flagged as having elevated monitoring-related workforce
+risk.</p>
+<p>The modeling workflow follows the same baseline-first structure used
+across the portfolio:</p>
+<ol style="list-style-type: decimal">
+<li>Establish the strongest no-sampling benchmark from the baseline
+modeling page.</li>
+<li>Train monitoring-specific model configurations across sampling
+strategies.</li>
+<li>Compare holdout F1 performance against the baseline winner as a
+practical checkpoint.</li>
+<li>Review the precision–recall tradeoff for operational and governance
+usefulness.</li>
+<li>Select the final model using cross-validated F1 Score with holdout
+stability confirmation.</li>
+</ol>
+<p>This structure separates three related but different ideas: the
+<strong>baseline winner</strong>, the <strong>holdout
+checkpoint</strong>, and the <strong>final selected model</strong>.</p>
+<p>That distinction matters for monitoring-related turnover risk because
+this outcome is both a workforce-risk signal and a governance-sensitive
+issue. The baseline comparison explains the strongest no-sampling
+starting point, the holdout checkpoint shows how model configurations
+behaved on unseen test data, and the final selection rule identifies the
+configuration that is most defensible for privacy-aware workforce
+decision support.</p>
 </div>
 <div id="data-prep-framework" class="section level1">
 <h1>Data Preparation &amp; Modeling Framework</h1>
@@ -342,68 +369,70 @@ decision-making.</p>
 with operational efficiency—minimizing both missed risk and unnecessary
 intervention.</p>
 <div id="sampling-strategy-comparison" class="section level2">
-<h2>Sampling Strategy Comparison</h2>
-<p>Class imbalance is a major challenge in monitoring-related
-turnover-risk modeling because employees flagged for monitoring-related
-risk typically represent a smaller portion of the workforce
-population.</p>
-<p>To better understand how class-balancing strategies influence
-workforce-risk detection, multiple resampling approaches were evaluated
-across all algorithms. The goal is not to artificially inflate
-performance, but to examine how different balancing strategies affect
-the tradeoff between detection capability and prediction
-reliability.</p>
-<p>This comparison helps demonstrate how modeling decisions influence
-practical workforce prioritization outcomes within HR analytics and
-monitoring-governance environments.</p>
-<p>The models include:</p>
-<ul>
-<li>No Sampling (baseline)</li>
-<li>Up Sampling (increase minority class)</li>
-<li>Down Sampling (reduce majority class)</li>
-<li>SMOTE (synthetic minority generation)</li>
-</ul>
-<p><strong>The goal is to understand how balancing the dataset impacts
-model performance.</strong></p>
-<p><img src="HR_Data_Monitoring_Privacy_files/figure-html/15-plot-sampling-comparison-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
-<p>The heatmap shows holdout test performance across model and sampling
-combinations. It is used as a confirmation view rather than the sole
-model-selection mechanism. The final model is selected using
-cross-validated F1 Score among configurations that also produce usable
-holdout performance.</p>
-<p>This distinction matters because a model can look strong on one
-holdout metric while being less stable during cross-validation. In this
-report, cross-validation provides the primary model-selection evidence,
-while holdout results confirm whether the selected configuration remains
-practically useful on unseen data.</p>
-<p>The results show that no single configuration dominates every metric.
-Some approaches improve recall but reduce precision, while others are
-more conservative. This reinforces that monitoring-related turnover
-modeling should be interpreted as a decision-support layer, not as an
-automatic classification system.</p>
+<h2>Baseline Benchmark and Holdout Checkpoint</h2>
+<p>The baseline modeling page established the strongest no-sampling
+benchmark for monitoring-related turnover risk. In that comparison,
+<strong>XGBoost with No Sampling</strong> produced the strongest
+baseline F1 Score.</p>
+<p>This section uses that baseline winner as a reference point for the
+monitoring-specific holdout results. The purpose of this plot is not to
+select the final model by holdout F1 alone. Instead, it shows how each
+monitoring configuration performed against the original no-sampling
+benchmark on the holdout test set.</p>
+<p>This distinction matters. A model can perform slightly above the
+baseline on one holdout split while another model may be more defensible
+under cross-validation and stability requirements. For that reason, this
+project uses the holdout comparison as a practical checkpoint, while
+final model selection is based on cross-validated F1 Score with holdout
+stability confirmation.</p>
+<p>The chart below places the baseline winner first. Bars extending to
+the right of the dashed line exceeded the baseline F1 Score on the
+holdout set, while bars ending to the left underperformed relative to
+that benchmark.</p>
+<p><img src="hr_data_monitoring_privacy_files/figure-html/15-monitoring-f1-vs-baseline-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+<p>This holdout checkpoint shows that monitoring-related turnover risk
+had a strong no-sampling baseline. One XGBoost up-sampling configuration
+slightly exceeded that benchmark on holdout F1, while several other
+configurations performed very close to the baseline.</p>
+<p>At the same time, the final model is not selected using holdout F1
+alone. The holdout comparison explains how configurations behaved on the
+test split, while the final recommendation is based on a
+cross-validation-first rule with holdout stability confirmation.</p>
+<p>For monitoring-related risk, this distinction is especially
+important. Because the outcome involves privacy, trust, and governance
+concerns, the selected model needs to be both statistically defensible
+and operationally responsible. A slightly higher holdout F1 score is
+useful context, but it does not automatically override the broader
+model-selection rule.</p>
 </div>
 <div id="precision-recall" class="section level2">
 <h2>Precision–Recall Curve Analysis</h2>
-<p><img src="HR_Data_Monitoring_Privacy_files/figure-html/16-precision-recall-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
-<p>The precision–recall view shows how each model configuration balances
-detection capability against prediction reliability. Configurations
-farther to the right detect more employees with monitoring-related
-turnover risk, while configurations higher on the chart produce more
-reliable positive predictions.</p>
-<p>The selected configuration is highlighted with an outlined marker. It
-is not chosen because it maximizes a single metric in isolation; rather,
-it provides the strongest cross-validated F1 Score among configurations
-that also produced usable holdout performance.</p>
-<p>This reinforces the business logic behind the model-selection
-process: the goal is not to flag as many employees as possible or
-eliminate all false positives, but to create a practical monitoring-risk
-screening layer that can guide earlier review without replacing human
-judgment.</p>
+<p><img src="hr_data_monitoring_privacy_files/figure-html/16-precision-recall-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+<p>The precision–recall view shows how each monitoring configuration
+balances risk detection with prediction reliability.</p>
+<p>Configurations farther to the right detect more monitoring-related
+risk cases. Configurations higher on the chart produce more reliable
+positive predictions. The selected model is highlighted because it
+represents the configuration chosen by the cross-validation-first
+selection rule after holdout stability confirmation.</p>
+<p>For monitoring-related risk, this tradeoff is especially important.
+False positives can create unnecessary concern or governance-review
+burden, while false negatives may miss emerging trust, privacy, or
+monitoring-related strain. The selected model’s holdout precision is
+especially important because it suggests that positive monitoring-risk
+flags are highly reliable in the synthetic test set, even though recall
+remains moderate.</p>
 </div>
 <div id="cross-validated-model-comparison" class="section level2">
 <h2>Cross-Validated Model Comparison</h2>
 <div id="model-selection" class="section level3">
 <h3>Model Selection</h3>
+<p>The model-selection step should be interpreted separately from the
+baseline checkpoint above. The baseline checkpoint shows how
+configurations performed on one holdout test split relative to the
+no-sampling baseline winner. The final selection rule gives more weight
+to cross-validated F1 Score because it provides a more stable estimate
+of model behavior across resampled training folds.</p>
 <p>Model selection was guided by a two-step rule designed to balance
 statistical rigor with business usefulness.</p>
 <p>First, candidate configurations were ranked by cross-validated F1
@@ -411,23 +440,24 @@ Score, which serves as the primary model-selection metric because it
 balances precision and recall under class imbalance. Second, the leading
 candidates were reviewed on the holdout test set to confirm that they
 still produced usable positive-class predictions on unseen data.</p>
-<p>This second step matters. A configuration can rank highly during
-resampling yet behave too aggressively or too weakly on the holdout set.
-For this reason, the final model is selected as the strongest
-cross-validated configuration that also satisfies minimum holdout
-stability requirements.</p>
+<p>For monitoring-related risk, this second step is especially important
+because false positives can create unnecessary privacy, trust, or
+governance concerns. The selected configuration produced very strong
+holdout precision, meaning that when it flagged monitoring-related risk
+in the synthetic test set, those positive predictions were highly
+reliable.</p>
 <p>In this run, the recommended configuration was <strong>Random Forest
 with Up Sampling</strong>. The model should be interpreted as a
-<strong>risk prioritization tool</strong>, meaning it helps identify
-employees or workforce segments that may warrant earlier privacy, trust,
-or monitoring-governance review, while leaving final decisions to HR
-leaders, managers, governance stakeholders, and organizational
-context.</p>
+<strong>privacy-aware monitoring-risk prioritization tool</strong>,
+meaning it helps identify employees or workforce segments that may
+warrant earlier privacy, trust, or monitoring-governance review, while
+leaving final decisions to HR leaders, managers, governance
+stakeholders, and organizational context.</p>
 </div>
 </div>
 <div id="selected-model-holdout-performance" class="section level2">
 <h2>Selected Model Holdout Performance</h2>
-<p><img src="HR_Data_Monitoring_Privacy_files/figure-html/18-final-model-metrics-plot-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="hr_data_monitoring_privacy_files/figure-html/18-final-model-metrics-plot-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
 </div>
 <div id="risk-distribution" class="section level2">
 <h2>Risk Distribution</h2>
@@ -439,7 +469,7 @@ signals</strong>, not definitive employee labels.</p>
 trust, workload pressure, and governance context, probability scores
 should be interpreted as prioritization signals that help identify where
 additional HR or monitoring-governance review may be warranted.</p>
-<p><img src="HR_Data_Monitoring_Privacy_files/figure-html/19-risk-distribution-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="hr_data_monitoring_privacy_files/figure-html/19-risk-distribution-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
 </div>
 <div id="review-priority-segmentation" class="section level2">
 <h2>Review-Priority Segmentation</h2>
@@ -452,7 +482,7 @@ relative ranking is more useful than rigid fixed thresholds. In
 practice, HR and governance teams could adjust review queues based on
 available capacity, privacy sensitivity, intervention goals, and
 tolerance for missed risk.</p>
-<p><img src="HR_Data_Monitoring_Privacy_files/figure-html/20-risk-segmentation-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="hr_data_monitoring_privacy_files/figure-html/20-risk-segmentation-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
 <p>For monitoring-related turnover risk, these tiers should be treated
 as privacy, trust, and governance prioritization signals. Lower-priority
 employees may require normal monitoring-governance communication,
@@ -464,16 +494,19 @@ high-priority employees may warrant earlier HR or governance review.</p>
 <h1>Final Model Summary &amp; Key Takeaways</h1>
 <p>The selected model represents the strongest cross-validated F1 Score
 among configurations that also met minimum holdout stability
-requirements. This means the final model was not selected only because
-it performed well during resampling; it also had to produce usable
-positive-class predictions on unseen data.</p>
-<p>While the absolute performance values remain moderate, the model is
-useful as a <strong>risk prioritization tool</strong> because it helps
-rank employees by relative likelihood of monitoring-related turnover
-risk. This distinction is important: the model should not be used to
-make automatic employment decisions. Instead, it supports earlier
-privacy-aware review, monitoring-governance conversations, and more
-focused workforce trust management.</p>
+requirements. This means the final model was not selected solely because
+it performed well on one holdout test split; it also had to demonstrate
+stronger generalizability during cross-validation and remain practically
+usable on unseen data.</p>
+<p>For monitoring-related turnover risk, the selected model is
+especially useful as a <strong>privacy-aware risk prioritization
+tool</strong> because its holdout precision was very strong. In
+practical terms, this means the model is conservative but reliable when
+it flags monitoring-related risk. This distinction is important: the
+model should not be used to make automatic employment decisions or
+definitive conclusions about employee behavior. Instead, it supports
+earlier privacy-aware review, monitoring-governance conversations, and
+more focused workforce trust management.</p>
 <div id="key-takeaways" class="section level2">
 <h2>📊 Key Takeaways</h2>
 <div class="model-highlight-card">
@@ -524,7 +557,7 @@ The final model was selected using a two-step process: cross-validation identifi
 </p>
 
 <p>
-In this run, the selected configuration was <strong>Random Forest with Up Sampling</strong>. It achieved a cross-validated F1 Score of <strong>0.918</strong>, while its holdout test results produced precision of <strong>1</strong>, recall of <strong>0.446</strong>, and F1 Score of <strong>0.617</strong>.
+In this run, the selected configuration was <strong>Random Forest with Up Sampling</strong>. It achieved a cross-validated F1 Score of <strong>0.918</strong>. On the holdout test set, it produced precision of <strong>1</strong>, recall of <strong>0.446</strong>, and F1 Score of <strong>0.617</strong>.
 </p>
 
 <p>
@@ -532,11 +565,11 @@ The selected model met the holdout stability screen and ranked strongest by cros
 </p>
 
 <p>
-This selection rule balances model-development rigor with practical business usefulness. Cross-validation identifies the strongest generalizable configuration, while the holdout stability check ensures the final model still produces usable predictions on unseen data.
+This means the selected model was conservative but highly reliable when it flagged monitoring-related risk in the synthetic holdout set. That reliability matters because monitoring and privacy risk is governance-sensitive: false positives can create unnecessary concern, while false negatives may miss emerging trust or surveillance-related strain.
 </p>
 
 <p>
-Because the model is designed for workforce risk screening, predictions should be treated as prompts for further HR or manager review, not as standalone conclusions about employee behavior.
+Because the model is designed for privacy-aware workforce risk screening, predictions should be treated as prompts for further HR, manager, or governance review, not as standalone conclusions about employee behavior.
 </p>
 
 </div>
@@ -675,7 +708,7 @@ trust, and support more informed strategic HR decision-making.</p>
 <div class="page-nav">
 
   <div class="nav-left">
-    <a href="HR_Data_Quiet_Quitting.html" class="cta-btn btn-blue">← Back</a>
+    <a href="hr_data_quiet_quitting.html" class="cta-btn btn-blue">← Back</a>
   </div>
 
   <div class="nav-center">
@@ -683,14 +716,14 @@ trust, and support more informed strategic HR decision-making.</p>
   </div>
 
   <div class="nav-right">
-    <a href="HR_Data_Insights_Gleaned.html" class="cta-btn btn-red">Next →</a>
+    <a href="hr_data_insights_gleaned.html" class="cta-btn btn-red">Next →</a>
   </div>
 
 </div>
 
 </div> <!-- page-content -->
 </div> <!-- page-layout -->
-</div> <!-- main-container -->
+</div> <!-- report-container -->
 </div>
 </div>
 

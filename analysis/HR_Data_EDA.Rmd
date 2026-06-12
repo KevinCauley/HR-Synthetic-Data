@@ -1,5 +1,5 @@
 ---
-title: ""
+title: "Exploratory Data Analysis | HR Workforce Analytics"
 
 output:
   html_document:
@@ -12,10 +12,8 @@ output:
     df_print: paged
     fig_caption: true
     css: assets/styles.css
-    includes:
-      in_header: ../docs/assets/header.html
 
-number_sections: true
+number_sections: false
 ---
 
 ```{r 00-setup, include=FALSE}
@@ -156,21 +154,19 @@ hr_df <- data_demographics %>%
     -Involuntary_Termination
   ) %>%
   janitor::clean_names() %>%
-  mutate(across(where(is.character), as.factor))
-
-data <- hr_df
-
-dir.create(here("data", "processed"), recursive = TRUE, showWarnings = FALSE)
-
-saveRDS(hr_df, here("data", "processed", "hr_dataset_clean.rds"))
-
-hr_df <- hr_df %>%
+  mutate(across(where(is.character), as.factor)) %>%
   mutate(
     across(
       c(turnover_intention, quiet_quitting, monitoring_turnover_risk),
       ~ factor(trimws(as.character(.x)), levels = c("No", "Yes"))
     )
   )
+
+data <- hr_df
+
+dir.create(here("data", "processed"), recursive = TRUE, showWarnings = FALSE)
+
+saveRDS(hr_df, here("data", "processed", "hr_dataset_clean.rds"))
 ```
 
 ```{r 00-base-dataset, include=FALSE}
@@ -321,7 +317,6 @@ employee_attrition_meta <- tribble(
       <div class="sidebar-card">
         <div class="sidebar-label">On this page</div>
         <nav class="sidebar-nav">
-          <a href="#eda-overview">Overview</a>
           <a href="#intro">Introduction</a>
           <a href="#why-eda-matters">Why This Matters</a>
           <a href="#eda-objectives">Objectives</a>
@@ -356,7 +351,7 @@ employee_attrition_meta <- tribble(
 
       <div class="cta-row">
         <a href="index.html" class="cta-btn btn-blue">← Back Home</a>
-        <a href="HR_Data_Turnover_Intention.html" class="cta-btn btn-red">Next →</a>
+        <a href="hr_data_turnover_intention.html" class="cta-btn btn-red">Next →</a>
       </div>
 ```
 
@@ -697,21 +692,42 @@ top_continuous <- numeric_df %>%
   summarise(across(all_of(continuous_vars), ~ var(.x, na.rm = TRUE))) %>%
   pivot_longer(everything(), names_to = "name", values_to = "value") %>%
   arrange(desc(value)) %>%
-  slice_head(n = 9) %>%
+  slice_head(n = 5) %>%
   pull(name)
 
 plots <- lapply(top_continuous, function(var) {
   ggplot(hr_df, aes(x = .data[[var]])) +
-    geom_histogram(fill = hr_palette$primary, bins = 30, alpha = 0.85) +
-    geom_density(color = "black", linewidth = 0.9) +
-    labs(title = clean_label(var), x = NULL, y = "Density") +
-    theme_hr(10)
+    geom_histogram(
+      fill = hr_palette$primary,
+      bins = 30,
+      alpha = 0.85,
+      color = "white",
+      linewidth = 0.15
+    ) +
+    labs(
+      title = clean_label(var),
+      x = NULL,
+      y = "Employee Count"
+    ) +
+    theme_hr(10) +
+    theme(
+      plot.title = element_text(face = "bold", size = 12),
+      axis.title.y = element_text(size = 9),
+      axis.text = element_text(size = 8.5),
+      panel.grid.minor = element_blank()
+    )
 })
 
 p <- patchwork::wrap_plots(plots, ncol = 3)
 
 print(p)
-save_plot(p, "continuous_distributions.png", 8.5, 5.5)
+
+save_plot(
+  p,
+  "continuous_distributions.png",
+  width = 8.8,
+  height = 5.4
+)
 ```
 
 ### 📊 Key Takeaways
@@ -906,13 +922,13 @@ The analysis focuses on two complementary views:
 
 Together, these views help determine whether the dataset contains realistic clusters of related constructs while remaining stable enough for predictive modeling.
 
-## Correlation Matrix for Numeric Variables
+## Top Numeric Correlation Pairs
 
-The correlation matrix summarizes pairwise relationships among numeric variables and reorders them using hierarchical clustering to improve interpretability.
+The original correlation matrix is useful as a diagnostic, but a full matrix becomes difficult to read when the dataset includes many workforce variables. For the main report, the more useful view is a ranked list of the strongest numeric relationships.
 
-To reduce noise while preserving meaningful workforce signal, only correlations with an absolute value of at least |r| ≥ 0.10 are displayed. This makes it easier to identify behavioral clusters and localized relationships without overstating weak associations that are common in complex organizational systems.
+This plot removes the diagonal self-correlations and highlights the strongest non-duplicate numeric relationships. This makes the relationship structure easier to interpret without overstating weak associations.
 
-```{r 05-correlation-matrix-elite, echo=FALSE}
+```{r 05-correlation-plot, echo=FALSE}
 hr_df <- base_df
 
 numeric_data <- safe_numeric(hr_df)
@@ -922,87 +938,120 @@ corr_matrix <- cor(
   use = "complete.obs"
 )
 
-# Cluster ordering
-hc <- hclust(as.dist(1 - abs(corr_matrix)))
-corr_matrix <- corr_matrix[hc$order, hc$order]
-
 corr_df <- as.data.frame(as.table(corr_matrix)) %>%
-  rename(
+  dplyr::rename(
     Var1 = Var1,
     Var2 = Var2,
     Correlation = Freq
   ) %>%
-  mutate(
-    Var1 = clean_label(Var1),
-    Var2 = clean_label(Var2),
-    abs_corr = abs(Correlation)
+  dplyr::filter(as.character(Var1) < as.character(Var2)) %>%
+  dplyr::mutate(
+    Abs_Correlation = abs(Correlation),
+    Direction = dplyr::case_when(
+      Correlation >= 0 ~ "Positive",
+      TRUE ~ "Negative"
+    ),
+    Relationship = paste0(
+      clean_label(as.character(Var1)),
+      " ↔ ",
+      clean_label(as.character(Var2))
+    )
   ) %>%
-  filter(abs_corr >= 0.10)
-
-var_levels <- clean_label(colnames(corr_matrix))
-
-corr_df <- corr_df %>%
-  mutate(
-    Var1 = factor(Var1, levels = var_levels),
-    Var2 = factor(Var2, levels = rev(var_levels))
+  dplyr::arrange(dplyr::desc(Abs_Correlation)) %>%
+  dplyr::slice_head(n = 10) %>%
+  dplyr::mutate(
+    Relationship = stringr::str_wrap(Relationship, width = 32),
+    Relationship = forcats::fct_reorder(Relationship, Abs_Correlation),
+    Label = scales::number(Correlation, accuracy = 0.001)
   )
 
 p <- ggplot(
   corr_df,
-  aes(x = Var1, y = Var2, fill = Correlation)
+  aes(
+    x = Abs_Correlation,
+    y = Relationship,
+    fill = Direction
+  )
 ) +
-  geom_tile(
-    color = "white",
-    linewidth = 0.15
+  geom_col(
+    width = 0.68,
+    alpha = 0.95
   ) +
-  scale_fill_gradient2(
-    low = "#D7263D",
-    mid = "#F8F9FA",
-    high = "#2A9D8F",
-    midpoint = 0,
-    limits = c(-1, 1)
+  geom_text(
+    aes(label = Label),
+    hjust = -0.10,
+    size = 3.2,
+    fontface = "bold",
+    color = "#243447"
   ) +
-  coord_fixed() +
-  theme_minimal(base_size = 9) +
-  theme(
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    axis.text.y = element_text(size = 5.7),
-    panel.grid = element_blank(),
-    legend.position = "right",
-    plot.title = element_text(
-      face = "bold",
-      size = 14
-    ),
-    plot.subtitle = element_text(
-      size = 10
-    ),
-    plot.margin = margin(10, 15, 10, 10)
+  scale_fill_manual(
+    values = c(
+      "Positive" = "#2A9D8F",
+      "Negative" = "#E76F51"
+    )
+  ) +
+  scale_x_continuous(
+    labels = scales::number_format(accuracy = 0.1),
+    limits = c(0, max(corr_df$Abs_Correlation, na.rm = TRUE) + 0.10),
+    breaks = seq(0, 0.8, by = 0.1),
+    expand = expansion(mult = c(0, 0.02))
   ) +
   labs(
-    title = "Correlation Structure of Workforce Variables",
-    subtitle = "Displaying only correlations where |r| ≥ 0.10",
-    x = NULL,
+    title = "Strongest Numeric Relationships",
+    subtitle = "Top non-duplicate correlations after removing self-correlations",
+    x = "Absolute correlation strength",
     y = NULL,
-    fill = "Correlation"
-  )
+    fill = NULL
+  ) +
+  theme_hr(11) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 16,
+      hjust = 0
+    ),
+    plot.subtitle = element_text(
+      color = "#5A6B7C",
+      size = 11,
+      hjust = 0
+    ),
+    plot.title.position = "plot",
+    axis.text.y = element_text(
+      size = 8.3,
+      face = "bold",
+      color = "#243447",
+      lineheight = 0.98
+    ),
+    axis.text.x = element_text(size = 9.5),
+    axis.title.x = element_text(size = 10.5),
+    legend.position = "top",
+    legend.justification = "left",
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(12, 48, 12, 10)
+  ) +
+  coord_cartesian(clip = "off")
 
 print(p)
-save_plot(p, "correlation_matrix.png", 10, 7)
+
+save_plot(
+  p,
+  "correlation_plot.png",
+  width = 10.5,
+  height = 5.9
+)
 ```
 
 ### Interpreting Correlation Strength
 
-Correlation coefficients describe the direction and magnitude of pairwise linear relationships. In workforce analytics, even relatively modest correlations can be meaningful because employee outcomes are rarely driven by a single dominant factor.
+Correlation coefficients describe the direction and magnitude of pairwise linear relationships. In workforce analytics, even modest correlations can be meaningful because employee outcomes are rarely driven by a single factor.
 
 A practical interpretation framework for this analysis is:
 
 - |r| ≈ 0.10 → weak but potentially meaningful relationship  
 - |r| ≈ 0.15–0.20 → small but consistent association  
 - |r| ≈ 0.25–0.35 → moderate relationship  
-- |r| ≥ 0.50 → comparatively strong relationship and possible multicollinearity concern  
-
-This threshold-based framing supports interpretation without exaggerating the importance of weak but realistic workforce signals.
+- |r| ≥ 0.50 → comparatively strong relationship and possible redundancy concern  
 
 ### 📊 Key Takeaways
 
@@ -1010,92 +1059,347 @@ This threshold-based framing supports interpretation without exaggerating the im
 <div class="takeaway-box">
 
 <p>
-The correlation matrix indicates that most variables exhibit weak to moderate relationships, suggesting low overall multicollinearity and strong structural suitability for predictive modeling.
+The strongest numeric relationship is between <b>salary and tenure</b>, which reflects an expected workforce progression pattern rather than a data quality issue.
 </p>
 
 <p>
-A limited number of meaningful relationships emerge. The most prominent is between <b>tenure and salary</b>, reflecting expected organizational progression patterns.
+Most other relationships remain weak to moderate, suggesting that the dataset contains useful signal without being dominated by excessive linear redundancy.
 </p>
 
 <p>
-Clusters are also visible among <b>mental health variables</b> (stress, anxiety, burnout) and <b>engagement-related measures</b>, indicating that these constructs capture shared underlying dimensions of employee experience.
+This supports the use of predictive modeling because the feature space includes multiple workforce dimensions instead of a small set of overpowering predictors.
 </p>
 
 <p>
-Monitoring and privacy-related variables show smaller but consistent associations, suggesting they contribute signal without dominating the feature space.
-</p>
-
-<p>
-Overall, the correlation structure reflects a realistic workforce environment where outcomes are influenced by multiple interacting factors rather than a few dominant predictors.
+The correlation results also reinforce the need for later model evaluation: workforce outcomes are shaped by interacting patterns across compensation, tenure, wellbeing, engagement, monitoring, and privacy-related variables.
 </p>
 
 </div>
 ```
 
-## Pairwise Relationship Exploration
+## Relationship Spotlight
 
-```{r 06-pairwise-plot-clean, echo=FALSE}
+Instead of displaying every pairwise relationship at once, this section focuses on a smaller set of workforce relationships that are easier to interpret visually.
+
+These examples were selected because they represent different types of workforce signal: compensation progression, workload strain, wellbeing, and monitoring/privacy perception.
+
+```{r 06-pairwise-relationship-spotlight, echo=FALSE}
+library(patchwork)
+
 hr_df <- base_df
 
-numeric_data <- safe_numeric(hr_df)
+# -------------------------------------------------------------------
+# Relationship Spotlight Across Workforce Signals
+# Uses cleaned snake_case variable names from hr_dataset_clean.rds
+# -------------------------------------------------------------------
 
-# Select top variance variables
-top_vars <- numeric_data %>%
-  summarise(across(everything(), var, na.rm = TRUE)) %>%
-  pivot_longer(everything(), names_to = "Variable", values_to = "Variance") %>%
-  arrange(desc(Variance)) %>%
-  slice_head(n = 6) %>%
-  pull(Variable)
+required_relationship_vars <- c(
+  "burnout_score",
+  "wellbeing_score",
+  "perceived_intrusiveness",
+  "privacy_concern_score",
+  "overtime_hours",
+  "absenteeism_due_to_mental_health",
+  "tenure_years",
+  "average_salary"
+)
 
-plot_data <- numeric_data %>%
-  select(all_of(top_vars))
+missing_relationship_vars <- setdiff(required_relationship_vars, names(hr_df))
 
-# Clean + wrap labels EARLY
-colnames(plot_data) <- wrap_label(clean_label(colnames(plot_data)), 12)
+if (length(missing_relationship_vars) > 0) {
+  stop(
+    "Missing variable(s) for relationship spotlight: ",
+    paste(missing_relationship_vars, collapse = ", ")
+  )
+}
 
-p <- GGally::ggpairs(
-  plot_data,
+# ---- Correlation summaries ----
+corr_bw <- cor(
+  hr_df$burnout_score,
+  hr_df$wellbeing_score,
+  use = "complete.obs"
+)
 
-  lower = list(
-    continuous = wrap("points", alpha = 0.4, size = 0.7, color = "#2A9D8F")
-  ),
+corr_mp <- cor(
+  hr_df$perceived_intrusiveness,
+  hr_df$privacy_concern_score,
+  use = "complete.obs"
+)
 
-  upper = list(
-    continuous = wrap("cor", size = 3)
-  ),
+corr_om <- cor(
+  hr_df$overtime_hours,
+  hr_df$absenteeism_due_to_mental_health,
+  use = "complete.obs"
+)
 
-  diag = list(
-    continuous = wrap("densityDiag", alpha = 0.6, fill = "#5FA8D3")
+corr_ts <- cor(
+  hr_df$tenure_years,
+  hr_df$average_salary,
+  use = "complete.obs"
+)
+
+# ---- Plot 1: Burnout vs Wellbeing ----
+p1 <- ggplot(
+  hr_df,
+  aes(
+    x = burnout_score,
+    y = wellbeing_score
   )
 ) +
-  theme_hr(9) +
-  theme(
-    strip.text.x = element_text(size = 8),
-
-    strip.text.y = element_text(   
-      size = 7,
-      angle = 0,
-      margin = margin(r = 6)
+  geom_count(
+    color = "#2A9D8F",
+    fill = "#7BD6C7",
+    alpha = 0.82,
+    stroke = 0.35
+  ) +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    color = "#1D3557",
+    fill = "#A8DADC",
+    linewidth = 1.15,
+    alpha = 0.18
+  ) +
+  annotate(
+    "label",
+    x = 1.15,
+    y = 6.8,
+    label = paste0(
+      "Wellbeing balance\n",
+      "r = ",
+      scales::number(corr_bw, accuracy = 0.001)
     ),
+    hjust = 0,
+    vjust = 1,
+    size = 3.6,
+    label.size = 0.25,
+    fill = "white",
+    color = "#243447",
+    fontface = "bold"
+  ) +
+  scale_x_continuous(
+    breaks = 1:7,
+    limits = c(0.7, 7.3)
+  ) +
+  scale_y_continuous(
+    breaks = 1:7,
+    limits = c(0.7, 7.3)
+  ) +
+  scale_size_area(
+    max_size = 13,
+    guide = "none"
+  ) +
+  labs(
+    title = "Burnout vs Wellbeing",
+    x = "Burnout Score",
+    y = "Wellbeing Score"
+  ) +
+  theme_hr(10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 13, hjust = 0.5),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8.5),
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
 
-    panel.spacing = unit(0.4, "lines")
+# ---- Plot 2: Monitoring Intrusiveness vs Privacy Concern ----
+p2 <- ggplot(
+  hr_df,
+  aes(
+    x = perceived_intrusiveness,
+    y = privacy_concern_score
+  )
+) +
+  geom_count(
+    color = "#2A9D8F",
+    fill = "#7BD6C7",
+    alpha = 0.82,
+    stroke = 0.35
+  ) +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    color = "#1D3557",
+    fill = "#A8DADC",
+    linewidth = 1.15,
+    alpha = 0.18
+  ) +
+  annotate(
+    "label",
+    x = 1.15,
+    y = 4.9,
+    label = paste0(
+      "Privacy and monitoring\n",
+      "r = ",
+      scales::number(corr_mp, accuracy = 0.001)
+    ),
+    hjust = 0,
+    vjust = 1,
+    size = 3.6,
+    label.size = 0.25,
+    fill = "white",
+    color = "#243447",
+    fontface = "bold"
+  ) +
+  scale_x_continuous(
+    breaks = 1:5,
+    limits = c(0.7, 5.3)
+  ) +
+  scale_y_continuous(
+    breaks = 1:5,
+    limits = c(0.7, 5.3)
+  ) +
+  scale_size_area(
+    max_size = 13,
+    guide = "none"
+  ) +
+  labs(
+    title = "Monitoring Intrusiveness vs Privacy Concern",
+    x = "Perceived Intrusiveness",
+    y = "Privacy Concern Score"
+  ) +
+  theme_hr(10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 13, hjust = 0.5),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8.5),
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
+
+# ---- Plot 3: Overtime vs Mental Health Absence ----
+p3 <- ggplot(
+  hr_df,
+  aes(
+    x = overtime_hours,
+    y = absenteeism_due_to_mental_health
+  )
+) +
+  geom_bin2d(
+    bins = 24,
+    alpha = 0.92
+  ) +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    color = "#1D3557",
+    fill = "#A8DADC",
+    linewidth = 1.15,
+    alpha = 0.18
+  ) +
+  annotate(
+    "label",
+    x = 8,
+    y = 9.5,
+    label = paste0(
+      "Workload strain\n",
+      "r = ",
+      scales::number(corr_om, accuracy = 0.001)
+    ),
+    hjust = 0,
+    vjust = 1,
+    size = 3.6,
+    label.size = 0.25,
+    fill = "white",
+    color = "#243447",
+    fontface = "bold"
+  ) +
+  scale_fill_gradient(
+    low = "#D9F3EE",
+    high = "#2A9D8F",
+    name = "Count"
+  ) +
+  labs(
+    title = "Overtime vs Mental Health Absence",
+    x = "Overtime Hours",
+    y = "Mental Health Absence"
+  ) +
+  theme_hr(10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 13, hjust = 0.5),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8.5),
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
+
+# ---- Plot 4: Tenure vs Salary ----
+p4 <- ggplot(
+  hr_df,
+  aes(
+    x = tenure_years,
+    y = average_salary
+  )
+) +
+  geom_bin2d(
+    bins = 24,
+    alpha = 0.92
+  ) +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    color = "#1D3557",
+    fill = "#A8DADC",
+    linewidth = 1.15,
+    alpha = 0.18
+  ) +
+  annotate(
+    "label",
+    x = 0.8,
+    y = 245000,
+    label = paste0(
+      "Compensation progression\n",
+      "r = ",
+      scales::number(corr_ts, accuracy = 0.001)
+    ),
+    hjust = 0,
+    vjust = 1,
+    size = 3.6,
+    label.size = 0.25,
+    fill = "white",
+    color = "#243447",
+    fontface = "bold"
+  ) +
+  scale_fill_gradient(
+    low = "#D9F3EE",
+    high = "#2A9D8F",
+    name = "Count"
+  ) +
+  scale_y_continuous(
+    labels = scales::label_dollar()
+  ) +
+  labs(
+    title = "Tenure vs Salary",
+    x = "Tenure Years",
+    y = "Average Salary"
+  ) +
+  theme_hr(10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 13, hjust = 0.5),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8.5),
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
+
+p <- (p1 + p2) / (p3 + p4) +
+  patchwork::plot_annotation(
+    title = "Relationship Spotlight Across Workforce Signals",
+    subtitle = "Selected relationships used to assess compensation, workload, wellbeing, and monitoring patterns",
+    theme = theme(
+      plot.title = element_text(face = "bold", size = 18, hjust = 0),
+      plot.subtitle = element_text(size = 12, color = "#5A6B7C", hjust = 0)
+    )
   )
 
 print(p)
 
-# SAFE SAVE
-pairwise_path <- here::here("docs", "figures", PLOT_SUBFOLDER)
-
-if (!dir.exists(pairwise_path)) {
-  dir.create(pairwise_path, recursive = TRUE)
-}
-
-ggsave(
-  filename = file.path(pairwise_path, "pairwise_plot.png"),
-  plot = p,
-  width = 10,
-  height = 8,
-  dpi = 300
+save_plot(
+  p,
+  "pairwise_plot.png",
+  width = 12,
+  height = 8.8
 )
 ```
 
@@ -1105,23 +1409,11 @@ ggsave(
 <div class="takeaway-box">
 
 <p>
-The pairwise analysis provides additional context by revealing distribution shape and relationship patterns across key numeric variables.
+The relationship spotlight shows that only a few numeric relationships have clear linear structure. Salary and tenure show the clearest expected progression pattern, while workload, wellbeing, and monitoring-related relationships are more diffuse.
 </p>
 
 <p>
-The strongest visible relationship is between <b>tenure and salary</b>, where a clear upward trend confirms that compensation increases with organizational tenure.
-</p>
-
-<p>
-Most other variable combinations show dispersed and non-linear patterns, indicating that relationships are complex and not well captured by simple linear assumptions.
-</p>
-
-<p>
-Several variables—particularly behavioral and survey-based measures—display <b>banded structures</b>, reflecting their ordinal nature rather than continuous variation.
-</p>
-
-<p>
-These findings suggest that flexible modeling approaches, such as tree-based methods, will be better suited to capturing workforce dynamics than strictly linear models.
+This supports the modeling strategy used later in the project: workforce outcomes are not explained by one dominant predictor. Instead, useful prediction depends on combining multiple weak-to-moderate signals across employee experience, wellbeing, workload, and monitoring-related variables.
 </p>
 
 </div>
@@ -1612,17 +1904,19 @@ save_plot(p, "vif_categorical.png", 9, 6)
 
 ```{=html}
 <div class="takeaway-box">
-  <p>
-    Categorical multicollinearity was driven primarily by the detailed age-group encoding, where multiple dummy variables represented closely related levels of the same underlying construct.
-  </p>
 
-  <p>
-    After collapsing age groups into broader career-stage categories, VIF values improved substantially, indicating better structural stability and less redundancy among categorical predictors.
-  </p>
+<p>
+The initial categorical VIF check identified redundancy introduced by detailed categorical encoding, especially around age-group levels.
+</p>
 
-  <p>
-    This adjustment preserves the meaning of age-related workforce patterns while making the categorical feature space more suitable for downstream predictive modeling.
-  </p>
+<p>
+Rather than treating this as a data failure, the analysis uses it as a feature-engineering checkpoint. The age variable is collapsed into broader career-stage categories to reduce unnecessary redundancy while preserving workforce interpretation.
+</p>
+
+<p>
+The updated VIF check below is the more important diagnostic because it reflects the refined categorical feature structure used to support downstream modeling.
+</p>
+
 </div>
 ```
 
@@ -1965,13 +2259,15 @@ The exploratory analysis indicates that the synthetic workforce dataset is suita
 
 Key continuous variables show meaningful variability, behavioral indicators exhibit plausible skewness, and the overall predictor set remains structurally stable despite a few localized relationships. After minor feature engineering adjustments—most notably the simplification of age-group encoding—the dataset provides a balanced combination of realism, signal, and interpretability.
 
-The next stage focuses on building and evaluating machine learning models for three workforce outcomes:
+The next stage establishes a baseline modeling framework before moving into outcome-specific model refinement. This baseline step compares five supervised learning models under a consistent no-sampling condition, creating a reference point for later sampling strategies and final model selection.
+
+The baseline comparison focuses on three workforce outcomes:
 
 - **Turnover Intention**
 - **Quiet Quitting**
 - **Monitoring-Related Turnover Risk**
 
-Because class balance and predictor behavior differ across outcomes, later model evaluation will emphasize not only overall accuracy, but also recall, specificity, F1 score, and ROC-AUC where appropriate.
+Because class balance and predictor behavior differ across outcomes, later model evaluation will emphasize not only overall accuracy, but also precision, recall, F1 score, and ROC-AUC where appropriate.
 
 # Strategic Takeaways {#strategic-takeaways}
 
@@ -2048,8 +2344,8 @@ summary_html <- glue::glue("
     <li><strong>Maximum numeric VIF:</strong> {round(numeric_vif_max, 2)}, indicating acceptable multicollinearity for numeric predictors</li>
   </ul>
   <p>
-    Overall, the exploratory analysis confirms that the dataset is suitable for predictive modeling. The target variables show meaningful variation, predictor distributions are usable after preprocessing, and the relationship patterns support a multi-model classification approach rather than reliance on a single explanatory variable.
-  </p>
+  Overall, the exploratory analysis confirms that the dataset is suitable for predictive modeling. The target variables show meaningful variation, predictor distributions are usable after preprocessing, and the relationship patterns support a baseline-first modeling strategy before testing outcome-specific sampling approaches.
+</p>
 </div>
 ")
 
@@ -2061,10 +2357,10 @@ cat(summary_html)
 
 <div class="cta-row">
   <a href="index.html" class="cta-btn btn-blue">← Back Home</a>
-  <a href="HR_Data_Turnover_Intention.html" class="cta-btn btn-red">Next →</a>
+  <a href="hr_data_modeling_baseline.html" class="cta-btn btn-teal">Next: Baseline →</a>
 </div>
 
     </div> <!-- page-content -->
   </div> <!-- page-layout -->
-</div> <!-- main-container -->
+</div> <!-- report-container -->
 ```

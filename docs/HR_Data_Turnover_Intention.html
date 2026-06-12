@@ -12,12 +12,11 @@
 
 
 
-<title>HR_Data_Turnover_Intention.knit</title>
+<title>Turnover Intention Modeling | HR Workforce Analytics</title>
 
-<script src="HR_Data_Turnover_Intention_files/header-attrs-2.31/header-attrs.js"></script>
-<link href="HR_Data_Turnover_Intention_files/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
-<script src="HR_Data_Turnover_Intention_files/pagedtable-1.1/js/pagedtable.js"></script>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="hr_data_turnover_intention_files/header-attrs-2.31/header-attrs.js"></script>
+<link href="hr_data_turnover_intention_files/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
+<script src="hr_data_turnover_intention_files/pagedtable-1.1/js/pagedtable.js"></script>
 
 <style type="text/css">
   code{white-space: pre-wrap;}
@@ -46,6 +45,8 @@
 
 
 
+<h1 class="title toc-ignore">Turnover Intention Modeling | HR Workforce
+Analytics</h1>
 
 
 
@@ -81,7 +82,7 @@
       <!-- MATCH EDA STRUCTURE -->
       <div class="hero-section">
         <p class="hero-meta">
-          Kevin Allen Cauley • May 28, 2026
+          Kevin Allen Cauley • June 10, 2026
         </p>
 
         <h1 class="hero-title">Turnover Intention Modeling</h1>
@@ -93,52 +94,66 @@
 
       <!-- REPLACED page-nav WITH cta-row -->
       <div class="cta-row">
-        <a href="HR_Data_EDA.html" class="cta-btn btn-blue">← Back</a>
-        <a href="index.html" class="cta-btn btn-teal">Home</a>
-        <a href="HR_Data_Quiet_Quitting.html" class="cta-btn btn-red">Next →</a>
-      </div>
+  <a href="hr_data_modeling_baseline.html" class="cta-btn btn-blue">← Back</a>
+  <a href="index.html" class="cta-btn btn-teal">Home</a>
+  <a href="hr_data_quiet_quitting.html" class="cta-btn btn-red">Next →</a>
+</div>
 <div id="executive-summary" class="section level1">
 <h1>Executive Summary</h1>
-<p>This analysis develops a predictive modeling framework to identify
-employees at risk of turnover using a synthetic, research-informed HR
-dataset.</p>
-<p>Multiple machine learning models—including Logistic Regression,
-Random Forest, XGBoost, Support Vector Machines, and Naive Bayes—were
-evaluated across multiple sampling strategies to address class imbalance
-and compare predictive performance under different modeling
-conditions.</p>
-<p>Results show that <strong>model effectiveness is shaped by both
-algorithm choice and data strategy</strong>. Sampling strategies such as
-up-sampling, down-sampling, and SMOTE changed model behavior in
-meaningful ways, demonstrating that class-balancing choices can
-materially affect precision, recall, F1 Score, and overall
-usability.</p>
-<p>The final model-selection process uses <strong>cross-validated F1
-Score</strong> as the primary ranking metric, while holdout test
-performance is used as a stability check to confirm that the selected
-configuration remains practically usable on unseen data.</p>
-<p>Rather than relying on a single predictive signal, turnover risk is
-influenced by a <strong>combination of behavioral, organizational,
-wellbeing, and perception-based factors</strong>, including engagement,
-burnout, managerial support, role conditions, and workplace
-experience.</p>
-<p>From a business perspective, this framework enables a shift from
-<strong>reactive attrition response to proactive workforce risk
-management</strong>, supporting earlier intervention, better resource
-allocation, and improved retention outcomes.</p>
+<p>This page builds on the baseline modeling comparison by focusing
+specifically on <strong>turnover intention</strong>.</p>
+<p>The baseline page established how five supervised learning models
+performed under a no-sampling condition. This report takes the next step
+by testing whether outcome-specific sampling strategies improve
+turnover-risk detection, model balance, and practical usefulness.</p>
+<p>For this outcome, the goal is not simply to maximize accuracy. A
+useful turnover model needs to help identify employees who may warrant
+earlier retention review while avoiding an overly broad or unreliable
+flagging process.</p>
+<p>Multiple model configurations were evaluated across four data
+strategies:</p>
+<ul>
+<li><strong>No Sampling</strong></li>
+<li><strong>Up Sampling</strong></li>
+<li><strong>Down Sampling</strong></li>
+<li><strong>SMOTE</strong></li>
+</ul>
+<p>Final model selection is based primarily on <strong>cross-validated
+F1 Score</strong>, with holdout performance used as a practical
+stability check. This keeps the analysis grounded in both
+model-development evidence and unseen test-set behavior.</p>
+<p>From a business perspective, the selected model should be interpreted
+as a <strong>retention-risk prioritization tool</strong>. It can help
+identify where HR, managers, or leaders may want to look more closely,
+but it should not replace employee context, manager judgment, or human
+review.</p>
 </div>
 <div id="modeling-overview" class="section level1">
 <h1>Modeling Overview</h1>
-<p>This section builds on the exploratory analysis by applying
-predictive modeling techniques to identify employees at risk of
-turnover.</p>
-<p>Rather than relying on a single model, multiple algorithms are
-evaluated and compared to determine the most effective approach for
-workforce decision-making.</p>
-<p>Each model is assessed using cross-validation and evaluated across
-multiple sampling strategies to address class imbalance.</p>
-<p>The objective is not only to identify the most accurate model, but to
-determine which approach best aligns with organizational priorities.</p>
+<p>This report evaluates turnover intention as a binary classification
+problem, where <strong>“Yes”</strong> represents employees flagged as
+having elevated turnover intention.</p>
+<p>The modeling workflow follows a baseline-first structure:</p>
+<ol style="list-style-type: decimal">
+<li>Establish the strongest no-sampling benchmark from the baseline
+modeling page.</li>
+<li>Train turnover-specific model configurations across sampling
+strategies.</li>
+<li>Compare holdout F1 performance against the baseline winner as a
+practical checkpoint.</li>
+<li>Review the precision–recall tradeoff for operational
+usefulness.</li>
+<li>Select the final model using cross-validated F1 Score with holdout
+stability confirmation.</li>
+</ol>
+<p>This structure separates three related but different ideas: the
+<strong>baseline winner</strong>, the <strong>holdout
+checkpoint</strong>, and the <strong>final selected model</strong>.</p>
+<p>That distinction matters. A model may perform well on one holdout
+split, but final selection should not rely on a single test result
+alone. For this reason, the baseline and holdout comparison are used to
+explain model behavior, while the final recommendation is based on a
+cross-validation-first selection rule.</p>
 </div>
 <div id="data-prep-framework" class="section level1">
 <h1>Data Preparation &amp; Modeling Framework</h1>
@@ -342,66 +357,66 @@ decision-making.</p>
 with operational efficiency—minimizing both missed risk and unnecessary
 intervention.</p>
 <div id="sampling-strategy-comparison" class="section level2">
-<h2>Sampling Strategy Comparison</h2>
-<p>Class imbalance is a major challenge in turnover-intention modeling
-because employees likely to leave typically represent a smaller portion
-of the workforce population.</p>
-<p>To better understand how class-balancing strategies influence
-workforce-risk detection, multiple resampling approaches were evaluated
-across all algorithms. The goal is not to artificially inflate
-performance, but to examine how different balancing strategies affect
-the tradeoff between risk detection capability and prediction
-reliability.</p>
-<p>This comparison helps demonstrate how modeling decisions influence
-practical workforce prioritization outcomes within HR analytics
-environments.</p>
-<p>The models include:</p>
-<ul>
-<li>No Sampling (baseline)</li>
-<li>Up Sampling (increase minority class)</li>
-<li>Down Sampling (reduce majority class)</li>
-<li>SMOTE (synthetic minority generation)</li>
-</ul>
-<p><strong>The goal is to understand how balancing the dataset impacts
-model performance.</strong></p>
-<p><img src="HR_Data_Turnover_Intention_files/figure-html/15-plot-sampling-comparison-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
-<p>The heatmap shows holdout test performance across model and sampling
-combinations. It is used as a confirmation view rather than the sole
-model-selection mechanism. The final model is selected using
-cross-validated F1 Score among configurations that also produce usable
-holdout performance.</p>
-<p>This distinction matters because a model can look strong on one
-holdout metric while being less stable during cross-validation. In this
-report, cross-validation provides the primary model-selection evidence,
-while holdout results confirm whether the selected configuration remains
-practically useful on unseen data.</p>
-<p>The results show that no single configuration dominates every metric.
-Some approaches improve recall but reduce precision, while others are
-more conservative. This reinforces that turnover modeling should be
-interpreted as a decision-support layer, not as an automatic
-classification system.</p>
+<h2>Baseline Benchmark and Holdout Checkpoint</h2>
+<p>The baseline modeling page established the strongest no-sampling
+benchmark for turnover intention. In that comparison, <strong>SVM with
+No Sampling</strong> produced the strongest baseline F1 Score.</p>
+<p>This section uses that baseline winner as a reference point for the
+turnover-specific holdout results. The purpose of this plot is not to
+select the final model by holdout F1 alone. Instead, it shows how each
+turnover configuration performed against the original no-sampling
+benchmark on the holdout test set.</p>
+<p>This distinction matters. A model can look strong on a single holdout
+split but still be less reliable under cross-validation. For that
+reason, this project uses the holdout comparison as a practical
+checkpoint, while final model selection is based on cross-validated F1
+Score with holdout stability confirmation.</p>
+<p>The chart below places the baseline winner first. Bars extending to
+the right of the dashed line exceeded the baseline F1 Score on the
+holdout set, while bars ending to the left underperformed relative to
+that benchmark.</p>
+<p><img src="hr_data_turnover_intention_files/figure-html/15-turnover-f1-vs-baseline-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+<p>This holdout checkpoint shows that some configurations performed near
+or slightly above the baseline winner on the test split. In particular,
+a no-sampling model may perform well on holdout F1, but that does not
+automatically make it the final selected model.</p>
+<p>The final model is selected using a cross-validation-first rule.
+Cross-validation provides a more stable view of model performance across
+multiple resampled training folds, while the holdout test set confirms
+whether the selected configuration still produces usable predictions on
+unseen data.</p>
+<p>This approach prevents the analysis from overreacting to a single
+holdout result. The baseline and holdout comparison help explain model
+behavior, while the final selection rule determines which configuration
+is most defensible for workforce decision support.</p>
 </div>
 <div id="precision-recall" class="section level2">
 <h2>Precision–Recall Curve Analysis</h2>
-<p><img src="HR_Data_Turnover_Intention_files/figure-html/16-precision-recall-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
-<p>The precision–recall view shows how each model configuration balances
-detection capability against prediction reliability. Configurations
-farther to the right detect more at-risk employees, while configurations
-higher on the chart produce more reliable positive predictions.</p>
-<p>The selected configuration is highlighted with an outlined marker. It
-is not chosen because it maximizes a single metric in isolation; rather,
-it provides the strongest cross-validated F1 Score among configurations
-that also produced usable holdout performance.</p>
-<p>This reinforces the business logic behind the model-selection
-process: the goal is not to flag as many employees as possible or to
-avoid all false positives, but to create a practical risk-screening
-layer that can guide earlier review without replacing human
-judgment.</p>
+<p><img src="hr_data_turnover_intention_files/figure-html/16-precision-recall-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+<p>The precision–recall view shows how each turnover configuration
+balances risk detection with prediction reliability.</p>
+<p>Configurations farther to the right detect more employees with
+turnover intention. Configurations higher on the chart produce more
+reliable positive predictions. The selected model is highlighted because
+it represents the configuration chosen by the cross-validation-first
+selection rule after holdout stability confirmation.</p>
+<p>For turnover modeling, this tradeoff is important. A model that
+detects many potential cases may create too broad of a review queue,
+while a highly precise model may miss employees who could benefit from
+earlier retention support. The selected configuration should therefore
+be interpreted as a prioritization signal, not an automatic
+employee-level decision.</p>
 </div>
 <div id="cross-validated-model-comparison" class="section level2">
 <h2>Cross-Validated Model Comparison</h2>
 <div id="model-selection" class="section level3">
 <h3>Model Selection</h3>
+<p>The model-selection step should be interpreted separately from the
+baseline checkpoint above. The baseline checkpoint shows how
+configurations performed on one holdout test split relative to the
+no-sampling baseline winner. The final selection rule gives more weight
+to cross-validated F1 Score because it provides a more stable estimate
+of model behavior across resampled training folds.</p>
 <p>Model selection was guided by a two-step rule designed to balance
 statistical rigor with business usefulness.</p>
 <p>First, candidate configurations were ranked by cross-validated F1
@@ -424,7 +439,7 @@ context.</p>
 </div>
 <div id="selected-model-holdout-performance" class="section level2">
 <h2>Selected Model Holdout Performance</h2>
-<p><img src="HR_Data_Turnover_Intention_files/figure-html/18-final-model-metrics-plot-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="hr_data_turnover_intention_files/figure-html/18-final-model-metrics-plot-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
 </div>
 <div id="risk-distribution" class="section level2">
 <h2>Risk Distribution</h2>
@@ -437,7 +452,7 @@ fixed thresholds can sometimes place most employees into a single tier.
 The plot below keeps the probability view transparent while framing the
 thresholds as practical review cutoffs that should be calibrated to HR
 capacity, intervention cost, and tolerance for missed risk.</p>
-<p><img src="HR_Data_Turnover_Intention_files/figure-html/19-risk-distribution-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="hr_data_turnover_intention_files/figure-html/19-risk-distribution-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
 </div>
 <div id="review-priority-segmentation" class="section level2">
 <h2>Review-Priority Segmentation</h2>
@@ -449,16 +464,17 @@ unusable. It means the fixed thresholds are conservative for this
 probability distribution. In practice, HR teams could adjust cutoffs or
 use percentile-based review queues depending on available review
 capacity and intervention goals.</p>
-<p><img src="HR_Data_Turnover_Intention_files/figure-html/20-risk-segmentation-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
+<p><img src="hr_data_turnover_intention_files/figure-html/20-risk-segmentation-1.png" alt="" width="100%" style="display: block; margin: auto;" /></p>
 </div>
 </div>
 <div id="model-summary" class="section level1">
 <h1>Final Model Summary &amp; Key Takeaways</h1>
 <p>The selected model represents the strongest cross-validated F1 Score
 among configurations that also met minimum holdout stability
-requirements. This means the final model was not selected only because
-it performed well during resampling; it also had to produce usable
-positive-class predictions on unseen data.</p>
+requirements. This means the final model was not selected solely because
+it performed well on one holdout test split; it also had to demonstrate
+stronger generalizability during cross-validation and remain practically
+usable on unseen data.</p>
 <p>While the absolute performance values remain moderate, the model is
 useful as a <strong>risk prioritization tool</strong> because it helps
 rank employees by relative likelihood of turnover intention. This
@@ -677,22 +693,22 @@ decision-making.</p>
 <div class="page-nav">
 
   <div class="nav-left">
-    <a href="HR_Data_EDA.html" class="cta-btn btn-blue">← Back</a>
-  </div>
+  <a href="hr_data_modeling_baseline.html" class="cta-btn btn-blue">← Back</a>
+</div>
 
   <div class="nav-center">
     <a href="index.html" class="cta-btn btn-teal">Home</a>
   </div>
 
   <div class="nav-right">
-    <a href="HR_Data_Quiet_Quitting.html" class="cta-btn btn-red">Next →</a>
+    <a href="hr_data_quiet_quitting.html" class="cta-btn btn-red">Next →</a>
   </div>
 
 </div>
 
 </div> <!-- page-content -->
 </div> <!-- page-layout -->
-</div> <!-- main-container -->
+</div> <!-- report-container -->
 </div>
 </div>
 

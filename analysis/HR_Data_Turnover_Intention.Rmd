@@ -1,5 +1,5 @@
 ---
-title: ""
+title: "Turnover Intention Modeling | HR Workforce Analytics"
 
 output:
   html_document:
@@ -12,10 +12,8 @@ output:
     df_print: paged
     fig_caption: true
     css: assets/styles.css
-    includes:
-      in_header: ../docs/assets/header.html
 
-number_sections: true
+number_sections: false
 ---
 
 ```{=html}
@@ -63,10 +61,10 @@ number_sections: true
 
       <!-- REPLACED page-nav WITH cta-row -->
       <div class="cta-row">
-        <a href="HR_Data_EDA.html" class="cta-btn btn-blue">← Back</a>
-        <a href="index.html" class="cta-btn btn-teal">Home</a>
-        <a href="HR_Data_Quiet_Quitting.html" class="cta-btn btn-red">Next →</a>
-      </div>
+  <a href="hr_data_modeling_baseline.html" class="cta-btn btn-blue">← Back</a>
+  <a href="index.html" class="cta-btn btn-teal">Home</a>
+  <a href="hr_data_quiet_quitting.html" class="cta-btn btn-red">Next →</a>
+</div>
 ```
 
 ```{r 00-setup, include=FALSE}
@@ -142,27 +140,38 @@ base_df <- df %>%
 
 # Executive Summary {#executive-summary}
 
-This analysis develops a predictive modeling framework to identify employees at risk of turnover using a synthetic, research-informed HR dataset.
+This page builds on the baseline modeling comparison by focusing specifically on **turnover intention**.
 
-Multiple machine learning models—including Logistic Regression, Random Forest, XGBoost, Support Vector Machines, and Naive Bayes—were evaluated across multiple sampling strategies to address class imbalance and compare predictive performance under different modeling conditions.
+The baseline page established how five supervised learning models performed under a no-sampling condition. This report takes the next step by testing whether outcome-specific sampling strategies improve turnover-risk detection, model balance, and practical usefulness.
 
-Results show that **model effectiveness is shaped by both algorithm choice and data strategy**. Sampling strategies such as up-sampling, down-sampling, and SMOTE changed model behavior in meaningful ways, demonstrating that class-balancing choices can materially affect precision, recall, F1 Score, and overall usability.
+For this outcome, the goal is not simply to maximize accuracy. A useful turnover model needs to help identify employees who may warrant earlier retention review while avoiding an overly broad or unreliable flagging process.
 
-The final model-selection process uses **cross-validated F1 Score** as the primary ranking metric, while holdout test performance is used as a stability check to confirm that the selected configuration remains practically usable on unseen data.
+Multiple model configurations were evaluated across four data strategies:
 
-Rather than relying on a single predictive signal, turnover risk is influenced by a **combination of behavioral, organizational, wellbeing, and perception-based factors**, including engagement, burnout, managerial support, role conditions, and workplace experience.
+- **No Sampling**
+- **Up Sampling**
+- **Down Sampling**
+- **SMOTE**
 
-From a business perspective, this framework enables a shift from **reactive attrition response to proactive workforce risk management**, supporting earlier intervention, better resource allocation, and improved retention outcomes.
+Final model selection is based primarily on **cross-validated F1 Score**, with holdout performance used as a practical stability check. This keeps the analysis grounded in both model-development evidence and unseen test-set behavior.
+
+From a business perspective, the selected model should be interpreted as a **retention-risk prioritization tool**. It can help identify where HR, managers, or leaders may want to look more closely, but it should not replace employee context, manager judgment, or human review.
 
 # Modeling Overview {#modeling-overview}
 
-This section builds on the exploratory analysis by applying predictive modeling techniques to identify employees at risk of turnover.
+This report evaluates turnover intention as a binary classification problem, where **"Yes"** represents employees flagged as having elevated turnover intention.
 
-Rather than relying on a single model, multiple algorithms are evaluated and compared to determine the most effective approach for workforce decision-making.
+The modeling workflow follows a baseline-first structure:
 
-Each model is assessed using cross-validation and evaluated across multiple sampling strategies to address class imbalance.
+1. Establish the strongest no-sampling benchmark from the baseline modeling page.
+2. Train turnover-specific model configurations across sampling strategies.
+3. Compare holdout F1 performance against the baseline winner as a practical checkpoint.
+4. Review the precision–recall tradeoff for operational usefulness.
+5. Select the final model using cross-validated F1 Score with holdout stability confirmation.
 
-The objective is not only to identify the most accurate model, but to determine which approach best aligns with organizational priorities.
+This structure separates three related but different ideas: the **baseline winner**, the **holdout checkpoint**, and the **final selected model**.
+
+That distinction matters. A model may perform well on one holdout split, but final selection should not rely on a single test result alone. For this reason, the baseline and holdout comparison are used to explain model behavior, while the final recommendation is based on a cross-validation-first selection rule.
 
 # Data Preparation & Modeling Framework {#data-prep-framework}
 
@@ -728,99 +737,231 @@ stopifnot(
 )
 ```
 
-## Sampling Strategy Comparison {#sampling-strategy-comparison}
+## Baseline Benchmark and Holdout Checkpoint {#sampling-strategy-comparison}
 
-Class imbalance is a major challenge in turnover-intention modeling because employees likely to leave typically represent a smaller portion of the workforce population.
+The baseline modeling page established the strongest no-sampling benchmark for turnover intention. In that comparison, **SVM with No Sampling** produced the strongest baseline F1 Score.
 
-To better understand how class-balancing strategies influence workforce-risk detection, multiple resampling approaches were evaluated across all algorithms. The goal is not to artificially inflate performance, but to examine how different balancing strategies affect the tradeoff between risk detection capability and prediction reliability.
+This section uses that baseline winner as a reference point for the turnover-specific holdout results. The purpose of this plot is not to select the final model by holdout F1 alone. Instead, it shows how each turnover configuration performed against the original no-sampling benchmark on the holdout test set.
 
-This comparison helps demonstrate how modeling decisions influence practical workforce prioritization outcomes within HR analytics environments.
+This distinction matters. A model can look strong on a single holdout split but still be less reliable under cross-validation. For that reason, this project uses the holdout comparison as a practical checkpoint, while final model selection is based on cross-validated F1 Score with holdout stability confirmation.
 
-The models include:
+The chart below places the baseline winner first. Bars extending to the right of the dashed line exceeded the baseline F1 Score on the holdout set, while bars ending to the left underperformed relative to that benchmark.
 
-- No Sampling (baseline)
-- Up Sampling (increase minority class)
-- Down Sampling (reduce majority class)
-- SMOTE (synthetic minority generation)
+```{r 15-turnover-f1-vs-baseline, echo=FALSE}
+# -------------------------------------------------------------------
+# Turnover baseline benchmark and holdout checkpoint
+# -------------------------------------------------------------------
+# This plot is a checkpoint, not the final model-selection rule.
+# It compares turnover-specific holdout F1 results against the strongest
+# no-sampling turnover baseline from the baseline comparison page.
+# -------------------------------------------------------------------
 
-**The goal is to understand how balancing the dataset impacts model performance.**
+baseline_comparison <- readRDS(
+  here::here(
+    "data",
+    "processed",
+    "model_summaries",
+    "baseline_model_comparison.rds"
+  )
+)
 
-```{r 15-plot-sampling-comparison, echo=FALSE}
-plot_df <- results_all %>%
-  filter(.metric %in% c("precision", "recall", "f_meas", "roc_auc")) %>%
-  mutate(
-    Metric = factor(
-      Metric,
-      levels = c("Precision", "Recall", "F1 Score", "ROC AUC")
-    ),
-    Model_Sampling = paste(Model, Sampling, sep = " + ")
+turnover_baseline_ref <- baseline_comparison$best_baseline_by_outcome %>%
+  dplyr::filter(as.character(Outcome) == "Turnover Intention") %>%
+  dplyr::slice(1) %>%
+  dplyr::mutate(
+    Model = as.character(Model),
+    Sampling = as.character(Sampling),
+    f_meas = as.numeric(f_meas),
+    precision = as.numeric(precision),
+    recall = as.numeric(recall),
+    roc_auc = as.numeric(roc_auc)
   )
 
-f1_order <- plot_df %>%
-  filter(.metric == "f_meas") %>%
-  arrange(desc(.estimate)) %>%
-  pull(Model_Sampling)
+baseline_f1 <- turnover_baseline_ref$f_meas[[1]]
+baseline_model <- turnover_baseline_ref$Model[[1]]
 
-plot_df <- plot_df %>%
-  mutate(
-    Model_Sampling = factor(Model_Sampling, levels = rev(f1_order)),
-    Plot_Label = ifelse(
-      is.na(.estimate),
-      "",
-      scales::number(.estimate, accuracy = 0.001)
+turnover_holdout_wide <- results_all %>%
+  dplyr::filter(.metric %in% c("precision", "recall", "f_meas", "roc_auc")) %>%
+  dplyr::mutate(
+    Metric = dplyr::recode(
+      .metric,
+      precision = "Precision",
+      recall = "Recall",
+      f_meas = "F1 Score",
+      roc_auc = "ROC AUC"
+    )
+  ) %>%
+  dplyr::select(Model, Sampling, Metric, .estimate) %>%
+  dplyr::distinct() %>%
+  tidyr::pivot_wider(
+    names_from = Metric,
+    values_from = .estimate
+  ) %>%
+  dplyr::mutate(
+    Model = as.character(Model),
+    Sampling = as.character(Sampling),
+    Model_Config = paste(Model, Sampling, sep = " + "),
+    Source = "Turnover-Specific Configuration"
+  )
+
+baseline_plot_row <- tibble::tibble(
+  Model = baseline_model,
+  Sampling = "No Sampling",
+  Model_Config = paste0(baseline_model, " + No Sampling Baseline"),
+  Precision = turnover_baseline_ref$precision[[1]],
+  Recall = turnover_baseline_ref$recall[[1]],
+  `F1 Score` = baseline_f1,
+  `ROC AUC` = turnover_baseline_ref$roc_auc[[1]],
+  Source = "Baseline Reference"
+)
+
+plot_df <- turnover_holdout_wide %>%
+  dplyr::bind_rows(baseline_plot_row) %>%
+  dplyr::filter(!is.na(`F1 Score`)) %>%
+  dplyr::mutate(
+    Delta_F1 = `F1 Score` - baseline_f1,
+    Comparison_Group = dplyr::case_when(
+      Source == "Baseline Reference" ~ "Baseline Winner",
+      Delta_F1 >= 0 ~ "Above Baseline",
+      TRUE ~ "Below Baseline"
+    ),
+    Display_Label = dplyr::case_when(
+      Source == "Baseline Reference" ~ paste0(
+        baseline_model,
+        " Baseline Winner"
+      ),
+      TRUE ~ Model_Config
+    ),
+    Display_Label = stringr::str_wrap(Display_Label, width = 30),
+    Value_Label = dplyr::case_when(
+      Source == "Baseline Reference" ~ paste0(
+        "F1 = ",
+        scales::number(`F1 Score`, accuracy = 0.001)
+      ),
+      Delta_F1 >= 0 ~ paste0(
+        scales::number(`F1 Score`, accuracy = 0.001),
+        "  (+",
+        scales::number(Delta_F1, accuracy = 0.001),
+        ")"
+      ),
+      TRUE ~ paste0(
+        scales::number(`F1 Score`, accuracy = 0.001),
+        "  (",
+        scales::number(Delta_F1, accuracy = 0.001),
+        ")"
+      )
     )
   )
 
-p <- ggplot(plot_df, aes(x = Metric, y = Model_Sampling, fill = .estimate)) +
-  geom_tile(color = "white", linewidth = 0.6) +
-  geom_text(
-    aes(label = Plot_Label),
-    fontface = "bold",
-    size = 3.5,
-    color = "#243447"
-  ) +
-  scale_fill_gradient(
-    low = "#EAF2F8",
-    high = "#2E86C1",
-    limits = c(0, 1),
-    na.value = "#F2F4F4",
-    name = "Score"
-  ) +
-  labs(
-    title = "Holdout Performance Across Model Configurations",
-    subtitle = "Rows are ranked by holdout F1 Score; higher values indicate stronger performance",
-    x = NULL,
-    y = NULL
-  ) +
-  theme_hr(10) +
-  theme(
-    plot.title = element_text(face = "bold"),
-    plot.subtitle = element_text(size = 12, color = "#5a6b7c"),
-    axis.text.y = element_text(size = 10, face = "bold"),
-    axis.text.x = element_text(size = 10, face = "bold"),
-    legend.position = "right",
-    panel.grid = element_blank()
+ordered_labels <- c(
+  plot_df %>%
+    dplyr::filter(Source == "Baseline Reference") %>%
+    dplyr::pull(Display_Label),
+  plot_df %>%
+    dplyr::filter(Source != "Baseline Reference") %>%
+    dplyr::arrange(dplyr::desc(`F1 Score`)) %>%
+    dplyr::pull(Display_Label)
+)
+
+plot_df <- plot_df %>%
+  dplyr::mutate(
+    Display_Label = factor(Display_Label, levels = rev(ordered_labels))
   )
 
+p <- ggplot(
+  plot_df,
+  aes(
+    x = `F1 Score`,
+    y = Display_Label,
+    fill = Comparison_Group
+  )
+) +
+  geom_col(
+    width = 0.72,
+    alpha = 0.94
+  ) +
+  geom_vline(
+    xintercept = baseline_f1,
+    linetype = "22",
+    linewidth = 0.55,
+    color = "#425466"
+  ) +
+  geom_text(
+    data = dplyr::filter(plot_df, Source != "Baseline Reference"),
+    aes(label = Value_Label),
+    hjust = -0.06,
+    size = 2.9,
+    fontface = "bold",
+    color = "#243447"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Baseline Winner" = "#5AA0D6",
+      "Above Baseline" = "#33A08C",
+      "Below Baseline" = "#D7DDE5"
+    )
+  ) +
+  scale_x_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(
+      0,
+      min(1, max(plot_df$`F1 Score`, na.rm = TRUE) + 0.12)
+    ),
+    expand = expansion(mult = c(0, 0.01))
+  ) +
+  labs(
+    title = "Turnover Baseline Winner and Holdout Checkpoint",
+    subtitle = paste0(
+      "Baseline winner: ",
+      baseline_model,
+      " + No Sampling, F1 = ",
+      scales::number(baseline_f1, accuracy = 0.001),
+      "; holdout results are a checkpoint, not the sole selection rule"
+    ),
+    x = "Holdout F1 Score",
+    y = NULL,
+    fill = NULL
+  ) +
+  theme_hr(11) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15),
+    plot.subtitle = element_text(color = "#5A6B7C", size = 11),
+    axis.text.y = element_text(size = 8.6, face = "bold"),
+    axis.text.x = element_text(size = 10),
+    legend.position = "top",
+    legend.text = element_text(size = 9.3),
+    legend.spacing.x = unit(0.15, "in"),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(12, 42, 18, 10)
+  ) +
+  coord_cartesian(clip = "off")
+
 print(p)
-save_plot(p, "sampling_strategy_performance_heatmap.png", 10.5, 8)
+
+save_plot(
+  p,
+  "turnover_holdout_f1_vs_baseline.png",
+  width = 12.2,
+  height = 8.0
+)
 ```
 
-The heatmap shows holdout test performance across model and sampling combinations. It is used as a confirmation view rather than the sole model-selection mechanism. The final model is selected using cross-validated F1 Score among configurations that also produce usable holdout performance.
+This holdout checkpoint shows that some configurations performed near or slightly above the baseline winner on the test split. In particular, a no-sampling model may perform well on holdout F1, but that does not automatically make it the final selected model.
 
-This distinction matters because a model can look strong on one holdout metric while being less stable during cross-validation. In this report, cross-validation provides the primary model-selection evidence, while holdout results confirm whether the selected configuration remains practically useful on unseen data.
+The final model is selected using a cross-validation-first rule. Cross-validation provides a more stable view of model performance across multiple resampled training folds, while the holdout test set confirms whether the selected configuration still produces usable predictions on unseen data.
 
-The results show that no single configuration dominates every metric. Some approaches improve recall but reduce precision, while others are more conservative. This reinforces that turnover modeling should be interpreted as a decision-support layer, not as an automatic classification system.
+This approach prevents the analysis from overreacting to a single holdout result. The baseline and holdout comparison help explain model behavior, while the final selection rule determines which configuration is most defensible for workforce decision support.
 
 ## Precision–Recall Curve Analysis {#precision-recall}
 
 ```{r 16-precision-recall, echo=FALSE}
 pr_df <- results_all %>%
-  filter(.metric %in% c("precision", "recall", "f_meas")) %>%
-  select(Model, Sampling, .metric, .estimate) %>%
-  pivot_wider(names_from = .metric, values_from = .estimate) %>%
-  filter(!is.na(precision), !is.na(recall), !is.na(f_meas)) %>%
-  mutate(
+  dplyr::filter(.metric %in% c("precision", "recall", "f_meas")) %>%
+  dplyr::select(Model, Sampling, .metric, .estimate) %>%
+  tidyr::pivot_wider(names_from = .metric, values_from = .estimate) %>%
+  dplyr::filter(!is.na(precision), !is.na(recall), !is.na(f_meas)) %>%
+  dplyr::mutate(
     Model = factor(as.character(Model), levels = names(model_colors)),
     Sampling = factor(as.character(Sampling), levels = sampling_order),
     Model_Config = paste(Model, Sampling, sep = " + "),
@@ -828,80 +969,100 @@ pr_df <- results_all %>%
   )
 
 selected_point <- pr_df %>%
-  filter(Is_Selected) %>%
+  dplyr::filter(Is_Selected) %>%
   dplyr::slice(1)
+
+selected_label <- paste0(
+  "Selected Model\n",
+  top_model_config,
+  "\nF1 = ",
+  scales::number(selected_point$f_meas[[1]], accuracy = 0.001),
+  " | Precision = ",
+  scales::number(selected_point$precision[[1]], accuracy = 0.001),
+  " | Recall = ",
+  scales::number(selected_point$recall[[1]], accuracy = 0.001)
+)
 
 p <- ggplot(
   pr_df,
   aes(
     x = recall,
-    y = precision,
-    color = Model,
-    shape = Sampling
+    y = precision
   )
 ) +
-  geom_vline(
-    xintercept = 0.50,
-    linetype = "dashed",
-    color = "#D5DBDB",
-    linewidth = 0.5
-  ) +
-  geom_hline(
-    yintercept = 0.50,
-    linetype = "dashed",
-    color = "#D5DBDB",
-    linewidth = 0.5
-  ) +
   annotate(
     "rect",
     xmin = 0.45,
-    xmax = 0.65,
+    xmax = 0.70,
     ymin = 0.45,
-    ymax = 0.65,
+    ymax = 0.70,
     alpha = 0.08,
     fill = "#2A9D8F"
   ) +
   annotate(
     "text",
-    x = 0.55,
-    y = 0.67,
+    x = 0.575,
+    y = 0.72,
     label = "Balanced Operational Zone",
-    size = 4.2,
+    size = 4.1,
     fontface = "bold",
     color = "#1B4332"
   ) +
+  geom_vline(
+    xintercept = 0.50,
+    linetype = "dashed",
+    color = "#D5DBDB",
+    linewidth = 0.6
+  ) +
+  geom_hline(
+    yintercept = 0.50,
+    linetype = "dashed",
+    color = "#D5DBDB",
+    linewidth = 0.6
+  ) +
   geom_point(
-    aes(size = f_meas),
-    alpha = 0.72
+    aes(
+      color = Model,
+      shape = Sampling,
+      size = f_meas
+    ),
+    alpha = 0.78,
+    stroke = 1
   ) +
   geom_point(
     data = selected_point,
     aes(x = recall, y = precision),
     inherit.aes = FALSE,
     shape = 21,
-    size = 7,
-    stroke = 1.3,
-    fill = "white",
-    color = "#1F2D3D"
+    size = 8.5,
+    stroke = 1.6,
+    color = "#1F2D3D",
+    fill = "white"
   ) +
-  geom_label(
-    data = selected_point,
-    aes(
-      x = pmin(recall + 0.06, 0.88),
-      y = pmin(precision + 0.07, 0.92),
-      label = paste0(
-        "Selected Model\n",
-        Model_Config,
-        "\nF1 = ",
-        scales::number(f_meas, accuracy = 0.001)
-      )
-    ),
-    inherit.aes = FALSE,
-    size = 3.1,
+  annotate(
+    "label",
+    x = 0.17,
+    y = 0.90,
+    label = selected_label,
+    size = 3.2,
     fontface = "bold",
     color = "#243447",
     fill = "white",
-    label.size = 0.25
+    label.size = 0.25,
+    hjust = 0
+  ) +
+  geom_segment(
+    data = selected_point,
+    aes(
+      x = 0.37,
+      y = 0.83,
+      xend = recall,
+      yend = precision
+    ),
+    inherit.aes = FALSE,
+    color = "#7A8A99",
+    linewidth = 0.45,
+    linetype = "dotted"
   ) +
   scale_color_manual(values = model_colors) +
   scale_shape_manual(
@@ -913,37 +1074,39 @@ p <- ggplot(
     )
   ) +
   scale_size_continuous(
-    range = c(3.2, 6.8),
+    range = c(3.5, 7),
     guide = "none"
   ) +
   scale_x_continuous(
-    limits = c(0, 1),
-    labels = scales::percent_format(accuracy = 1)
+    limits = c(0, 1.05),
+    labels = scales::percent_format(accuracy = 1),
+    breaks = c(0, 0.25, 0.50, 0.75, 1.00)
   ) +
   scale_y_continuous(
-    limits = c(0, 1),
-    labels = scales::percent_format(accuracy = 1)
+    limits = c(0, 1.05),
+    labels = scales::percent_format(accuracy = 1),
+    breaks = c(0, 0.25, 0.50, 0.75, 1.00)
   ) +
   labs(
-    title = "Precision–Recall Tradeoff by Model Configuration",
-    subtitle = "Holdout results compare detection capability against prediction reliability",
-    x = "Recall: Share of at-risk employees detected",
-    y = "Precision: Reliability of at-risk predictions",
+    title = "Turnover Precision–Recall Tradeoff",
+    subtitle = "Holdout results compare detection coverage against reliability of positive turnover-risk predictions",
+    x = "Recall: Share of actual turnover-risk cases detected",
+    y = "Precision: Reliability of turnover-risk predictions",
     color = "Model",
     shape = "Sampling"
   ) +
   guides(
-    color = guide_legend(order = 1, override.aes = list(size = 4, alpha = 1)),
-    shape = guide_legend(order = 2, override.aes = list(size = 4, alpha = 1))
+    color = guide_legend(order = 1, override.aes = list(size = 4.5, alpha = 1)),
+    shape = guide_legend(order = 2, override.aes = list(size = 4.5, alpha = 1))
   ) +
   theme_hr(11) +
   theme(
     plot.title = element_text(face = "bold", size = 15),
     plot.subtitle = element_text(
-  size = 12,
-  color = "#5a6b7c",
-  margin = margin(b = 12)
-),
+      size = 11,
+      color = "#5A6B7C",
+      margin = margin(b = 12)
+    ),
     axis.title = element_text(size = 10),
     axis.text = element_text(size = 9),
     legend.position = "right",
@@ -951,18 +1114,24 @@ p <- ggplot(
     legend.title = element_text(face = "bold"),
     legend.text = element_text(size = 8.5),
     panel.grid.minor = element_blank(),
-    plot.margin = margin(10, 20, 15, 10)
+    plot.margin = margin(10, 28, 16, 10)
   )
 
 print(p)
-save_plot(p, "precision_recall_tradeoff.png", 10.5, 5.8)
+
+save_plot(
+  p,
+  "precision_recall_tradeoff.png",
+  width = 10.8,
+  height = 6.2
+)
 ```
 
-The precision–recall view shows how each model configuration balances detection capability against prediction reliability. Configurations farther to the right detect more at-risk employees, while configurations higher on the chart produce more reliable positive predictions.
+The precision–recall view shows how each turnover configuration balances risk detection with prediction reliability.
 
-The selected configuration is highlighted with an outlined marker. It is not chosen because it maximizes a single metric in isolation; rather, it provides the strongest cross-validated F1 Score among configurations that also produced usable holdout performance.
+Configurations farther to the right detect more employees with turnover intention. Configurations higher on the chart produce more reliable positive predictions. The selected model is highlighted because it represents the configuration chosen by the cross-validation-first selection rule after holdout stability confirmation.
 
-This reinforces the business logic behind the model-selection process: the goal is not to flag as many employees as possible or to avoid all false positives, but to create a practical risk-screening layer that can guide earlier review without replacing human judgment.
+For turnover modeling, this tradeoff is important. A model that detects many potential cases may create too broad of a review queue, while a highly precise model may miss employees who could benefit from earlier retention support. The selected configuration should therefore be interpreted as a prioritization signal, not an automatic employee-level decision.
 
 ## Cross-Validated Model Comparison
 
@@ -1006,6 +1175,8 @@ decision_table %>%
 ```
 
 ### Model Selection {#model-selection}
+
+The model-selection step should be interpreted separately from the baseline checkpoint above. The baseline checkpoint shows how configurations performed on one holdout test split relative to the no-sampling baseline winner. The final selection rule gives more weight to cross-validated F1 Score because it provides a more stable estimate of model behavior across resampled training folds.
 
 Model selection was guided by a two-step rule designed to balance statistical rigor with business usefulness.
 
@@ -1254,7 +1425,7 @@ save_plot(p, "risk_segments.png", 7.8, 5)
 
 # Final Model Summary & Key Takeaways {#model-summary}
 
-The selected model represents the strongest cross-validated F1 Score among configurations that also met minimum holdout stability requirements. This means the final model was not selected only because it performed well during resampling; it also had to produce usable positive-class predictions on unseen data.
+The selected model represents the strongest cross-validated F1 Score among configurations that also met minimum holdout stability requirements. This means the final model was not selected solely because it performed well on one holdout test split; it also had to demonstrate stronger generalizability during cross-validation and remain practically usable on unseen data.
 
 While the absolute performance values remain moderate, the model is useful as a **risk prioritization tool** because it helps rank employees by relative likelihood of turnover intention. This distinction is important: the model should not be used to make automatic employment decisions. Instead, it supports earlier review, targeted retention conversations, and more focused workforce planning.
 
@@ -1606,20 +1777,20 @@ saveRDS(
 <div class="page-nav">
 
   <div class="nav-left">
-    <a href="HR_Data_EDA.html" class="cta-btn btn-blue">← Back</a>
-  </div>
+  <a href="hr_data_modeling_baseline.html" class="cta-btn btn-blue">← Back</a>
+</div>
 
   <div class="nav-center">
     <a href="index.html" class="cta-btn btn-teal">Home</a>
   </div>
 
   <div class="nav-right">
-    <a href="HR_Data_Quiet_Quitting.html" class="cta-btn btn-red">Next →</a>
+    <a href="hr_data_quiet_quitting.html" class="cta-btn btn-red">Next →</a>
   </div>
 
 </div>
 
 </div> <!-- page-content -->
 </div> <!-- page-layout -->
-</div> <!-- main-container -->
+</div> <!-- report-container -->
 ```
